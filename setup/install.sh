@@ -186,6 +186,15 @@ fi
 # Get the Pi's IP address
 PI_IP=$(hostname -I | awk '{print $1}')
 
+# Step 13: Run verification
+log_info "Running API verification..."
+echo ""
+if "$APP_DIR/setup/verify.sh" "localhost:${APP_PORT}"; then
+    VERIFY_STATUS="passed"
+else
+    VERIFY_STATUS="failed"
+fi
+
 echo ""
 echo "=============================================="
 echo -e "${GREEN}KAK Cup Installation Complete!${NC}"
@@ -195,11 +204,18 @@ echo "The application is now running at:"
 echo "  http://${PI_IP}:${APP_PORT}"
 echo "  http://localhost:${APP_PORT}"
 echo ""
+if [ "$VERIFY_STATUS" = "passed" ]; then
+    echo -e "${GREEN}API Verification: All tests passed!${NC}"
+else
+    echo -e "${YELLOW}API Verification: Some tests failed. Check logs for details.${NC}"
+fi
+echo ""
 echo "Useful commands:"
 echo "  sudo systemctl status $APP_NAME   - Check service status"
 echo "  sudo systemctl restart $APP_NAME  - Restart the service"
 echo "  sudo systemctl stop $APP_NAME     - Stop the service"
 echo "  sudo journalctl -u $APP_NAME -f   - View live logs"
+echo "  $APP_DIR/setup/verify.sh          - Run API verification"
 echo ""
 echo "Configuration files:"
 echo "  App directory:    $APP_DIR"
