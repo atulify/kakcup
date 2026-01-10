@@ -1,82 +1,84 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, decimal, unique, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 // Session storage table
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: text("sid").primaryKey(),
+    sess: text("sess").notNull(), // JSON stored as text
+    expire: integer("expire", { mode: 'timestamp' }).notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  (table) => ({
+    expireIdx: index("IDX_session_expire").on(table.expire),
+  }),
 );
 
 // User storage table with username/password authentication
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: varchar("username").unique(),
-  email: varchar("email").unique(),
-  passwordHash: varchar("password_hash"),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").notNull().default("user"), // 'user' or 'admin'
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  username: text("username").unique(),
+  email: text("email").unique(),
+  passwordHash: text("password_hash"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  profileImageUrl: text("profile_image_url"),
+  role: text("role").notNull().default("user"), // 'user' or 'admin'
+  createdAt: integer("created_at", { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
-export const years = pgTable("years", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const years = sqliteTable("years", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   year: integer("year").notNull().unique(),
   name: text("name").notNull(),
   status: text("status").notNull().default("upcoming"), // upcoming, active, completed
-  fishing_locked: boolean("fishing_locked").notNull().default(false),
+  fishing_locked: integer("fishing_locked", { mode: 'boolean' }).notNull().default(false),
 });
 
-export const teams = pgTable("teams", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  yearId: varchar("year_id").notNull(),
+export const teams = sqliteTable("teams", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  yearId: text("year_id").notNull(),
   name: text("name").notNull(),
   position: integer("position").notNull(), // 1-7 for team ordering
   kak1: text("kak1"), // member 1 name
-  kak2: text("kak2"), // member 2 name  
+  kak2: text("kak2"), // member 2 name
   kak3: text("kak3"), // member 3 name
   kak4: text("kak4"), // member 4 name
-  locked: boolean("locked").notNull().default(false), // team lock status
+  locked: integer("locked", { mode: 'boolean' }).notNull().default(false), // team lock status
 });
 
-export const fishWeights = pgTable("fish_weights", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  yearId: varchar("year_id").notNull(),
-  teamId: varchar("team_id").notNull(),
-  weight: decimal("weight", { precision: 10, scale: 2 }), // weight in pounds with decimals
+export const fishWeights = sqliteTable("fish_weights", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  yearId: text("year_id").notNull(),
+  teamId: text("team_id").notNull(),
+  weight: real("weight"), // weight in pounds with decimals
   notes: text("notes"), // optional notes about the catch
 });
 
-export const chugTimes = pgTable("chug_times", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  yearId: varchar("year_id").notNull(),
-  teamId: varchar("team_id").notNull(),
-  chug1: decimal("chug_1", { precision: 10, scale: 2 }), // first chug time
-  chug2: decimal("chug_2", { precision: 10, scale: 2 }), // second chug time
-  average: decimal("average", { precision: 10, scale: 3 }), // average of chug1 and chug2
+export const chugTimes = sqliteTable("chug_times", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  yearId: text("year_id").notNull(),
+  teamId: text("team_id").notNull(),
+  chug1: real("chug_1"), // first chug time
+  chug2: real("chug_2"), // second chug time
+  average: real("average"), // average of chug1 and chug2
   notes: text("notes"), // optional notes about the chug
 }, (table) => ({
-  uniqueYearTeam: unique().on(table.yearId, table.teamId),
+  uniqueYearTeam: index("unique_chug_year_team").on(table.yearId, table.teamId),
 }));
 
-export const golfScores = pgTable("golf_scores", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  yearId: varchar("year_id").notNull(),
-  teamId: varchar("team_id").notNull(),
+export const golfScores = sqliteTable("golf_scores", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  yearId: text("year_id").notNull(),
+  teamId: text("team_id").notNull(),
   score: integer("score"), // golf score
   notes: text("notes"), // optional notes about the round
 }, (table) => ({
-  uniqueYearTeam: unique().on(table.yearId, table.teamId),
+  uniqueYearTeam: index("unique_golf_year_team").on(table.yearId, table.teamId),
 }));
 
 // Relations

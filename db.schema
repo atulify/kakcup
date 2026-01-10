@@ -1,0 +1,108 @@
+CREATE SCHEMA "public";
+
+CREATE SCHEMA "_system";
+
+CREATE TABLE "chug_times" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "year_id" varchar NOT NULL UNIQUE,
+  "team_id" varchar NOT NULL UNIQUE,
+  "notes" text,
+  "chug_1" numeric(10, 2),
+  "chug_2" numeric(10, 2),
+  "average" numeric(10, 3),
+  CONSTRAINT "unique_chug_year_team" UNIQUE ("year_id", "team_id")
+);
+
+CREATE TABLE "fish_weights" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "year_id" varchar NOT NULL,
+  "team_id" varchar NOT NULL,
+  "weight" numeric(10, 2),
+  "notes" text
+);
+
+CREATE TABLE "golf_scores" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "year_id" varchar NOT NULL UNIQUE,
+  "team_id" varchar NOT NULL UNIQUE,
+  "score" integer,
+  "notes" text,
+  CONSTRAINT "unique_golf_year_team" UNIQUE ("year_id", "team_id")
+);
+
+CREATE TABLE "sessions" (
+  "sid" varchar PRIMARY KEY,
+  "sess" jsonb NOT NULL,
+  "expire" timestamp NOT NULL
+);
+
+CREATE TABLE "teams" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "year_id" varchar NOT NULL,
+  "name" text NOT NULL,
+  "position" integer NOT NULL,
+  "kak1" text,
+  "kak2" text,
+  "kak3" text,
+  "kak4" text,
+  "locked" boolean DEFAULT FALSE NOT NULL
+);
+
+CREATE TABLE "users" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "username" varchar CONSTRAINT "users_username_key" UNIQUE,
+  "email" varchar CONSTRAINT "users_email_key" UNIQUE,
+  "first_name" varchar,
+  "last_name" varchar,
+  "profile_image_url" varchar,
+  "role" varchar DEFAULT 'user' NOT NULL,
+  "created_at" timestamp DEFAULT now(),
+  "updated_at" timestamp DEFAULT now(),
+  "password_hash" varchar
+);
+
+CREATE TABLE "years" (
+  "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+  "year" integer NOT NULL CONSTRAINT "years_year_unique" UNIQUE,
+  "name" text NOT NULL,
+  "status" text DEFAULT 'upcoming' NOT NULL,
+  "fishing_locked" boolean DEFAULT FALSE NOT NULL
+);
+
+CREATE TABLE "_system"."replit_database_migrations_v1" (
+  "id" bigserial PRIMARY KEY,
+  "build_id" text NOT NULL,
+  "deployment_id" text NOT NULL,
+  "statement_count" bigint NOT NULL,
+  "applied_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX "chug_times_pkey" ON "chug_times" ("id");
+
+CREATE UNIQUE INDEX "unique_chug_year_team" ON "chug_times" ("year_id", "team_id");
+
+CREATE UNIQUE INDEX "fish_weights_pkey" ON "fish_weights" ("id");
+
+CREATE UNIQUE INDEX "golf_scores_pkey" ON "golf_scores" ("id");
+
+CREATE UNIQUE INDEX "unique_golf_year_team" ON "golf_scores" ("year_id", "team_id");
+
+CREATE INDEX "idx_session_expire" ON "sessions" ("expire");
+
+CREATE UNIQUE INDEX "sessions_pkey" ON "sessions" ("sid");
+
+CREATE UNIQUE INDEX "teams_pkey" ON "teams" ("id");
+
+CREATE UNIQUE INDEX "users_email_key" ON "users" ("email");
+
+CREATE UNIQUE INDEX "users_pkey" ON "users" ("id");
+
+CREATE UNIQUE INDEX "users_username_key" ON "users" ("username");
+
+CREATE UNIQUE INDEX "years_pkey" ON "years" ("id");
+
+CREATE UNIQUE INDEX "years_year_unique" ON "years" ("year");
+
+CREATE UNIQUE INDEX "idx_replit_database_migrations_v1_build_id" ON "_system"."replit_database_migrations_v1" ("build_id");
+
+CREATE UNIQUE INDEX "replit_database_migrations_v1_pkey" ON "_system"."replit_database_migrations_v1" ("id");
