@@ -6,3 +6,5 @@ vite.config.ts.*
 *.tar.gz
 data/
 kakcup.db
+test*.db
+test-*.db

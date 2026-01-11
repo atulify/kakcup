@@ -1,20 +1,53 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import SqliteStore from "better-sqlite3-session-store";
 import { storage } from "./storage";
 import { isAuthenticated, isAdmin, verifyPassword, hashPassword } from "./auth";
 import { insertYearSchema, insertTeamSchema } from "@shared/schema";
+import { isPostgres, pgPool } from "./db";
+import Database from "better-sqlite3";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session middleware
+  // Session middleware with database-backed storage
   app.set("trust proxy", 1);
+
+  // Configure session store based on database type
+  let sessionStore;
+  if (isPostgres && pgPool) {
+    // PostgreSQL session store
+    const PgSession = connectPgSimple(session);
+    sessionStore = new PgSession({
+      pool: pgPool,
+      tableName: 'sessions',
+      createTableIfMissing: true,
+    });
+  } else {
+    // SQLite session store
+    const dbPath = path.resolve(__dirname, "../kakcup.db");
+    const SqliteSessionStore = SqliteStore(session);
+    sessionStore = new SqliteSessionStore({
+      client: new Database(dbPath),
+      expired: {
+        clear: true,
+        intervalMs: 900000, // Clean up expired sessions every 15 minutes
+      },
+    });
+  }
+
   app.use(session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || 'default-session-secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
     },
   }));
