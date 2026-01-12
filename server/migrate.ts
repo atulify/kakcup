@@ -470,15 +470,20 @@ async function importData(client: Database.Database | Pool, isPostgres: boolean)
   }
 }
 
-// Run the appropriate migration
-if (isPostgres) {
-  migratePostgreSQL().catch((error) => {
-    console.error("Migration failed:", error);
-    process.exit(1);
-  });
-} else {
-  migrateSqlite().catch((error) => {
-    console.error("Migration failed:", error);
-    process.exit(1);
-  });
+// Export functions for use in other modules
+export { migrateSqlite, migratePostgreSQL };
+
+// Run the appropriate migration when this module is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  if (isPostgres) {
+    migratePostgreSQL().catch((error) => {
+      console.error("Migration failed:", error);
+      process.exit(1);
+    });
+  } else {
+    migrateSqlite().catch((error) => {
+      console.error("Migration failed:", error);
+      process.exit(1);
+    });
+  }
 }

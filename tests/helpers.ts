@@ -7,16 +7,15 @@ import { existsSync, unlinkSync } from 'fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Creates a test SQLite database
+ * Creates a test SQLite database (in-memory for speed and to avoid file locking)
  */
 export function createTestDatabase() {
-  // Use a unique database file for each test to avoid conflicts
-  const dbPath = path.resolve(__dirname, `../test-${Date.now()}-${Math.random()}.db`);
-
-  const sqlite = new Database(dbPath, {
+  // Use in-memory database for tests - faster and no file locking issues
+  const sqlite = new Database(':memory:', {
     readonly: false,
     fileMustExist: false,
   });
+  const dbPath = ':memory:';
 
   // Create tables
   sqlite.exec(`
