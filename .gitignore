@@ -8,3 +8,5 @@ data
 kakcup.db
 test*.db
 test-*.db
+.vercel
+.env*.local
