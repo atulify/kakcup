@@ -1,13 +1,15 @@
-// Use timestamp for cache versioning to ensure cache invalidation on new deployments
-const CACHE_VERSION = Date.now();
-const CACHE_NAME = `kak-cup-v${CACHE_VERSION}`;
+// Use fixed version for cache - update this when deploying
+const CACHE_VERSION = 'v1.1.0';
+const CACHE_NAME = `kak-cup-${CACHE_VERSION}`;
 const STATIC_CACHE = 'kak-cup-static';
 
 const urlsToCache = [
   '/',
   '/src/main.tsx',
   '/src/index.css',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+  '/icon-192.png',
+  '/icon-180.png',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap'
 ];
 
 self.addEventListener('install', (event) => {

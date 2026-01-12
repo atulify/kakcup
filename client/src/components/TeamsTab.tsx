@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ interface TeamsTabProps {
   yearId: string;
 }
 
-export default function TeamsTab({ yearId }: TeamsTabProps) {
+const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
   const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
@@ -791,4 +791,6 @@ export default function TeamsTab({ yearId }: TeamsTabProps) {
 
     </div>
   );
-}
+});
+
+export default TeamsTab;

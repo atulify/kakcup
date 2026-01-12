@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Plus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ interface GolfTabProps {
   yearId: string;
 }
 
-export default function GolfTab({ yearId }: GolfTabProps) {
+const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [score, setScore] = useState("");
@@ -486,4 +486,6 @@ export default function GolfTab({ yearId }: GolfTabProps) {
       )}
     </div>
   );
-}
+});
+
+export default GolfTab;

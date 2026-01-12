@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Plus, Lock } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,7 @@ interface FishTabProps {
   yearData?: any;
 }
 
-export default function FishTab({ yearId, yearData: parentYearData }: FishTabProps) {
+const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: FishTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [weight, setWeight] = useState("");
@@ -594,4 +594,6 @@ export default function FishTab({ yearId, yearData: parentYearData }: FishTabPro
       )}
     </div>
   );
-}
+});
+
+export default FishTab;

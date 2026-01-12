@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Plus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ interface ChugTabProps {
   yearId: string;
 }
 
-export default function ChugTab({ yearId }: ChugTabProps) {
+const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [time1, setTime1] = useState("");
@@ -512,4 +512,6 @@ export default function ChugTab({ yearId }: ChugTabProps) {
       )}
     </div>
   );
-}
+});
+
+export default ChugTab;

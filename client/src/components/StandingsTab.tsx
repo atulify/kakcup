@@ -1,3 +1,4 @@
+import { useMemo, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Team } from "@shared/schema";
 
@@ -5,7 +6,7 @@ interface StandingsTabProps {
   yearId: string;
 }
 
-export default function StandingsTab({ yearId }: StandingsTabProps) {
+const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
     queryFn: async () => {
@@ -51,7 +52,10 @@ export default function StandingsTab({ yearId }: StandingsTabProps) {
 
   const sortedTeams = teams?.sort((a: Team, b: Team) => a.position - b.position) || [];
 
-  // Calculate Fish Points
+  // Memoize standings calculation to avoid recalculating on every render
+  const standings = useMemo(() => {
+
+    // Calculate Fish Points
   const fishPointsMap = new Map<string, number>();
   if (fishWeights && fishWeights.length > 0) {
     // Group weights by team and get top 3 per team
@@ -182,26 +186,29 @@ export default function StandingsTab({ yearId }: StandingsTabProps) {
     }
   }
 
-  // Calculate total standings
-  const standings = sortedTeams.map((team: Team) => {
-    const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
-    const fishPoints = fishPointsMap.get(team.id) || 0;
-    const chugPoints = chugPointsMap.get(team.id) || 0;
-    const golfPoints = golfPointsMap.get(team.id) || 0;
-    const totalPoints = fishPoints + chugPoints + golfPoints;
+    // Calculate total standings
+    const standingsData = sortedTeams.map((team: Team) => {
+      const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
+      const fishPoints = fishPointsMap.get(team.id) || 0;
+      const chugPoints = chugPointsMap.get(team.id) || 0;
+      const golfPoints = golfPointsMap.get(team.id) || 0;
+      const totalPoints = fishPoints + chugPoints + golfPoints;
 
-    return {
-      team,
-      members,
-      fishPoints,
-      chugPoints,
-      golfPoints,
-      totalPoints
-    };
-  });
+      return {
+        team,
+        members,
+        fishPoints,
+        chugPoints,
+        golfPoints,
+        totalPoints
+      };
+    });
 
-  // Sort by total points (highest first)
-  standings.sort((a, b) => b.totalPoints - a.totalPoints);
+    // Sort by total points (highest first)
+    standingsData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    return standingsData;
+  }, [teams, fishWeights, chugTimes, golfScores]);
 
   return (
     <div className="p-4 bg-background">
@@ -421,4 +428,6 @@ export default function StandingsTab({ yearId }: StandingsTabProps) {
       </div>
     </div>
   );
-}
+});
+
+export default StandingsTab;
