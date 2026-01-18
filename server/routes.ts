@@ -2,12 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import SqliteStore from "better-sqlite3-session-store";
-import { storage } from "./storage";
-import { isAuthenticated, isAdmin, verifyPassword, hashPassword } from "./auth";
-import { insertYearSchema, insertTeamSchema } from "@shared/schema";
-import { isPostgres, pgPool } from "./db";
-import Database from "better-sqlite3";
+import { storage } from "./storage.js";
+import { isAuthenticated, isAdmin, verifyPassword, hashPassword } from "./auth.js";
+import { insertYearSchema, insertTeamSchema } from "../shared/schema.js";
+import { isPostgres, pgPool } from "./db.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -28,7 +26,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       createTableIfMissing: true,
     });
   } else {
-    // SQLite session store
+    // SQLite session store (local development only)
+    // Dynamic import to avoid loading native modules in serverless environment
+    const SqliteStore = (await import("better-sqlite3-session-store")).default;
+    const Database = (await import("better-sqlite3")).default;
     const dbPath = path.resolve(__dirname, "../kakcup.db");
     const SqliteSessionStore = SqliteStore(session);
     sessionStore = new SqliteSessionStore({

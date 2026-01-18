@@ -119,7 +119,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
         teamId: ct.teamId,
         average: parseFloat(ct.average?.toString() || '999')
       }))
-      .sort((a, b) => a.average - b.average); // Sort ascending (fastest first)
+      .sort((a: { teamId: string; average: number }, b: { teamId: string; average: number }) => a.average - b.average); // Sort ascending (fastest first)
 
     let currentRank = 1;
     let i = 0;
@@ -139,7 +139,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       }
       const pointsPerTeam = totalPoints / tiedTeams.length;
       
-      tiedTeams.forEach(({ teamId }) => {
+      tiedTeams.forEach(({ teamId }: { teamId: string }) => {
         chugPointsMap.set(teamId, pointsPerTeam);
       });
       
@@ -157,7 +157,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
         teamId: gs.teamId,
         score: parseInt(gs.score?.toString() || '999')
       }))
-      .sort((a, b) => a.score - b.score); // Sort ascending (lowest score first)
+      .sort((a: { teamId: string; score: number }, b: { teamId: string; score: number }) => a.score - b.score); // Sort ascending (lowest score first)
 
     let currentRank = 1;
     let i = 0;
@@ -177,7 +177,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       }
       const pointsPerTeam = totalPoints / tiedTeams.length;
       
-      tiedTeams.forEach(({ teamId }) => {
+      tiedTeams.forEach(({ teamId }: { teamId: string }) => {
         golfPointsMap.set(teamId, pointsPerTeam);
       });
       
@@ -205,7 +205,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
     });
 
     // Sort by total points (highest first)
-    standingsData.sort((a, b) => b.totalPoints - a.totalPoints);
+    standingsData.sort((a: typeof standingsData[0], b: typeof standingsData[0]) => b.totalPoints - a.totalPoints);
 
     return standingsData;
   }, [teams, fishWeights, chugTimes, golfScores]);
@@ -253,7 +253,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
               </tr>
             </thead>
             <tbody>
-              {standings.map((standing, index) => {
+              {standings.map((standing: typeof standings[0], index: number) => {
                 // Calculate rank with tie handling
                 let displayRank = (index + 1).toString();
                 

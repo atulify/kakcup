@@ -10,3 +10,6 @@ test*.db
 test-*.db
 .vercel
 .env*.local
+.env.init
+.env.vercel.local
+api/index.js

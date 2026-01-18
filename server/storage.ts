@@ -1,5 +1,5 @@
-import { users, years, teams, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "@shared/schema";
-import { db } from "./db";
+import { users, years, teams, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
+import { db } from "./db.js";
 import { eq, and } from "drizzle-orm";
 
 export interface IStorage {

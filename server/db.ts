@@ -1,8 +1,6 @@
-import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3';
 import { drizzle as drizzlePostgres } from 'drizzle-orm/node-postgres';
-import Database from 'better-sqlite3';
 import { Pool } from 'pg';
-import * as schema from "@shared/schema";
+import * as schema from "../shared/schema.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -12,22 +10,46 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATABASE_URL = process.env.DATABASE_URL;
 export const isPostgres = !!DATABASE_URL;
 
-let db: ReturnType<typeof drizzleSqlite> | ReturnType<typeof drizzlePostgres>;
+// Type the db variable to work with both SQLite and PostgreSQL
+// At runtime, only one will be used based on DATABASE_URL
+let db: any;
 let pgPool: Pool | null = null;
 
 if (isPostgres) {
-  // PostgreSQL connection
+  // PostgreSQL connection with optimized pooling for serverless
   console.log("Using PostgreSQL database");
+
+  // Ensure sslmode=verify-full for security (addresses pg deprecation warning)
+  let connectionString = DATABASE_URL;
+  if (connectionString && !connectionString.includes('sslmode=')) {
+    connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=verify-full';
+  }
+
   pgPool = new Pool({
-    connectionString: DATABASE_URL,
+    connectionString,
+    // Serverless-optimized pool settings
+    max: 10, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 10000, // Return error after 10 seconds if unable to connect
+    // Allow pool to be reused across function invocations
+    allowExitOnIdle: false,
   });
-  db = drizzlePostgres(pgPool, { schema });
+
+  // Handle pool errors
+  pgPool.on('error', (err) => {
+    console.error('Unexpected error on idle PostgreSQL client', err);
+  });
+
+  db = drizzlePostgres(pgPool, { schema }) as any;
 } else {
-  // SQLite connection
+  // SQLite connection (local development only)
+  // Dynamic import to avoid loading native modules in serverless environment
   console.log("Using SQLite database");
+  const { drizzle: drizzleSqlite } = await import('drizzle-orm/better-sqlite3');
+  const Database = (await import('better-sqlite3')).default;
   const dbPath = path.resolve(__dirname, "../kakcup.db");
   const sqlite = new Database(dbPath);
-  db = drizzleSqlite(sqlite, { schema });
+  db = drizzleSqlite(sqlite, { schema }) as any;
 }
 
 export { db, pgPool };

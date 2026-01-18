@@ -1,224 +1,421 @@
 # Deployment Guide
 
-This application supports deployment to Vercel with automatic database selection based on environment.
+This application supports deployment to both Railway (traditional Node.js) and Vercel (serverless functions) with automatic database selection based on environment.
 
-## Quick Start on Vercel
+---
 
-### 1. Prerequisites
+## Table of Contents
+- [Vercel Deployment (Serverless)](#vercel-deployment-serverless)
+- [Railway Deployment (Traditional Node.js)](#railway-deployment-traditional-nodejs)
+- [Local Development](#local-development)
+- [Database Setup](#database-setup)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Vercel Deployment (Serverless)
+
+### Architecture
+Your app now supports Vercel's serverless functions:
+- **Frontend**: Static React app served from CDN
+- **Backend**: Express app wrapped in serverless function (`api/index.ts`)
+- **Database**: PostgreSQL required (SQLite not supported on Vercel)
+- **Sessions**: Stored in PostgreSQL database
+
+### Prerequisites
 - Vercel account
 - GitHub repository connected to Vercel
-- Vercel Postgres database (optional, but required for production)
+- PostgreSQL database (Vercel Postgres, Neon, Supabase, or any PostgreSQL provider)
 
-### 2. Database Setup
+### Step 1: Set Up PostgreSQL Database
 
-#### Option A: Using Vercel Postgres (Recommended)
+#### Option A: Vercel Postgres (Recommended)
 ```bash
 # In Vercel dashboard:
-1. Create a new Postgres database
-2. Copy the connection string (DATABASE_URL)
-3. Add to Project Settings > Environment Variables
+1. Go to Storage tab
+2. Create a new Postgres database
+3. Copy the DATABASE_URL from the .env.local tab
 ```
 
-#### Option B: Using External PostgreSQL
+#### Option B: External PostgreSQL (Neon, Supabase, etc.)
 ```bash
-# Any PostgreSQL provider (Neon, Supabase, Railway, etc.):
-1. Create a PostgreSQL database
-2. Get connection string: postgresql://user:pass@host:port/dbname
-3. Add as DATABASE_URL to Vercel environment variables
+# Get your connection string from your provider:
+DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
 ```
 
-#### Option C: Local SQLite Only
-- Skip database setup - app uses SQLite locally
-- Vercel won't work without DATABASE_URL (Vercel has no persistent filesystem)
+### Step 2: Initialize Database
 
-### 3. Environment Variables
+**IMPORTANT**: Initialize your database BEFORE deploying to Vercel.
 
-Set in Vercel Project Settings > Environment Variables:
+```bash
+# Option 1: Initialize using local environment
+DATABASE_URL="your-postgres-url" npm run db:init-vercel
 
+# Option 2: Pull Vercel environment variables first
+vercel env pull .env.production.local
+npm run db:init-vercel
 ```
-DATABASE_URL=postgresql://... (required for production)
-SESSION_SECRET=your-very-secure-random-secret (generate a new one!)
+
+This will:
+- Create all necessary tables
+- Set up indexes
+- Import seed data from `data/` directory
+- Create session storage table
+
+### Step 3: Configure Vercel Environment Variables
+
+In your Vercel project settings (Settings > Environment Variables), add:
+
+```bash
+# Required
+DATABASE_URL=postgresql://user:password@host:5432/database
+SESSION_SECRET=your-very-secure-random-secret-at-least-32-chars
+
+# Optional
 NODE_ENV=production
 ```
 
-**Generate SESSION_SECRET:**
+**Generate a secure SESSION_SECRET:**
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 4. Deploy
+### Step 4: Deploy to Vercel
 
+#### Via GitHub (Recommended)
 ```bash
-# Push to main branch (connected to Vercel)
+git add .
+git commit -m "Add Vercel serverless support"
 git push origin main
-
-# Vercel will automatically:
-# 1. Build the application
-# 2. Bundle server and client
-# 3. Deploy to serverless functions
 ```
 
-### 5. Database Initialization (Automatic!)
+Vercel will automatically:
+1. Detect the push
+2. Run `npm install`
+3. Build the frontend (`npm run vercel-build`)
+4. Deploy to production
 
-**Good news:** Database initialization happens automatically on first app startup! 🎉
+#### Via Vercel CLI
+```bash
+npm install -g vercel
+vercel --prod
+```
 
-When your app starts on Vercel:
-1. App checks if database tables exist
-2. If missing, runs migrations automatically
-3. Data is seeded from JSON files in the repo
-4. App is ready to serve requests
+### Step 5: Verify Deployment
 
-**No manual steps needed!** The app handles initialization for you.
+1. Visit your Vercel deployment URL
+2. Check that the app loads
+3. Test API endpoints (login, data fetching)
+4. Monitor function logs in Vercel dashboard
 
-#### Optional: Manual Migration
+### Vercel Configuration
 
-If you prefer to run migrations manually or need to re-seed data:
+The `vercel.json` configures:
+- **Rewrites**: All `/api/*` requests go to the serverless function
+- **Static files**: Served from `dist/public`
+- **Function timeout**: 10 seconds (adjust if needed)
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.ts": { "maxDuration": 10 }
+  }
+}
+```
+
+### Important Notes for Vercel
+
+1. **Cold Starts**: First request after inactivity may be slower
+2. **Connection Pooling**: Optimized for serverless in `server/db.ts`
+3. **SQLite Not Supported**: Vercel has ephemeral filesystem - PostgreSQL required
+4. **WebSockets**: Not supported in serverless functions (use alternative for real-time features)
+5. **Function Limits**: Free tier has execution time limits (10s default, configurable)
+
+---
+
+## Railway Deployment (Traditional Node.js)
+
+Your app is already configured for Railway deployment.
+
+### Prerequisites
+- Railway account
+- GitHub repository connected to Railway
+
+### Database Setup
+
+#### Option A: Railway PostgreSQL
+```bash
+# In Railway dashboard:
+1. Add a PostgreSQL service
+2. Connect it to your app
+3. DATABASE_URL is automatically set
+```
+
+#### Option B: Use SQLite (Development Only)
+```bash
+# Leave DATABASE_URL unset
+# App will use SQLite automatically
+```
+
+### Deploy to Railway
 
 ```bash
-# From your local machine
-DATABASE_URL="postgresql://..." npm run db:migrate
-
-# Or via Vercel CLI:
-vercel env pull    # Downloads env vars
-npm run db:migrate # Runs migration against production DB
+git push origin main
 ```
 
-## Database Selection Logic
+Railway will:
+1. Detect the push
+2. Run `npm install`
+3. Run `npm run build`
+4. Start with `npm start`
+5. Auto-initialize database on first request
 
-The app automatically selects the database based on environment:
+### Railway Configuration
 
-- **No DATABASE_URL** → SQLite (local development)
-- **DATABASE_URL set** → PostgreSQL (production)
+Railway uses:
+- **Start command**: `npm start` (runs `node dist/index.js`)
+- **Build command**: `npm run build`
+- **Port**: Automatically set via `PORT` environment variable
 
-### Connection Flow
+---
+
+## Local Development
+
+### Using SQLite (Default)
+```bash
+# No DATABASE_URL needed
+npm run dev
+```
+
+The app will:
+- Use SQLite database (`kakcup.db`)
+- Auto-initialize database on first run
+- Store sessions in SQLite
+
+### Using PostgreSQL Locally
+```bash
+# Install PostgreSQL locally or use Docker
+docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres
+
+# Set DATABASE_URL
+export DATABASE_URL="postgresql://postgres:password@localhost:5432/kakcup"
+
+# Initialize database
+npm run db:migrate
+
+# Start dev server
+npm run dev
+```
+
+### Testing Vercel Serverless Locally
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Pull environment variables
+vercel env pull .env.local
+
+# Start local serverless environment
+vercel dev
+```
+
+---
+
+## Database Setup
+
+### Database Selection Logic
+
+The app automatically chooses the database:
 
 ```
-Vercel Deployment
-  ↓
-DATABASE_URL detected
-  ↓
-PostgreSQL connection
-  ↓
-Tables created (if not exist)
-  ↓
-Data imported from JSON files
-  ↓
-App ready to serve
+DATABASE_URL not set → SQLite (local development)
+DATABASE_URL set → PostgreSQL (production)
 ```
 
-## Important Notes
-
-### ⚠️ Session Storage
-Sessions are stored in the database (not in-memory), so they persist across server restarts and scale horizontally.
-
-### ⚠️ SQLite Not Recommended for Production
-On Vercel:
-- SQLite files are stored on ephemeral filesystem
-- Files are deleted when container shuts down
-- Database doesn't persist between deployments
-- **Use PostgreSQL for production** ✅
-
-### ✅ Data Initialization & Persistence
-On first app startup:
-- App automatically initializes database (checks if tables exist)
-- Data is imported from `data/` JSON files
-- After initialization, data persists in PostgreSQL database
-- User can modify data via API or database
-- Data stays between deployments (unlike SQLite on ephemeral filesystem)
-
-## Monitoring
-
-After deployment, check:
-1. **Build logs** in Vercel dashboard
-2. **Function logs** for runtime errors
-3. **Database** to verify tables are created
+### Available Database Commands
 
 ```bash
-# Check PostgreSQL tables
-psql $DATABASE_URL -c "\dt"
+# Initialize Vercel database (PostgreSQL)
+npm run db:init-vercel
+
+# Run migrations manually
+npm run db:migrate
+
+# Push schema changes (Drizzle)
+npm run db:push
 ```
+
+### Migration Files
+
+- `server/migrate.ts` - Main migration logic
+- `scripts/init-vercel-db.ts` - Standalone Vercel initialization
+- `server/init-db.ts` - Auto-initialization for Railway/local
+
+---
 
 ## Troubleshooting
 
-### Build Fails
-- Check `package.json` build script
-- Verify NODE_VERSION compatibility (18+ required)
-- Check build logs in Vercel dashboard
+### Vercel: "Internal Server Error"
 
-### Database Connection Error
+**Check function logs:**
+```bash
+vercel logs
+```
+
+**Common issues:**
+- DATABASE_URL not set
+- Database not initialized
+- Session secret not set
+- Connection pool exhausted
+
+### Vercel: Database Connection Errors
+
 ```
 Error: Connection refused at postgresql://...
 ```
-**Solution:** Verify DATABASE_URL is correct in Vercel environment variables
 
-### Tables Not Created
-```bash
-# Re-run migration manually:
-DATABASE_URL="..." npm run db:migrate
+**Solutions:**
+1. Verify DATABASE_URL in Vercel environment variables
+2. Check database is accessible from Vercel
+3. Verify connection string format
+4. Check firewall/IP allowlist settings
+
+### Vercel: "Function Timeout"
+
+If requests take longer than configured timeout:
+1. Increase timeout in `vercel.json`:
+   ```json
+   { "functions": { "api/index.ts": { "maxDuration": 30 } } }
+   ```
+2. Optimize slow database queries
+3. Add indexes to frequently queried columns
+
+### Railway: Sessions Not Persisting
+
+**Check:**
+1. DATABASE_URL is set (sessions stored in DB)
+2. `sessions` table exists
+3. SESSION_SECRET is configured
+
+### Local: SQLite Database Locked
+
+```
+Error: database is locked
 ```
 
-### Sessions Not Persisting
-- Verify DATABASE_URL is set in production
-- Check sessions table exists: `SELECT * FROM sessions;`
-- Verify middleware is configured correctly
+**Solutions:**
+1. Close other connections to `kakcup.db`
+2. Delete `kakcup.db` and restart
+3. Use PostgreSQL instead
 
-## Local Testing Before Deploy
+### Build Fails
 
-Test production build locally:
-
-```bash
-# Build
-npm run build
-
-# Set test database
-export DATABASE_URL="postgresql://localhost:5432/test_db"
-
-# Start production server
-npm start
-
-# Test endpoints
-curl http://localhost:3000/api/years
+```
+Error: Cannot find module '@vercel/node'
 ```
 
-## Rollback
+**Solution:**
+```bash
+npm install
+```
 
-If deployment fails:
-1. Vercel keeps previous deployments
-2. Use Vercel dashboard to promote previous version
-3. Database changes from migration persist (no automatic rollback)
+### TypeScript Errors
+
+```bash
+npm run check
+```
+
+Fix any TypeScript errors before deploying.
+
+---
 
 ## Performance Optimization
 
-### Connection Pooling
-PostgreSQL connections are pooled by `pg` package. For high-traffic apps, consider:
-- Increasing pool size in `server/db.ts`
-- Using connection pooler service (pgBouncer, etc.)
+### Vercel-Specific Optimizations
 
-### Caching
-Session data is stored in database, not cached. For high-traffic:
-- Add Redis session store
-- Implement API response caching
+1. **Connection Pooling**: Already configured in `server/db.ts`
+   ```typescript
+   max: 10, // Maximum connections
+   idleTimeoutMillis: 30000, // Close idle connections
+   ```
 
-## Scaling Notes
+2. **Cold Start Optimization**:
+   - Express app initialized at module level (reused across warm starts)
+   - Database connections pooled and reused
+   - Minimal initialization logic
 
-The app is stateless (sessions in DB), so it scales horizontally on Vercel. No code changes needed for:
-- Multiple serverless functions
-- Load balancing
-- Auto-scaling
+3. **Static Asset Caching**:
+   - Frontend assets served from CDN
+   - Aggressive caching headers
+   - Code splitting configured in `vite.config.ts`
 
-## Database Limits
+### Monitoring
 
-### Vercel Postgres
-- Free tier: 256MB storage
-- Premium tier: Scalable storage
-- Monitor usage in dashboard
+**Vercel Dashboard:**
+- Function execution time
+- Cold start frequency
+- Error rates
+- Database connection pool usage
 
-### External Providers
-- Check provider's limits
-- Plan for growth
+**Add monitoring:**
+```bash
+# Vercel Analytics (optional)
+npm install @vercel/analytics
+```
 
-## References
+---
 
-- [Vercel Postgres Documentation](https://vercel.com/docs/storage/vercel-postgres)
-- [Environment Variables](https://vercel.com/docs/projects/environment-variables)
-- [Deployments](https://vercel.com/docs/deployments)
+## Comparison: Vercel vs Railway
+
+| Feature | Vercel (Serverless) | Railway (Traditional) |
+|---------|--------------------|-----------------------|
+| **Architecture** | Serverless functions | Long-running Node.js |
+| **Cold Starts** | Yes (first request) | No |
+| **Scaling** | Automatic, instant | Automatic, container-based |
+| **Database** | PostgreSQL required | PostgreSQL or SQLite |
+| **WebSockets** | Not supported | Supported |
+| **Pricing** | Pay per execution | Pay per hour |
+| **Best For** | API + static sites | Full-stack apps, WebSockets |
+
+---
+
+## Rollback
+
+### Vercel
+1. Go to Deployments in Vercel dashboard
+2. Find previous working deployment
+3. Click "Promote to Production"
+
+### Railway
+1. Go to Deployments in Railway dashboard
+2. Click "Redeploy" on previous version
+
+**Note**: Database changes are NOT rolled back automatically. Plan schema changes carefully.
+
+---
+
+## Security Checklist
+
+Before deploying to production:
+
+- [ ] Generate strong SESSION_SECRET (32+ characters)
+- [ ] Use HTTPS only (Vercel/Railway provide this automatically)
+- [ ] Set secure cookie settings in production
+- [ ] Review CORS settings if needed
+- [ ] Audit dependencies for vulnerabilities
+- [ ] Set up database backups
+- [ ] Configure environment variables (never commit secrets)
+- [ ] Review database connection string (use connection pooling URLs)
+
+---
+
+## Support
+
+For issues:
+- **Vercel**: https://vercel.com/docs
+- **Railway**: https://docs.railway.app
+- **PostgreSQL**: https://www.postgresql.org/docs/
+- **Drizzle ORM**: https://orm.drizzle.team/docs/overview
