@@ -10,9 +10,10 @@ import { calculateChugAverage } from "@shared/scoring";
 
 interface ChugTabProps {
   yearId: string;
+  yearData?: any;
 }
 
-const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
+const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [time1, setTime1] = useState("");
@@ -20,14 +21,6 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
   const [notes, setNotes] = useState("");
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-
-  const { data: yearData } = useQuery({
-    queryKey: ["/api/years", yearId],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}`);
-      return response.json();
-    },
-  });
 
   const addChugMutation = useMutation({
     mutationFn: async (data: { teamId: string; chug1: number; chug2: number; average: number; notes?: string }) => {
@@ -119,7 +112,11 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
+      // Invalidate the parent year query to trigger a fresh fetch
+      const yearNumber = yearData?.year;
+      if (yearNumber) {
+        queryClient.invalidateQueries({ queryKey: ["/api/years", yearNumber.toString()] });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/years"] });
       toast({
         title: "Competition Locked",

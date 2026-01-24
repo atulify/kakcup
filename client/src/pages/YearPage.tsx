@@ -135,8 +135,8 @@ export default function YearPage() {
         }>
           {activeTab === "teams" && <TeamsTab yearId={yearData.id} />}
           {activeTab === "fish" && <FishTab yearId={yearData.id} yearData={yearData} />}
-          {activeTab === "chug" && <ChugTab yearId={yearData.id} />}
-          {activeTab === "golf" && <GolfTab yearId={yearData.id} />}
+          {activeTab === "chug" && <ChugTab yearId={yearData.id} yearData={yearData} />}
+          {activeTab === "golf" && <GolfTab yearId={yearData.id} yearData={yearData} />}
           {activeTab === "standings" && <StandingsTab yearId={yearData.id} />}
         </Suspense>
       </main>

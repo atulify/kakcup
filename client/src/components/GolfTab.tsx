@@ -9,23 +9,16 @@ import type { Team } from "@shared/schema";
 
 interface GolfTabProps {
   yearId: string;
+  yearData?: any;
 }
 
-const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
+const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [score, setScore] = useState("");
   const [notes, setNotes] = useState("");
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-
-  const { data: yearData } = useQuery({
-    queryKey: ["/api/years", yearId],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}`);
-      return response.json();
-    },
-  });
 
   const addGolfMutation = useMutation({
     mutationFn: async (data: { teamId: string; score: number; notes?: string }) => {
@@ -116,7 +109,11 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
+      // Invalidate the parent year query to trigger a fresh fetch
+      const yearNumber = yearData?.year;
+      if (yearNumber) {
+        queryClient.invalidateQueries({ queryKey: ["/api/years", yearNumber.toString()] });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/years"] });
       toast({
         title: "Competition Locked",

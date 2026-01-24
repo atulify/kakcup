@@ -13,7 +13,7 @@ export interface IStorage {
   getYearById(id: string): Promise<Year | undefined>;
   getYears(): Promise<Year[]>;
   createYear(year: InsertYear): Promise<Year>;
-  updateYear(id: string, year: Partial<InsertYear>): Promise<Year>;
+  updateYear(id: string, year: Partial<Year>): Promise<Year>;
   // Team operations
   getTeamsByYear(yearId: string): Promise<Team[]>;
   createTeam(team: InsertTeam): Promise<Team>;
@@ -85,7 +85,7 @@ export class DatabaseStorage implements IStorage {
     return year;
   }
 
-  async updateYear(id: string, yearData: Partial<InsertYear>): Promise<Year> {
+  async updateYear(id: string, yearData: Partial<Year>): Promise<Year> {
     const [year] = await db
       .update(years)
       .set(yearData)
