@@ -17,10 +17,10 @@ describe('Scoring Utilities', () => {
       expect(calculateChugAverage(3.25, 4.75)).toBe(4);
     });
 
-    it('should round to 2 decimal places', () => {
-      expect(calculateChugAverage(10.123, 20.456)).toBe(15.29);
-      expect(calculateChugAverage(7.777, 8.888)).toBe(8.33);
-      expect(calculateChugAverage(1.111, 2.222)).toBe(1.67);
+    it('should round to 3 decimal places', () => {
+      expect(calculateChugAverage(10.123, 20.456)).toBe(15.290);
+      expect(calculateChugAverage(7.777, 8.888)).toBe(8.333);
+      expect(calculateChugAverage(1.111, 2.222)).toBe(1.667);
     });
 
     it('should handle identical times', () => {
@@ -37,7 +37,7 @@ describe('Scoring Utilities', () => {
 
     it('should handle very small times', () => {
       expect(calculateChugAverage(0.1, 0.2)).toBe(0.15);
-      expect(calculateChugAverage(0.01, 0.02)).toBe(0.02);
+      expect(calculateChugAverage(0.01, 0.02)).toBe(0.015);
     });
 
     it('should handle very large times', () => {

@@ -37,6 +37,8 @@ export const years = pgTable("years", {
   name: text("name").notNull(),
   status: text("status").notNull().default("upcoming"), // upcoming, active, completed
   fishing_locked: boolean("fishing_locked").notNull().default(false),
+  chug_locked: boolean("chug_locked").notNull().default(false),
+  golf_locked: boolean("golf_locked").notNull().default(false),
 });
 
 export const teams = pgTable("teams", {
@@ -146,6 +148,8 @@ export const registerUserSchema = createInsertSchema(users).pick({
 export const insertYearSchema = createInsertSchema(years).omit({
   id: true,
   fishing_locked: true,
+  chug_locked: true,
+  golf_locked: true,
 });
 
 export const insertTeamSchema = createInsertSchema(teams).pick({

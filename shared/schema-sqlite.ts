@@ -37,6 +37,8 @@ export const years = sqliteTable("years", {
   name: text("name").notNull(),
   status: text("status").notNull().default("upcoming"), // upcoming, active, completed
   fishing_locked: integer("fishing_locked", { mode: 'boolean' }).notNull().default(false),
+  chug_locked: integer("chug_locked", { mode: 'boolean' }).notNull().default(false),
+  golf_locked: integer("golf_locked", { mode: 'boolean' }).notNull().default(false),
 });
 
 export const teams = sqliteTable("teams", {
@@ -146,6 +148,8 @@ export const registerUserSchema = createInsertSchema(users).pick({
 export const insertYearSchema = createInsertSchema(years).omit({
   id: true,
   fishing_locked: true,
+  chug_locked: true,
+  golf_locked: true,
 });
 
 export const insertTeamSchema = createInsertSchema(teams).pick({

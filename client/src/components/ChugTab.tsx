@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Lock, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
@@ -20,6 +20,14 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
   const [notes, setNotes] = useState("");
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+
+  const { data: yearData } = useQuery({
+    queryKey: ["/api/years", yearId],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${yearId}`);
+      return response.json();
+    },
+  });
 
   const addChugMutation = useMutation({
     mutationFn: async (data: { teamId: string; chug1: number; chug2: number; average: number; notes?: string }) => {
@@ -49,7 +57,7 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
         }, 500);
         return;
       }
-      
+
       if (isAdminError(error)) {
         toast({
           title: "Admin Access Required",
@@ -58,10 +66,91 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
         });
         return;
       }
-      
+
+      if (error?.status === 403) {
+        toast({
+          title: "Competition Locked",
+          description: "Chug competition is locked. Cannot add times.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Error",
         description: "Failed to add chug time. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const deleteChugMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      return await apiRequest(`/api/years/${yearId}/teams/${teamId}/chug-times`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "chug-times"] });
+      toast({
+        title: "Success",
+        description: "Chug time cleared successfully.",
+      });
+    },
+    onError: (error: any) => {
+      if (error?.status === 403) {
+        toast({
+          title: "Competition Locked",
+          description: "Chug competition is locked. Cannot delete times.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to clear chug time.",
+          variant: "destructive",
+        });
+      }
+    }
+  });
+
+  const lockChugMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest(`/api/years/${yearId}`, "PATCH", {
+        chug_locked: true
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/years"] });
+      toast({
+        title: "Competition Locked",
+        description: "Chug competition has been locked successfully.",
+      });
+    },
+    onError: (error: any) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      if (isAdminError(error)) {
+        toast({
+          title: "Admin Access Required",
+          description: "Only admin users can lock competitions.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Error",
+        description: "Failed to lock chug competition. Please try again.",
         variant: "destructive",
       });
     }
@@ -179,16 +268,36 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
     <div className="p-2 sm:p-4 bg-background">
       <div className="mb-3 flex justify-end">
         {isAdmin && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            disabled={sortedTeams.length === 0 || (chugTimes?.length || 0) >= 7}
-            className="btn-primary flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg disabled:cursor-not-allowed"
-            data-testid="button-add-chug"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add Chug</span>
-            <span className="sm:hidden">Add</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              disabled={sortedTeams.length === 0 || yearData?.chug_locked}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                yearData?.chug_locked
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'btn-primary'
+              } ${sortedTeams.length === 0 ? 'bg-muted cursor-not-allowed' : ''}`}
+              data-testid="button-add-chug"
+              title={yearData?.chug_locked ? "Competition is locked - no more times can be added" : ""}
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">{yearData?.chug_locked ? "Locked - No More Times" : "Add Chug"}</span>
+              <span className="sm:hidden">{yearData?.chug_locked ? "Locked" : "Add"}</span>
+            </button>
+            <button
+              onClick={() => lockChugMutation.mutate()}
+              disabled={yearData?.chug_locked || lockChugMutation.isPending}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                yearData?.chug_locked
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'btn-destructive'
+              }`}
+              data-testid="button-lock-chug"
+            >
+              <Lock size={16} />
+              {yearData?.chug_locked ? "Competition Locked" : "Lock Competition"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -228,6 +337,11 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
                       <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '70px'}}>
                         Points
                       </th>
+                      {isAdmin && !yearData?.chug_locked && (
+                        <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '90px'}}>
+                          Actions
+                        </th>
+                      )}
                     </tr>
                   </thead>
             <tbody>
@@ -317,6 +431,26 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
                         {points > 0 ? points : "0"}
                       </span>
                     </td>
+
+                    {/* Actions */}
+                    {isAdmin && !yearData?.chug_locked && (
+                      <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
+                        {teamStat.average > 0 && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Clear chug time for ${teamStat.team.name}?`)) {
+                                deleteChugMutation.mutate(teamStat.team.id);
+                              }
+                            }}
+                            disabled={deleteChugMutation.isPending}
+                            className="text-red-500 hover:text-red-700"
+                            title="Clear chug time for this team"
+                          >
+                            <Trash2 size={16} className="mx-auto" />
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
                   })}
@@ -393,6 +527,23 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
                         </div>
                       </div>
                     </div>
+
+                    {isAdmin && !yearData?.chug_locked && teamStat.average > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Clear chug time for ${teamStat.team.name}?`)) {
+                              deleteChugMutation.mutate(teamStat.team.id);
+                            }
+                          }}
+                          disabled={deleteChugMutation.isPending}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
+                        >
+                          <Trash2 size={16} />
+                          <span>Clear Chug Time</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -423,9 +574,11 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
                   {sortedTeams.map((team: Team) => {
                     const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
                     const membersList = members.length > 0 ? ` (${members.join(', ')})` : '';
+                    const hasChugTime = chugTimeMap.has(team.id);
+                    const indicator = hasChugTime ? ' ✓' : '';
                     return (
                       <option key={team.id} value={team.id}>
-                        {team.name}{membersList}
+                        {team.name}{membersList}{indicator}
                       </option>
                     );
                   })}

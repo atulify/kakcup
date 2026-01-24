@@ -256,17 +256,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!yearRecord) {
         return res.status(404).json({ error: "Year not found" });
       }
-      
+
       if (yearRecord.fishing_locked) {
         return res.status(403).json({ error: "Fishing competition is locked. No more weights can be added." });
       }
-      
+
       const weightData = req.body;
       weightData.yearId = req.params.yearId;
       const fishWeight = await storage.createFishWeight(weightData);
       res.status(201).json(fishWeight);
     } catch (error) {
       res.status(500).json({ error: "Failed to create fish weight" });
+    }
+  });
+
+  app.delete("/api/years/:yearId/teams/:teamId/fish-weights", isAdmin, async (req, res) => {
+    try {
+      // Check if fishing is locked for this year
+      const yearRecord = await storage.getYearById(req.params.yearId);
+      if (!yearRecord) {
+        return res.status(404).json({ error: "Year not found" });
+      }
+
+      if (yearRecord.fishing_locked) {
+        return res.status(403).json({ error: "Fishing competition is locked. Cannot delete weights." });
+      }
+
+      await storage.deleteFishWeightsByTeam(req.params.yearId, req.params.teamId);
+      res.json({ message: "Fish weights deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete fish weights" });
     }
   });
 
@@ -282,12 +301,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/years/:yearId/chug-times", isAdmin, async (req, res) => {
     try {
+      // Check if chug is locked for this year
+      const yearRecord = await storage.getYearById(req.params.yearId);
+      if (!yearRecord) {
+        return res.status(404).json({ error: "Year not found" });
+      }
+
+      if (yearRecord.chug_locked) {
+        return res.status(403).json({ error: "Chug competition is locked. No more times can be added." });
+      }
+
       const chugData = req.body;
       chugData.yearId = req.params.yearId;
       const chugTime = await storage.createChugTime(chugData);
       res.status(201).json(chugTime);
     } catch (error) {
       res.status(500).json({ error: "Failed to create chug time" });
+    }
+  });
+
+  app.delete("/api/years/:yearId/teams/:teamId/chug-times", isAdmin, async (req, res) => {
+    try {
+      // Check if chug is locked for this year
+      const yearRecord = await storage.getYearById(req.params.yearId);
+      if (!yearRecord) {
+        return res.status(404).json({ error: "Year not found" });
+      }
+
+      if (yearRecord.chug_locked) {
+        return res.status(403).json({ error: "Chug competition is locked. Cannot delete times." });
+      }
+
+      await storage.deleteChugTime(req.params.yearId, req.params.teamId);
+      res.json({ message: "Chug time deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete chug time" });
     }
   });
 
@@ -303,12 +351,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/years/:yearId/golf-scores", isAdmin, async (req, res) => {
     try {
+      // Check if golf is locked for this year
+      const yearRecord = await storage.getYearById(req.params.yearId);
+      if (!yearRecord) {
+        return res.status(404).json({ error: "Year not found" });
+      }
+
+      if (yearRecord.golf_locked) {
+        return res.status(403).json({ error: "Golf competition is locked. No more scores can be added." });
+      }
+
       const golfData = req.body;
       golfData.yearId = req.params.yearId;
       const golfScore = await storage.createGolfScore(golfData);
       res.status(201).json(golfScore);
     } catch (error) {
       res.status(500).json({ error: "Failed to create golf score" });
+    }
+  });
+
+  app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, async (req, res) => {
+    try {
+      // Check if golf is locked for this year
+      const yearRecord = await storage.getYearById(req.params.yearId);
+      if (!yearRecord) {
+        return res.status(404).json({ error: "Year not found" });
+      }
+
+      if (yearRecord.golf_locked) {
+        return res.status(403).json({ error: "Golf competition is locked. Cannot delete scores." });
+      }
+
+      await storage.deleteGolfScore(req.params.yearId, req.params.teamId);
+      res.json({ message: "Golf score deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete golf score" });
     }
   });
 

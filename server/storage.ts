@@ -21,10 +21,13 @@ export interface IStorage {
   // Competition operations
   getFishWeightsByYear(yearId: string): Promise<any[]>;
   createFishWeight(fishWeight: any): Promise<any>;
+  deleteFishWeightsByTeam(yearId: string, teamId: string): Promise<void>;
   getChugTimesByYear(yearId: string): Promise<any[]>;
   createChugTime(chugTime: any): Promise<any>;
+  deleteChugTime(yearId: string, teamId: string): Promise<void>;
   getGolfScoresByYear(yearId: string): Promise<any[]>;
   createGolfScore(golfScore: any): Promise<any>;
+  deleteGolfScore(yearId: string, teamId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -127,6 +130,15 @@ export class DatabaseStorage implements IStorage {
     return fishWeight;
   }
 
+  async deleteFishWeightsByTeam(yearId: string, teamId: string): Promise<void> {
+    await db
+      .delete(fishWeights)
+      .where(and(
+        eq(fishWeights.yearId, yearId),
+        eq(fishWeights.teamId, teamId)
+      ));
+  }
+
   async getChugTimesByYear(yearId: string): Promise<any[]> {
     return await db
       .select()
@@ -135,11 +147,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createChugTime(chugTimeData: any): Promise<any> {
+    // Delete existing entry for this team/year if it exists (upsert behavior)
+    await db
+      .delete(chugTimes)
+      .where(and(
+        eq(chugTimes.yearId, chugTimeData.yearId),
+        eq(chugTimes.teamId, chugTimeData.teamId)
+      ));
+
+    // Insert the new entry
     const [chugTime] = await db
       .insert(chugTimes)
       .values(chugTimeData)
       .returning();
     return chugTime;
+  }
+
+  async deleteChugTime(yearId: string, teamId: string): Promise<void> {
+    await db
+      .delete(chugTimes)
+      .where(and(
+        eq(chugTimes.yearId, yearId),
+        eq(chugTimes.teamId, teamId)
+      ));
   }
 
   async getGolfScoresByYear(yearId: string): Promise<any[]> {
@@ -150,11 +180,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGolfScore(golfScoreData: any): Promise<any> {
+    // Delete existing entry for this team/year if it exists (upsert behavior)
+    await db
+      .delete(golfScores)
+      .where(and(
+        eq(golfScores.yearId, golfScoreData.yearId),
+        eq(golfScores.teamId, golfScoreData.teamId)
+      ));
+
+    // Insert the new entry
     const [golfScore] = await db
       .insert(golfScores)
       .values(golfScoreData)
       .returning();
     return golfScore;
+  }
+
+  async deleteGolfScore(yearId: string, teamId: string): Promise<void> {
+    await db
+      .delete(golfScores)
+      .where(and(
+        eq(golfScores.yearId, yearId),
+        eq(golfScores.teamId, teamId)
+      ));
   }
 
 

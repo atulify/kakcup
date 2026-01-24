@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Lock, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
@@ -18,6 +18,14 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
   const [notes, setNotes] = useState("");
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+
+  const { data: yearData } = useQuery({
+    queryKey: ["/api/years", yearId],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${yearId}`);
+      return response.json();
+    },
+  });
 
   const addGolfMutation = useMutation({
     mutationFn: async (data: { teamId: string; score: number; notes?: string }) => {
@@ -46,7 +54,7 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
         }, 500);
         return;
       }
-      
+
       if (isAdminError(error)) {
         toast({
           title: "Admin Access Required",
@@ -55,10 +63,91 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
         });
         return;
       }
-      
+
+      if (error?.status === 403) {
+        toast({
+          title: "Competition Locked",
+          description: "Golf competition is locked. Cannot add scores.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Error",
         description: "Failed to add golf score. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const deleteGolfMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      return await apiRequest(`/api/years/${yearId}/teams/${teamId}/golf-scores`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "golf-scores"] });
+      toast({
+        title: "Success",
+        description: "Golf score cleared successfully.",
+      });
+    },
+    onError: (error: any) => {
+      if (error?.status === 403) {
+        toast({
+          title: "Competition Locked",
+          description: "Golf competition is locked. Cannot delete scores.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to clear golf score.",
+          variant: "destructive",
+        });
+      }
+    }
+  });
+
+  const lockGolfMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest(`/api/years/${yearId}`, "PATCH", {
+        golf_locked: true
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/years"] });
+      toast({
+        title: "Competition Locked",
+        description: "Golf competition has been locked successfully.",
+      });
+    },
+    onError: (error: any) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      if (isAdminError(error)) {
+        toast({
+          title: "Admin Access Required",
+          description: "Only admin users can lock competitions.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Error",
+        description: "Failed to lock golf competition. Please try again.",
         variant: "destructive",
       });
     }
@@ -187,16 +276,36 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
     <div className="p-2 sm:p-4 bg-background">
       <div className="mb-3 flex justify-end">
         {isAdmin && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            disabled={sortedTeams.length === 0 || (golfScores?.length || 0) >= 7}
-            className="btn-primary flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg disabled:cursor-not-allowed"
-            data-testid="button-add-golf"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add Golf Score</span>
-            <span className="sm:hidden">Add</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              disabled={sortedTeams.length === 0 || yearData?.golf_locked}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                yearData?.golf_locked
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'btn-primary'
+              } ${sortedTeams.length === 0 ? 'bg-muted cursor-not-allowed' : ''}`}
+              data-testid="button-add-golf"
+              title={yearData?.golf_locked ? "Competition is locked - no more scores can be added" : ""}
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">{yearData?.golf_locked ? "Locked - No More Scores" : "Add Golf Score"}</span>
+              <span className="sm:hidden">{yearData?.golf_locked ? "Locked" : "Add"}</span>
+            </button>
+            <button
+              onClick={() => lockGolfMutation.mutate()}
+              disabled={yearData?.golf_locked || lockGolfMutation.isPending}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                yearData?.golf_locked
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'btn-destructive'
+              }`}
+              data-testid="button-lock-golf"
+            >
+              <Lock size={16} />
+              {yearData?.golf_locked ? "Competition Locked" : "Lock Competition"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -229,6 +338,11 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
                       <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '70px'}}>
                         Points
                       </th>
+                      {isAdmin && !yearData?.golf_locked && (
+                        <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '90px'}}>
+                          Actions
+                        </th>
+                      )}
                     </tr>
                   </thead>
             <tbody>
@@ -304,6 +418,26 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
                         {points > 0 ? points : "0"}
                       </span>
                     </td>
+
+                    {/* Actions */}
+                    {isAdmin && !yearData?.golf_locked && (
+                      <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
+                        {teamStat.hasScore && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Clear golf score for ${teamStat.team.name}?`)) {
+                                deleteGolfMutation.mutate(teamStat.team.id);
+                              }
+                            }}
+                            disabled={deleteGolfMutation.isPending}
+                            className="text-red-500 hover:text-red-700"
+                            title="Clear golf score for this team"
+                          >
+                            <Trash2 size={16} className="mx-auto" />
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
                   })}
@@ -379,6 +513,23 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
                         </div>
                       </div>
                     </div>
+
+                    {isAdmin && !yearData?.golf_locked && teamStat.hasScore && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Clear golf score for ${teamStat.team.name}?`)) {
+                              deleteGolfMutation.mutate(teamStat.team.id);
+                            }
+                          }}
+                          disabled={deleteGolfMutation.isPending}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
+                        >
+                          <Trash2 size={16} />
+                          <span>Clear Golf Score</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -409,9 +560,11 @@ const GolfTab = memo(function GolfTab({ yearId }: GolfTabProps) {
                   {sortedTeams.map((team: Team) => {
                     const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
                     const membersList = members.length > 0 ? ` (${members.join(', ')})` : '';
+                    const hasGolfScore = golfScoreMap.has(team.id);
+                    const indicator = hasGolfScore ? ' ✓' : '';
                     return (
                       <option key={team.id} value={team.id}>
-                        {team.name}{membersList}
+                        {team.name}{membersList}{indicator}
                       </option>
                     );
                   })}

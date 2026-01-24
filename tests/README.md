@@ -9,13 +9,13 @@ Comprehensive unit tests for all critical business logic in the KAK Cup scoring 
 #### 1. Chug Average Calculation (6 tests)
 Tests the `calculateChugAverage()` function:
 - ✅ Basic average calculation (10 + 20 = 15 average)
-- ✅ Decimal precision rounding to 2 places
+- ✅ Decimal precision rounding to 3 places
 - ✅ Identical times (10 + 10 = 10)
 - ✅ Error handling for zero/negative times
 - ✅ Very small times (0.1, 0.2)
 - ✅ Very large times (100, 200)
 
-**Business Rule:** Average of two chug times, rounded to 2 decimal places, must be positive numbers
+**Business Rule:** Average of two chug times, rounded to 3 decimal places, must be positive numbers
 
 #### 2. Top 3 Fish Weights (9 tests)
 Tests the `calculateTop3FishTotal()` function:

@@ -7,13 +7,13 @@
  * Calculate the average of two chug times
  * @param chug1 - First chug time in seconds
  * @param chug2 - Second chug time in seconds
- * @returns Average time rounded to 2 decimal places
+ * @returns Average time rounded to 3 decimal places
  */
 export function calculateChugAverage(chug1: number, chug2: number): number {
   if (chug1 <= 0 || chug2 <= 0) {
     throw new Error("Chug times must be positive numbers");
   }
-  return Math.round((chug1 + chug2) / 2 * 100) / 100;
+  return Math.round((chug1 + chug2) / 2 * 1000) / 1000;
 }
 
 /**

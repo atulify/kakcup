@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo } from "react";
-import { Plus, Lock } from "lucide-react";
+import { Plus, Lock, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
@@ -76,6 +76,46 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     }
   });
 
+  const deleteTeamWeightsMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      return await apiRequest(`/api/years/${yearId}/teams/${teamId}/fish-weights`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "fish-weights"] });
+      toast({
+        title: "Success",
+        description: "All fish weights for this team have been cleared.",
+      });
+    },
+    onError: (error: any) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      if (error?.status === 403) {
+        toast({
+          title: "Competition Locked",
+          description: "Fishing competition is locked. Cannot delete weights.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete fish weights. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  });
+
   const lockFishingMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest(`/api/years/${yearId}`, "PATCH", {
@@ -88,10 +128,10 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       if (yearNumber) {
         queryClient.invalidateQueries({ queryKey: ["/api/years", yearNumber.toString()] });
       }
-      
+
       // Also invalidate general years queries
       queryClient.invalidateQueries({ queryKey: ["/api/years"] });
-      
+
       toast({
         title: "Competition Locked",
         description: "Fishing competition has been locked successfully.",
@@ -317,6 +357,11 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                       <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '70px'}}>
                         Points
                       </th>
+                      {isAdmin && !yearData?.fishing_locked && (
+                        <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '90px'}}>
+                          Actions
+                        </th>
+                      )}
                     </tr>
                   </thead>
             <tbody>
@@ -413,6 +458,26 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                         {points > 0 ? points : "0"}
                       </span>
                     </td>
+
+                    {/* Actions */}
+                    {isAdmin && !yearData?.fishing_locked && (
+                      <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
+                        {teamStat.weights.length > 0 && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
+                                deleteTeamWeightsMutation.mutate(teamStat.team.id);
+                              }
+                            }}
+                            disabled={deleteTeamWeightsMutation.isPending}
+                            className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Clear all fish weights for this team"
+                          >
+                            <Trash2 size={16} className="mx-auto" />
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
                   })}
@@ -490,6 +555,24 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                         </div>
                       </div>
                     </div>
+
+                    {/* Clear All Button (Mobile) */}
+                    {isAdmin && !yearData?.fishing_locked && teamStat.weights.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
+                              deleteTeamWeightsMutation.mutate(teamStat.team.id);
+                            }
+                          }}
+                          disabled={deleteTeamWeightsMutation.isPending}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={16} />
+                          <span>Clear All Fish ({teamStat.weights.length})</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
