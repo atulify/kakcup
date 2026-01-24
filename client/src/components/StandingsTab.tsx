@@ -1,6 +1,7 @@
 import { useMemo, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Team } from "@shared/schema";
+import { calculateTop3FishTotal, rankFishTeams, rankChugTeams, rankGolfTeams } from "@shared/scoring";
 
 interface StandingsTabProps {
   yearId: string;
@@ -55,136 +56,68 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
   // Memoize standings calculation to avoid recalculating on every render
   const standings = useMemo(() => {
 
-    // Calculate Fish Points
-  const fishPointsMap = new Map<string, number>();
-  if (fishWeights && fishWeights.length > 0) {
-    // Group weights by team and get top 3 per team
-    const teamWeights = new Map<string, number[]>();
-    fishWeights.forEach((fw: any) => {
-      const weight = parseFloat(fw.weight?.toString() || '0');
-      if (weight > 0) {
-        if (!teamWeights.has(fw.teamId)) {
-          teamWeights.set(fw.teamId, []);
+    // Calculate Fish Points using shared utility
+    const fishPointsMap = new Map<string, number>();
+    if (fishWeights && fishWeights.length > 0) {
+      // Group weights by team and calculate top 3 total for each team
+      const teamWeights = new Map<string, number[]>();
+      fishWeights.forEach((fw: any) => {
+        const weight = parseFloat(fw.weight?.toString() || '0');
+        if (weight > 0) {
+          if (!teamWeights.has(fw.teamId)) {
+            teamWeights.set(fw.teamId, []);
+          }
+          teamWeights.get(fw.teamId)!.push(weight);
         }
-        teamWeights.get(fw.teamId)!.push(weight);
-      }
-    });
-
-    // Calculate totals for each team (top 3 weights)
-    const teamTotals = new Map<string, number>();
-    teamWeights.forEach((weights, teamId) => {
-      const top3 = weights.sort((a, b) => b - a).slice(0, 3);
-      const total = top3.reduce((sum, weight) => sum + weight, 0);
-      teamTotals.set(teamId, total);
-    });
-
-    // Rank teams by total weight and assign points
-    const rankedTeams = Array.from(teamTotals.entries())
-      .map(([teamId, total]) => ({ teamId, total }))
-      .sort((a, b) => b.total - a.total);
-
-    let currentRank = 1;
-    let i = 0;
-    while (i < rankedTeams.length) {
-      const currentTotal = rankedTeams[i].total;
-      
-      const tiedTeams: typeof rankedTeams = [];
-      let j = i;
-      while (j < rankedTeams.length && rankedTeams[j].total === currentTotal) {
-        tiedTeams.push(rankedTeams[j]);
-        j++;
-      }
-      
-      let totalPoints = 0;
-      for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-        totalPoints += Math.max(1, 8 - rank);
-      }
-      const pointsPerTeam = totalPoints / tiedTeams.length;
-      
-      tiedTeams.forEach(({ teamId }) => {
-        fishPointsMap.set(teamId, pointsPerTeam);
       });
-      
-      currentRank += tiedTeams.length;
-      i = j;
-    }
-  }
 
-  // Calculate Chug Points
-  const chugPointsMap = new Map<string, number>();
-  if (chugTimes && chugTimes.length > 0) {
-    const rankedTeams = chugTimes
-      .filter((ct: any) => ct.average && parseFloat(ct.average) > 0)
-      .map((ct: any) => ({
-        teamId: ct.teamId,
-        average: parseFloat(ct.average?.toString() || '999')
-      }))
-      .sort((a: { teamId: string; average: number }, b: { teamId: string; average: number }) => a.average - b.average); // Sort ascending (fastest first)
-
-    let currentRank = 1;
-    let i = 0;
-    while (i < rankedTeams.length) {
-      const currentAverage = rankedTeams[i].average;
-      
-      const tiedTeams: typeof rankedTeams = [];
-      let j = i;
-      while (j < rankedTeams.length && rankedTeams[j].average === currentAverage) {
-        tiedTeams.push(rankedTeams[j]);
-        j++;
-      }
-      
-      let totalPoints = 0;
-      for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-        totalPoints += Math.max(1, 8 - rank);
-      }
-      const pointsPerTeam = totalPoints / tiedTeams.length;
-      
-      tiedTeams.forEach(({ teamId }: { teamId: string }) => {
-        chugPointsMap.set(teamId, pointsPerTeam);
+      // Calculate totals for each team using shared utility (top 3 weights)
+      const teamTotals = new Map<string, number>();
+      teamWeights.forEach((weights, teamId) => {
+        const total = calculateTop3FishTotal(weights);
+        teamTotals.set(teamId, total);
       });
-      
-      currentRank += tiedTeams.length;
-      i = j;
-    }
-  }
 
-  // Calculate Golf Points
-  const golfPointsMap = new Map<string, number>();
-  if (golfScores && golfScores.length > 0) {
-    const rankedTeams = golfScores
-      .filter((gs: any) => gs.score !== null && gs.score !== undefined)
-      .map((gs: any) => ({
-        teamId: gs.teamId,
-        score: parseInt(gs.score?.toString() || '999')
-      }))
-      .sort((a: { teamId: string; score: number }, b: { teamId: string; score: number }) => a.score - b.score); // Sort ascending (lowest score first)
-
-    let currentRank = 1;
-    let i = 0;
-    while (i < rankedTeams.length) {
-      const currentScore = rankedTeams[i].score;
-      
-      const tiedTeams: typeof rankedTeams = [];
-      let j = i;
-      while (j < rankedTeams.length && rankedTeams[j].score === currentScore) {
-        tiedTeams.push(rankedTeams[j]);
-        j++;
-      }
-      
-      let totalPoints = 0;
-      for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-        totalPoints += Math.max(1, 8 - rank);
-      }
-      const pointsPerTeam = totalPoints / tiedTeams.length;
-      
-      tiedTeams.forEach(({ teamId }: { teamId: string }) => {
-        golfPointsMap.set(teamId, pointsPerTeam);
+      // Rank teams and assign points using shared utility
+      const teamPoints = rankFishTeams(teamTotals);
+      teamPoints.forEach(({ teamId, points }) => {
+        fishPointsMap.set(teamId, points);
       });
-      
-      currentRank += tiedTeams.length;
-      i = j;
     }
-  }
+
+    // Calculate Chug Points using shared utility
+    const chugPointsMap = new Map<string, number>();
+    if (chugTimes && chugTimes.length > 0) {
+      const teamAverages = new Map<string, number>();
+      chugTimes
+        .filter((ct: any) => ct.average && parseFloat(ct.average) > 0)
+        .forEach((ct: any) => {
+          teamAverages.set(ct.teamId, parseFloat(ct.average?.toString() || '999'));
+        });
+
+      // Rank teams and assign points using shared utility
+      const teamPoints = rankChugTeams(teamAverages);
+      teamPoints.forEach(({ teamId, points }) => {
+        chugPointsMap.set(teamId, points);
+      });
+    }
+
+    // Calculate Golf Points using shared utility
+    const golfPointsMap = new Map<string, number>();
+    if (golfScores && golfScores.length > 0) {
+      const teamScores = new Map<string, number>();
+      golfScores
+        .filter((gs: any) => gs.score !== null && gs.score !== undefined)
+        .forEach((gs: any) => {
+          teamScores.set(gs.teamId, parseInt(gs.score?.toString() || '999'));
+        });
+
+      // Rank teams and assign points using shared utility
+      const teamPoints = rankGolfTeams(teamScores);
+      teamPoints.forEach(({ teamId, points }) => {
+        golfPointsMap.set(teamId, points);
+      });
+    }
 
     // Calculate total standings
     const standingsData = sortedTeams.map((team: Team) => {

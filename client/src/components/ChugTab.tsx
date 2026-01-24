@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import type { Team } from "@shared/schema";
+import { calculateChugAverage } from "@shared/scoring";
 
 interface ChugTabProps {
   yearId: string;
@@ -88,13 +89,14 @@ const ChugTab = memo(function ChugTab({ yearId }: ChugTabProps) {
 
   const handleAddChug = () => {
     if (!selectedTeamId || !time1 || !time2) return;
-    
+
     const chug1Value = parseFloat(time1);
     const chug2Value = parseFloat(time2);
     if (isNaN(chug1Value) || isNaN(chug2Value) || chug1Value <= 0 || chug2Value <= 0) return;
-    
-    const average = (chug1Value + chug2Value) / 2;
-    
+
+    // Use shared scoring utility for consistent average calculation
+    const average = calculateChugAverage(chug1Value, chug2Value);
+
     addChugMutation.mutate({
       teamId: selectedTeamId,
       chug1: chug1Value,
