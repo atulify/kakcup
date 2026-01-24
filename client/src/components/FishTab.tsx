@@ -414,7 +414,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                             <span className="ml-2 text-amber-600 text-lg">💩</span>
                           )}
                         </div>
-                        <div className="space-y-0.5">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                           {teamStat.members.map((member: string, index: number) => (
                             <div key={index} className="text-xs text-muted-foreground truncate">
                               {member}

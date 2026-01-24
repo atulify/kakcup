@@ -222,7 +222,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                                 {isFirst && standing.totalPoints > 0 && <span className="ml-2">🏆</span>}
                                 {isLast && <span className="ml-2">🥾</span>}
                               </div>
-                              <div className="space-y-0.5">
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                                 {standing.members.map((member: string, i: number) => (
                                   <div key={i} className={`text-xs truncate ${isFirst ? 'text-gray-200' : 'text-muted-foreground'}`}>
                                     {member}
