@@ -18,6 +18,7 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     target: 'es2020',
+    cssCodeSplit: true, // Enable CSS code splitting for lazy-loaded components
     minify: 'terser',
     terserOptions: {
       compress: {
@@ -28,14 +29,24 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
+          // Core framework dependencies
           'react-vendor': ['react', 'react-dom', 'wouter'],
           'query-vendor': ['@tanstack/react-query'],
-          'ui-vendor': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
+
+          // Split UI components into smaller, more granular chunks
+          // Core UI primitives used throughout the app
+          'ui-core': [
+            '@radix-ui/react-slot',
             '@radix-ui/react-label',
-            '@radix-ui/react-select',
+          ],
+
+          // Tab components (used in YearPage)
+          'ui-tabs': [
             '@radix-ui/react-tabs',
+          ],
+
+          // Notification/overlay components
+          'ui-overlays': [
             '@radix-ui/react-toast',
             '@radix-ui/react-tooltip',
           ],

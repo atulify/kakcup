@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import TeamsTab from "@/components/TeamsTab";
-import FishTab from "@/components/FishTab";
-import ChugTab from "@/components/ChugTab";
-import GolfTab from "@/components/GolfTab";
-import StandingsTab from "@/components/StandingsTab";
 import { apiRequest } from "@/lib/queryClient";
 import { handleLogout } from "@/utils/auth";
 import type { Year } from "@shared/schema";
+
+// Lazy load tab components for better code splitting
+const TeamsTab = lazy(() => import("@/components/TeamsTab"));
+const FishTab = lazy(() => import("@/components/FishTab"));
+const ChugTab = lazy(() => import("@/components/ChugTab"));
+const GolfTab = lazy(() => import("@/components/GolfTab"));
+const StandingsTab = lazy(() => import("@/components/StandingsTab"));
 
 type Tab = {
   id: string;
@@ -123,11 +125,20 @@ export default function YearPage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-16">
-        {activeTab === "teams" && <TeamsTab yearId={yearData.id} />}
-        {activeTab === "fish" && <FishTab yearId={yearData.id} yearData={yearData} />}
-        {activeTab === "chug" && <ChugTab yearId={yearData.id} />}
-        {activeTab === "golf" && <GolfTab yearId={yearData.id} />}
-        {activeTab === "standings" && <StandingsTab yearId={yearData.id} />}
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-3 text-sm text-muted-foreground">Loading...</p>
+            </div>
+          </div>
+        }>
+          {activeTab === "teams" && <TeamsTab yearId={yearData.id} />}
+          {activeTab === "fish" && <FishTab yearId={yearData.id} yearData={yearData} />}
+          {activeTab === "chug" && <ChugTab yearId={yearData.id} />}
+          {activeTab === "golf" && <GolfTab yearId={yearData.id} />}
+          {activeTab === "standings" && <StandingsTab yearId={yearData.id} />}
+        </Suspense>
       </main>
 
       {/* Bottom Tabs - Fixed to bottom */}
