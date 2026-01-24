@@ -125,22 +125,36 @@ export default function SelectYear() {
               {yearsLoading ? (
                 <option disabled>Loading years...</option>
               ) : (
-                years?.map((yearData: Year) => {
-                  let statusText = "";
-                  if (yearData.status === "completed") {
-                    statusText = " (Done)";
-                  } else if (yearData.status === "upcoming") {
-                    statusText = " (Upcoming)";
-                  } else if (yearData.status === "active") {
-                    statusText = " (Active)";
-                  }
-                  
-                  return (
-                    <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
-                      {yearData.year} - {yearData.name}{statusText}
-                    </option>
-                  );
-                })
+                (() => {
+                  const currentYear = new Date().getFullYear();
+                  const sortedYears = [...(years || [])].sort((a: Year, b: Year) => {
+                    // Current year first
+                    if (a.year === currentYear && b.year !== currentYear) return -1;
+                    if (b.year === currentYear && a.year !== currentYear) return 1;
+                    // Past years (Done) come before future years (Upcoming)
+                    const aIsPast = a.year < currentYear;
+                    const bIsPast = b.year < currentYear;
+                    if (aIsPast && !bIsPast) return -1;
+                    if (bIsPast && !aIsPast) return 1;
+                    // Within same category, sort by year descending
+                    return b.year - a.year;
+                  });
+
+                  return sortedYears.map((yearData: Year) => {
+                    let statusText = "";
+                    if (yearData.year < currentYear) {
+                      statusText = " (Done)";
+                    } else if (yearData.year > currentYear) {
+                      statusText = " (Upcoming)";
+                    }
+
+                    return (
+                      <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
+                        {yearData.year} - {yearData.name}{statusText}
+                      </option>
+                    );
+                  });
+                })()
               )}
             </select>
           </div>
