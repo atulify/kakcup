@@ -54,7 +54,9 @@ describe('API Integration Tests', () => {
         "year" INTEGER NOT NULL UNIQUE,
         "name" TEXT NOT NULL,
         "status" TEXT NOT NULL DEFAULT 'upcoming',
-        "fishing_locked" INTEGER NOT NULL DEFAULT 0
+        "fishing_locked" INTEGER NOT NULL DEFAULT 0,
+        "chug_locked" INTEGER NOT NULL DEFAULT 0,
+        "golf_locked" INTEGER NOT NULL DEFAULT 0
       );
     `);
 

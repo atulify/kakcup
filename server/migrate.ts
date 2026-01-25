@@ -58,7 +58,9 @@ async function migrateSqlite() {
       "year" INTEGER NOT NULL UNIQUE,
       "name" TEXT NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'upcoming',
-      "fishing_locked" INTEGER NOT NULL DEFAULT 0
+      "fishing_locked" INTEGER NOT NULL DEFAULT 0,
+      "chug_locked" INTEGER NOT NULL DEFAULT 0,
+      "golf_locked" INTEGER NOT NULL DEFAULT 0
     );
   `);
 
@@ -171,7 +173,9 @@ async function migratePostgreSQL() {
       "year" INTEGER NOT NULL UNIQUE,
       "name" TEXT NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'upcoming',
-      "fishing_locked" BOOLEAN NOT NULL DEFAULT false
+      "fishing_locked" BOOLEAN NOT NULL DEFAULT false,
+      "chug_locked" BOOLEAN NOT NULL DEFAULT false,
+      "golf_locked" BOOLEAN NOT NULL DEFAULT false
     );
   `);
 
@@ -204,9 +208,9 @@ async function migratePostgreSQL() {
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "year_id" UUID NOT NULL,
       "team_id" UUID NOT NULL,
-      "chug_1" NUMERIC(10, 2),
-      "chug_2" NUMERIC(10, 2),
-      "average" NUMERIC(10, 2),
+      "chug_1" NUMERIC(10, 3),
+      "chug_2" NUMERIC(10, 3),
+      "average" NUMERIC(10, 3),
       "notes" TEXT
     );
   `);

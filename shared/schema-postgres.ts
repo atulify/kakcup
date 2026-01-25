@@ -65,9 +65,9 @@ export const chugTimes = pgTable("chug_times", {
   id: uuid("id").primaryKey().defaultRandom(),
   yearId: uuid("year_id").notNull(),
   teamId: uuid("team_id").notNull(),
-  chug1: numeric("chug_1", { precision: 10, scale: 2 }), // first chug time
-  chug2: numeric("chug_2", { precision: 10, scale: 2 }), // second chug time
-  average: numeric("average", { precision: 10, scale: 2 }), // average of chug1 and chug2
+  chug1: numeric("chug_1", { precision: 10, scale: 3 }), // first chug time (3 decimal places)
+  chug2: numeric("chug_2", { precision: 10, scale: 3 }), // second chug time (3 decimal places)
+  average: numeric("average", { precision: 10, scale: 3 }), // average of chug1 and chug2 (3 decimal places)
   notes: text("notes"), // optional notes about the chug
 }, (table) => ({
   uniqueYearTeam: index("unique_chug_year_team").on(table.yearId, table.teamId),

@@ -8,6 +8,26 @@ import { useToast } from "@/hooks/use-toast";
 import type { Team } from "@shared/schema";
 import { calculateChugAverage } from "@shared/scoring";
 
+/**
+ * Format a chug time for display: show 2 decimal places unless the third decimal is non-zero
+ * Examples: 10.50 -> "10.50", 10.505 -> "10.505", 10.000 -> "10.00"
+ */
+function formatChugTime(time: number): string {
+  if (time <= 0) return "-";
+
+  // Check if the third decimal place is non-zero
+  const rounded2 = Math.round(time * 100) / 100;
+  const rounded3 = Math.round(time * 1000) / 1000;
+
+  if (Math.abs(rounded3 - rounded2) > 0.0001) {
+    // Third decimal is significant, show 3 decimal places
+    return `${rounded3.toFixed(3)}s`;
+  } else {
+    // Third decimal is zero, show 2 decimal places
+    return `${rounded2.toFixed(2)}s`;
+  }
+}
+
 interface ChugTabProps {
   yearId: string;
   yearData?: any;
@@ -404,21 +424,21 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                     {/* Time 1 */}
                     <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
                       <span className="text-sm font-medium">
-                        {teamStat.chug1 > 0 ? `${teamStat.chug1}s` : "-"}
+                        {formatChugTime(teamStat.chug1)}
                       </span>
                     </td>
 
                     {/* Time 2 */}
                     <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
                       <span className="text-sm font-medium">
-                        {teamStat.chug2 > 0 ? `${teamStat.chug2}s` : "-"}
+                        {formatChugTime(teamStat.chug2)}
                       </span>
                     </td>
 
                     {/* Average */}
                     <td className="border border-border px-2 py-2 text-center" style={{width: '120px'}}>
                       <span className="font-bold text-blue-400">
-                        {teamStat.average > 0 ? `${teamStat.average}s` : "-"}
+                        {formatChugTime(teamStat.average)}
                       </span>
                     </td>
 
@@ -513,14 +533,14 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                       <div>
                         <span className="text-muted-foreground font-medium">Times:</span>
                         <div className="space-y-1 mt-1">
-                          <div>Time 1: {teamStat.chug1 > 0 ? `${teamStat.chug1}s` : "-"}</div>
-                          <div>Time 2: {teamStat.chug2 > 0 ? `${teamStat.chug2}s` : "-"}</div>
+                          <div>Time 1: {formatChugTime(teamStat.chug1)}</div>
+                          <div>Time 2: {formatChugTime(teamStat.chug2)}</div>
                         </div>
                       </div>
                       <div>
                         <span className="text-muted-foreground font-medium">Average:</span>
                         <div className="text-lg font-bold text-blue-400 mt-1">
-                          {teamStat.average > 0 ? `${teamStat.average}s` : "-"}
+                          {formatChugTime(teamStat.average)}
                         </div>
                       </div>
                     </div>
