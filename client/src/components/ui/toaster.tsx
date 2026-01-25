@@ -1,29 +1,31 @@
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
-  ToastClose,
-  ToastDescription,
   ToastProvider,
-  ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+import { Check, X } from "lucide-react"
 
 export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+    <ToastProvider duration={800}>
+      {toasts.map(function ({ id, title, variant, ...props }) {
+        const isError = variant === "destructive" ||
+          title === "Error" ||
+          title === "Unauthorized" ||
+          title === "Login Failed" ||
+          title === "Registration Failed" ||
+          title === "Admin Access Required"
+
         return (
-          <Toast key={id} {...props}>
-            <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              {description && (
-                <ToastDescription>{description}</ToastDescription>
-              )}
-            </div>
-            {action}
-            <ToastClose />
+          <Toast key={id} variant={variant} {...props}>
+            {isError ? (
+              <X className="h-5 w-5 text-red-500" />
+            ) : (
+              <Check className="h-5 w-5 text-green-500" />
+            )}
           </Toast>
         )
       })}
