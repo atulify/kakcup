@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import type { Team, FishWeight, Year } from "@shared/schema";
+import { rankFishTeams } from "@shared/scoring";
 
 interface FishTabProps {
   yearId: string;
@@ -239,48 +240,16 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     };
   });
 
-  // Calculate points based on rankings
-  const teamPoints = new Map<string, number>();
-  
-  // First, set all teams with no weights to 0 points
+  // Calculate points based on rankings using shared scoring utility
+  const teamWeights = new Map<string, number>();
   teamStats.forEach((teamStat: any) => {
-    if (teamStat.total === 0) {
-      teamPoints.set(teamStat.team.id, 0);
-    }
+    teamWeights.set(teamStat.team.id, teamStat.total);
   });
-  
-  // Only rank teams that have weights (total > 0)
-  const rankedTeams = teamStats.filter((teamStat: any) => teamStat.total > 0)
-    .sort((a: any, b: any) => b.total - a.total);
-  
-  let currentRank = 1;
-  let i = 0;
-  while (i < rankedTeams.length) {
-    const currentTotal = rankedTeams[i].total;
-    
-    // Find all teams with the same total (tied teams)
-    const tiedTeams: typeof teamStats = [];
-    let j = i;
-    while (j < rankedTeams.length && rankedTeams[j].total === currentTotal) {
-      tiedTeams.push(rankedTeams[j]);
-      j++;
-    }
-    
-    // Calculate points for tied teams
-    let totalPoints = 0;
-    for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-      totalPoints += Math.max(1, 8 - rank); // Points: 7, 6, 5, 4, 3, 2, 1
-    }
-    const pointsPerTeam = totalPoints / tiedTeams.length;
-    
-    // Assign points to tied teams
-    tiedTeams.forEach((teamStat: any) => {
-      teamPoints.set(teamStat.team.id, pointsPerTeam);
-    });
-    
-    currentRank += tiedTeams.length;
-    i = j;
-  }
+
+  const rankedPoints = rankFishTeams(teamWeights);
+  const teamPoints = new Map<string, number>(
+    rankedPoints.map(({ teamId, points }) => [teamId, points])
+  );
 
   return (
     <div className="p-2 sm:p-4 bg-background">

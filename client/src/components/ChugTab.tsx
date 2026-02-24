@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import type { Team } from "@shared/schema";
-import { calculateChugAverage } from "@shared/scoring";
+import { calculateChugAverage, rankChugTeams } from "@shared/scoring";
 
 /**
  * Format a chug time for display: show 2 decimal places unless the third decimal is non-zero
@@ -245,41 +245,18 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
     };
   });
 
-  // Calculate points based on rankings (fastest time gets most points)
-  const rankedTeams = [...teamStats]
-    .filter(stat => stat.average > 0)
-    .sort((a, b) => a.average - b.average); // Sort ascending (fastest first)
-  
-  const teamPoints = new Map<string, number>();
-  
-  let currentRank = 1;
-  let i = 0;
-  while (i < rankedTeams.length) {
-    const currentAverage = rankedTeams[i].average;
-    
-    // Find all teams with the same average (tied teams)
-    const tiedTeams: typeof teamStats = [];
-    let j = i;
-    while (j < rankedTeams.length && rankedTeams[j].average === currentAverage) {
-      tiedTeams.push(rankedTeams[j]);
-      j++;
+  // Calculate points based on rankings using shared scoring utility
+  const teamAverages = new Map<string, number>();
+  teamStats.forEach((teamStat: any) => {
+    if (teamStat.average > 0) {
+      teamAverages.set(teamStat.team.id, teamStat.average);
     }
-    
-    // Calculate points for tied teams
-    let totalPoints = 0;
-    for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-      totalPoints += Math.max(1, 8 - rank); // Points: 7, 6, 5, 4, 3, 2, 1
-    }
-    const pointsPerTeam = totalPoints / tiedTeams.length;
-    
-    // Assign points to tied teams
-    tiedTeams.forEach((teamStat: any) => {
-      teamPoints.set(teamStat.team.id, pointsPerTeam);
-    });
-    
-    currentRank += tiedTeams.length;
-    i = j;
-  }
+  });
+
+  const rankedPoints = rankChugTeams(teamAverages);
+  const teamPoints = new Map<string, number>(
+    rankedPoints.map(({ teamId, points }) => [teamId, points])
+  );
 
   return (
     <div className="p-2 sm:p-4 bg-background">

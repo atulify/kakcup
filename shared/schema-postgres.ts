@@ -51,7 +51,9 @@ export const teams = pgTable("teams", {
   kak3: text("kak3"), // member 3 name
   kak4: text("kak4"), // member 4 name
   locked: boolean("locked").notNull().default(false), // team lock status
-});
+}, (table) => ({
+  yearIdIdx: index("teams_year_id_idx").on(table.yearId),
+}));
 
 export const fishWeights = pgTable("fish_weights", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -59,7 +61,9 @@ export const fishWeights = pgTable("fish_weights", {
   teamId: uuid("team_id").notNull(),
   weight: numeric("weight", { precision: 10, scale: 2 }), // weight in pounds with decimals
   notes: text("notes"), // optional notes about the catch
-});
+}, (table) => ({
+  yearTeamIdx: index("fish_weights_year_team_idx").on(table.yearId, table.teamId),
+}));
 
 export const chugTimes = pgTable("chug_times", {
   id: uuid("id").primaryKey().defaultRandom(),

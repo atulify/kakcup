@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import type { Team } from "@shared/schema";
+import { rankGolfTeams } from "@shared/scoring";
 
 interface GolfTabProps {
   yearId: string;
@@ -226,41 +227,18 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
     };
   });
 
-  // Calculate points based on rankings (lowest score gets most points)
-  const rankedTeams = [...teamStats]
-    .filter(stat => stat.hasScore)
-    .sort((a, b) => a.score - b.score); // Sort ascending (lowest score first)
-  
-  const teamPoints = new Map<string, number>();
-  
-  let currentRank = 1;
-  let i = 0;
-  while (i < rankedTeams.length) {
-    const currentScore = rankedTeams[i].score;
-    
-    // Find all teams with the same score (tied teams)
-    const tiedTeams: typeof teamStats = [];
-    let j = i;
-    while (j < rankedTeams.length && rankedTeams[j].score === currentScore) {
-      tiedTeams.push(rankedTeams[j]);
-      j++;
+  // Calculate points based on rankings using shared scoring utility
+  const teamScores = new Map<string, number>();
+  teamStats.forEach((teamStat: any) => {
+    if (teamStat.hasScore) {
+      teamScores.set(teamStat.team.id, teamStat.score);
     }
-    
-    // Calculate points for tied teams
-    let totalPoints = 0;
-    for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-      totalPoints += Math.max(1, 8 - rank); // Points: 7, 6, 5, 4, 3, 2, 1
-    }
-    const pointsPerTeam = totalPoints / tiedTeams.length;
-    
-    // Assign points to tied teams
-    tiedTeams.forEach((teamStat: any) => {
-      teamPoints.set(teamStat.team.id, pointsPerTeam);
-    });
-    
-    currentRank += tiedTeams.length;
-    i = j;
-  }
+  });
+
+  const rankedPoints = rankGolfTeams(teamScores);
+  const teamPoints = new Map<string, number>(
+    rankedPoints.map(({ teamId, points }) => [teamId, points])
+  );
 
   // Format score display
   const formatScore = (score: number, hasScore: boolean) => {

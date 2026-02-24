@@ -51,7 +51,9 @@ export const teams = sqliteTable("teams", {
   kak3: text("kak3"), // member 3 name
   kak4: text("kak4"), // member 4 name
   locked: integer("locked", { mode: 'boolean' }).notNull().default(false), // team lock status
-});
+}, (table) => ({
+  yearIdIdx: index("teams_year_id_idx").on(table.yearId),
+}));
 
 export const fishWeights = sqliteTable("fish_weights", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -59,7 +61,9 @@ export const fishWeights = sqliteTable("fish_weights", {
   teamId: text("team_id").notNull(),
   weight: real("weight"), // weight in pounds with decimals
   notes: text("notes"), // optional notes about the catch
-});
+}, (table) => ({
+  yearTeamIdx: index("fish_weights_year_team_idx").on(table.yearId, table.teamId),
+}));
 
 export const chugTimes = sqliteTable("chug_times", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

@@ -129,7 +129,31 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
     // Sort by total points (highest first)
     standingsData.sort((a, b) => b.totalPoints - a.totalPoints);
 
-    return standingsData;
+    // Pre-calculate rank information and place info to avoid repeated filtering during render
+    const teamsWithPoints = standingsData.filter(s => s.totalPoints > 0);
+    const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map(s => s.totalPoints)) : 0;
+    const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map(s => s.totalPoints)) : 0;
+
+    // Enrich standings with rank display and place info
+    return standingsData.map((standing, index) => {
+      let rankDisplay = "-";
+      if (standing.totalPoints > 0) {
+        const tiedTeams = standingsData.filter(s => s.totalPoints === standing.totalPoints);
+        if (tiedTeams.length > 1) {
+          const firstTiedIndex = standingsData.findIndex(s => s.totalPoints === standing.totalPoints);
+          rankDisplay = `T-${firstTiedIndex + 1}`;
+        } else {
+          rankDisplay = `${index + 1}`;
+        }
+      }
+
+      return {
+        ...standing,
+        rankDisplay,
+        isFirst: standing.totalPoints === maxPoints && standing.totalPoints > 0,
+        isLast: standing.totalPoints === minPoints && standing.totalPoints > 0 && teamsWithPoints.length > 1
+      };
+    });
   }, [sortedTeams, fishWeights, chugTimes, golfScores]);
 
   // Now check loading state - AFTER all hooks
@@ -145,32 +169,6 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       </div>
     );
   }
-
-  // Helper function to get rank display
-  const getRankDisplay = (index: number, standing: any) => {
-    if (standing.totalPoints === 0) return "-";
-
-    const tiedTeams = standings.filter((s: any) => s.totalPoints === standing.totalPoints);
-    if (tiedTeams.length > 1) {
-      const firstTiedIndex = standings.findIndex((s: any) => s.totalPoints === standing.totalPoints);
-      return `T-${firstTiedIndex + 1}`;
-    }
-    return `${index + 1}`;
-  };
-
-  // Helper to check if team is first/last place
-  const getPlaceInfo = (standing: any) => {
-    const teamsWithPoints = standings.filter((s: any) => s.totalPoints > 0);
-    if (teamsWithPoints.length === 0) return { isFirst: false, isLast: false };
-
-    const maxPoints = Math.max(...teamsWithPoints.map((s: any) => s.totalPoints));
-    const minPoints = Math.min(...teamsWithPoints.map((s: any) => s.totalPoints));
-
-    return {
-      isFirst: standing.totalPoints === maxPoints && standing.totalPoints > 0,
-      isLast: standing.totalPoints === minPoints && standing.totalPoints > 0 && teamsWithPoints.length > 1
-    };
-  };
 
   return (
     <div className="p-4 bg-background">
@@ -205,8 +203,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                   </thead>
                   <tbody>
                     {standings.map((standing: any, index: number) => {
-                      const { isFirst, isLast } = getPlaceInfo(standing);
-                      const displayRank = getRankDisplay(index, standing);
+                      const { isFirst, isLast, rankDisplay: displayRank } = standing;
 
                       return (
                         <tr key={standing.team.id} className={`hover:bg-accent/50 ${isFirst ? 'bg-primary/20' : ''}`}>
@@ -262,8 +259,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
               {standings.map((standing: any, index: number) => {
-                const { isFirst, isLast } = getPlaceInfo(standing);
-                const displayRank = getRankDisplay(index, standing);
+                const { isFirst, isLast, rankDisplay: displayRank } = standing;
 
                 return (
                   <div key={standing.team.id} className={`bg-card border border-border rounded-lg p-4 ${isFirst ? 'bg-primary/20' : ''}`}>
