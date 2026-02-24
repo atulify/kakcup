@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Trophy, ArrowRight } from "lucide-react";
+import { Trophy, ArrowRight } from "@/components/icons";
 
 export default function GenericLandingPage() {
   const [, setLocation] = useLocation();

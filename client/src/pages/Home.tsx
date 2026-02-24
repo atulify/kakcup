@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { LogIn, Trophy, LogOut } from "lucide-react";
+import { LogIn, Trophy, LogOut } from "@/components/icons";
 
 export default function Home() {
   const { isAuthenticated, isLoading, user } = useAuth();

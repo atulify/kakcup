@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, X, Lock, Unlock, Plus } from "lucide-react";
+import { Edit, X, Lock, Unlock, Plus } from "@/components/icons";
 import type { Team } from "@shared/schema";
 
 interface TeamsTabProps {

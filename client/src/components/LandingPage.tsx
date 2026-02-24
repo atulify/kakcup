@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Smartphone } from "lucide-react";
+import { ArrowRight, Smartphone } from "@/components/icons";
 import { apiRequest } from "@/lib/queryClient";
 import type { Year } from "@shared/schema";
 

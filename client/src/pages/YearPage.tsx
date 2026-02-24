@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
-import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn } from "lucide-react";
+import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";

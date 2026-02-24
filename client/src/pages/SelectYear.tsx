@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, ArrowRight, LogOut, LogIn } from "lucide-react";
+import { Trophy, ArrowRight, LogOut, LogIn } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";

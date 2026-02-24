@@ -4,7 +4,7 @@ import {
   ToastProvider,
   ToastViewport,
 } from "@/components/ui/toast"
-import { Check, X } from "lucide-react"
+import { Check, X } from "@/components/icons"
 
 export function Toaster() {
   const { toasts } = useToast()

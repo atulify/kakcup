@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo } from "react";
-import { Plus, Lock, Trash2 } from "lucide-react";
+import { Plus, Lock, Trash2 } from "@/components/icons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
