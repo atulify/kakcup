@@ -7,6 +7,7 @@
 export { default as ArrowRight } from 'lucide-react/dist/esm/icons/arrow-right';
 export { default as Beer } from 'lucide-react/dist/esm/icons/beer';
 export { default as Check } from 'lucide-react/dist/esm/icons/check';
+export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down';
 export { default as Edit } from 'lucide-react/dist/esm/icons/edit';
 export { default as Fish } from 'lucide-react/dist/esm/icons/fish';
 export { default as Flag } from 'lucide-react/dist/esm/icons/flag';

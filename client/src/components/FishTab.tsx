@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo } from "react";
-import { Plus, Lock, Trash2 } from "@/components/icons";
+import { Plus, Lock, Trash2, ChevronDown } from "@/components/icons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
@@ -18,6 +18,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [weight, setWeight] = useState("");
   const [notes, setNotes] = useState("");
+  const [expandedWeights, setExpandedWeights] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
@@ -507,21 +508,42 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 text-sm">
+
+                    <div className="text-sm space-y-2">
                       <div>
-                        <span className="text-muted-foreground font-medium">Top 3 Weights:</span>
-                        <div className="space-y-1 mt-1">
-                          <div>{teamStat.weight1 > 0 ? `${teamStat.weight1} lbs` : "-"}</div>
-                          <div>{teamStat.weight2 > 0 ? `${teamStat.weight2} lbs` : "-"}</div>
-                          <div>{teamStat.weight3 > 0 ? `${teamStat.weight3} lbs` : "-"}</div>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground font-medium">Total:</span>
-                        <div className="text-lg font-bold text-blue-400 mt-1">
+                        <div className="text-xs text-muted-foreground">Total:</div>
+                        <div className="text-lg font-bold text-blue-400">
                           {teamStat.total > 0 ? `${teamStat.total} lbs` : "-"}
                         </div>
+                      </div>
+
+                      <div>
+                        <button
+                          onClick={() => {
+                            const newExpanded = new Set(expandedWeights);
+                            if (newExpanded.has(teamStat.team.id)) {
+                              newExpanded.delete(teamStat.team.id);
+                            } else {
+                              newExpanded.add(teamStat.team.id);
+                            }
+                            setExpandedWeights(newExpanded);
+                          }}
+                          className="flex items-center gap-1 text-muted-foreground font-medium hover:text-foreground transition-colors"
+                        >
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform ${
+                              expandedWeights.has(teamStat.team.id) ? 'rotate-180' : ''
+                            }`}
+                          />
+                          <span>Top 3 Weights</span>
+                        </button>
+                        {expandedWeights.has(teamStat.team.id) && (
+                          <div className="space-y-1 mt-2 ml-5">
+                            <div>{teamStat.weight1 > 0 ? `${teamStat.weight1} lbs` : "-"}</div>
+                            <div>{teamStat.weight2 > 0 ? `${teamStat.weight2} lbs` : "-"}</div>
+                            <div>{teamStat.weight3 > 0 ? `${teamStat.weight3} lbs` : "-"}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
