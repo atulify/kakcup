@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, memo } from "react";
+import { useState, memo, useMemo } from "react";
 import { Plus, Lock, Trash2 } from "@/components/icons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -132,12 +132,11 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
       });
     },
     onSuccess: () => {
-      // Invalidate the parent year query to trigger a fresh fetch
       const yearNumber = yearData?.year;
       if (yearNumber) {
         queryClient.invalidateQueries({ queryKey: ["/api/years", yearNumber.toString()] });
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/years"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
       toast({
         title: "Competition Locked",
         description: "Chug competition has been locked successfully.",
@@ -173,8 +172,6 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
     }
   });
 
-
-
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
     queryFn: async () => {
@@ -191,7 +188,62 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
     },
   });
 
+  // Memoized: sorted teams (fixes in-place mutation of query cache)
+  const sortedTeams = useMemo(
+    () => [...(teams ?? [])].sort((a: Team, b: Team) => a.position - b.position),
+    [teams]
+  );
 
+  // Memoized: chug time lookup map
+  const chugTimeMap = useMemo(() => {
+    const map = new Map<string, any>();
+    chugTimes?.forEach((ct: any) => map.set(ct.teamId, ct));
+    return map;
+  }, [chugTimes]);
+
+  // Memoized: full sorted stats with points, rank, and highlight flags pre-computed
+  const sortedStats = useMemo(() => {
+    const stats = sortedTeams.map((team: Team) => {
+      const chugTime = chugTimeMap.get(team.id);
+      const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
+      return {
+        team,
+        chug1: chugTime ? parseFloat(chugTime.chug1?.toString() || '0') : 0,
+        chug2: chugTime ? parseFloat(chugTime.chug2?.toString() || '0') : 0,
+        average: chugTime ? parseFloat(chugTime.average?.toString() || '0') : 0,
+        members,
+      };
+    });
+
+    const teamAverages = new Map<string, number>();
+    stats.forEach((s: any) => { if (s.average > 0) teamAverages.set(s.team.id, s.average); });
+    const rankedPoints = rankChugTeams(teamAverages);
+    const teamPoints = new Map<string, number>(rankedPoints.map(({ teamId, points }) => [teamId, points]));
+
+    const sorted = stats
+      .map((s: any) => ({ ...s, points: teamPoints.get(s.team.id) || 0 }))
+      .sort((a: any, b: any) => b.points - a.points);
+
+    // Compute rank/highlight values once for the whole array
+    const teamsWithPoints = sorted.filter((t: any) => t.points > 0);
+    const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
+    const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
+
+    const rankByPoints = new Map<number, string>();
+    sorted.forEach((t: any, i: number) => {
+      if (t.points > 0 && !rankByPoints.has(t.points)) {
+        const tiedCount = teamsWithPoints.filter((x: any) => x.points === t.points).length;
+        rankByPoints.set(t.points, tiedCount > 1 ? `T-${i + 1}` : `${i + 1}`);
+      }
+    });
+
+    return sorted.map((t: any) => ({
+      ...t,
+      displayRank: t.points > 0 ? (rankByPoints.get(t.points) ?? '-') : '-',
+      isHighestScore: t.points === maxPoints && t.points > 0,
+      isLowestScore: t.points === minPoints && t.points > 0 && teamsWithPoints.length > 1,
+    }));
+  }, [sortedTeams, chugTimeMap]);
 
   const handleAddChug = () => {
     if (!selectedTeamId || !time1 || !time2) return;
@@ -200,7 +252,6 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
     const chug2Value = parseFloat(time2);
     if (isNaN(chug1Value) || isNaN(chug2Value) || chug1Value <= 0 || chug2Value <= 0) return;
 
-    // Use shared scoring utility for consistent average calculation
     const average = calculateChugAverage(chug1Value, chug2Value);
 
     addChugMutation.mutate({
@@ -222,41 +273,6 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
       </div>
     );
   }
-
-  const sortedTeams = teams?.sort((a: Team, b: Team) => a.position - b.position) || [];
-
-  // Create a map of team ID to chug time for easy lookup
-  const chugTimeMap = new Map<string, any>();
-  chugTimes?.forEach((ct: any) => {
-    chugTimeMap.set(ct.teamId, ct);
-  });
-
-  // Calculate team stats with points
-  const teamStats = sortedTeams.map((team: Team) => {
-    const chugTime = chugTimeMap.get(team.id);
-    const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
-    
-    return {
-      team,
-      chug1: chugTime ? parseFloat(chugTime.chug1?.toString() || '0') : 0,
-      chug2: chugTime ? parseFloat(chugTime.chug2?.toString() || '0') : 0,
-      average: chugTime ? parseFloat(chugTime.average?.toString() || '0') : 0,
-      members
-    };
-  });
-
-  // Calculate points based on rankings using shared scoring utility
-  const teamAverages = new Map<string, number>();
-  teamStats.forEach((teamStat: any) => {
-    if (teamStat.average > 0) {
-      teamAverages.set(teamStat.team.id, teamStat.average);
-    }
-  });
-
-  const rankedPoints = rankChugTeams(teamAverages);
-  const teamPoints = new Map<string, number>(
-    rankedPoints.map(({ teamId, points }) => [teamId, points])
-  );
 
   return (
     <div className="p-2 sm:p-4 bg-background">
@@ -338,209 +354,151 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                       )}
                     </tr>
                   </thead>
-            <tbody>
-              {teamStats
-                .map((teamStat: any) => ({
-                  ...teamStat,
-                  points: teamPoints.get(teamStat.team.id) || 0
-                }))
-                .sort((a: any, b: any) => b.points - a.points)
-                .map((teamStat: any, index: number, sortedArray: any[]) => {
-                const points = teamStat.points;
-                
-                // Calculate rank with tie handling
-                let displayRank = (index + 1).toString();
-                
-                if (points > 0) {
-                  const tiedTeams = sortedArray.filter((t: any) => t.points === points);
-                  if (tiedTeams.length > 1) {
-                    // Find the starting rank for this tie group
-                    const firstTiedIndex = sortedArray.findIndex((t: any) => t.points === points);
-                    displayRank = `T-${firstTiedIndex + 1}`;
-                  }
-                }
-                
-                // Find teams with highest and lowest points (but greater than 0)
-                const teamsWithPoints = sortedArray.filter((t: any) => t.points > 0);
-                const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const isHighestScore = points === maxPoints && points > 0;
-                const isLowestScore = points === minPoints && points > 0 && teamsWithPoints.length > 1;
-                
-                return (
-                  <tr key={teamStat.team.id} className="hover:bg-accent/50">
-                    {/* Rank */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
-                      <span className="text-sm font-bold text-foreground">
-                        {points > 0 ? displayRank : "-"}
-                      </span>
-                    </td>
-                    
-                    {/* Team & Members */}
-                    <td className="border border-border px-2 py-2" style={{minWidth: '240px', maxWidth: '360px'}}>
-                      <div>
-                        <div className="font-semibold text-foreground mb-1 text-sm">
-                          {teamStat.team.name}
-                          {isHighestScore && (
-                            <span className="ml-2 text-yellow-400 text-lg">🏆</span>
-                          )}
-                          {isLowestScore && (
-                            <span className="ml-2 text-amber-600 text-lg">💩</span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                          {teamStat.members.map((member: string, index: number) => (
-                            <div key={index} className="text-xs text-muted-foreground truncate">
-                              {member}
+                  <tbody>
+                    {sortedStats.map((teamStat: any) => (
+                      <tr key={teamStat.team.id} className="hover:bg-accent/50">
+                        {/* Rank */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
+                          <span className="text-sm font-bold text-foreground">
+                            {teamStat.points > 0 ? teamStat.displayRank : "-"}
+                          </span>
+                        </td>
+
+                        {/* Team & Members */}
+                        <td className="border border-border px-2 py-2" style={{minWidth: '240px', maxWidth: '360px'}}>
+                          <div>
+                            <div className="font-semibold text-foreground mb-1 text-sm">
+                              {teamStat.team.name}
+                              {teamStat.isHighestScore && (
+                                <span className="ml-2 text-yellow-400 text-lg">🏆</span>
+                              )}
+                              {teamStat.isLowestScore && (
+                                <span className="ml-2 text-amber-600 text-lg">💩</span>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    </td>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                              {teamStat.members.map((member: string, index: number) => (
+                                <div key={index} className="text-xs text-muted-foreground truncate">
+                                  {member}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
 
-                    {/* Time 1 */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
-                      <span className="text-sm font-medium">
-                        {formatChugTime(teamStat.chug1)}
-                      </span>
-                    </td>
+                        {/* Time 1 */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
+                          <span className="text-sm font-medium">
+                            {formatChugTime(teamStat.chug1)}
+                          </span>
+                        </td>
 
-                    {/* Time 2 */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
-                      <span className="text-sm font-medium">
-                        {formatChugTime(teamStat.chug2)}
-                      </span>
-                    </td>
+                        {/* Time 2 */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
+                          <span className="text-sm font-medium">
+                            {formatChugTime(teamStat.chug2)}
+                          </span>
+                        </td>
 
-                    {/* Average */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '120px'}}>
-                      <span className="font-bold text-blue-400">
-                        {formatChugTime(teamStat.average)}
-                      </span>
-                    </td>
+                        {/* Average */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '120px'}}>
+                          <span className="font-bold text-blue-400">
+                            {formatChugTime(teamStat.average)}
+                          </span>
+                        </td>
 
-                    {/* Points */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                      <span className="font-bold text-green-400">
-                        {points > 0 ? points : "0"}
-                      </span>
-                    </td>
+                        {/* Points */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
+                          <span className="font-bold text-green-400">
+                            {teamStat.points > 0 ? teamStat.points : "0"}
+                          </span>
+                        </td>
 
-                    {/* Actions */}
-                    {isAdmin && !yearData?.chug_locked && (
-                      <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
-                        {teamStat.average > 0 && (
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Clear chug time for ${teamStat.team.name}?`)) {
-                                deleteChugMutation.mutate(teamStat.team.id);
-                              }
-                            }}
-                            disabled={deleteChugMutation.isPending}
-                            className="text-red-500 hover:text-red-700"
-                            title="Clear chug time for this team"
-                          >
-                            <Trash2 size={16} className="mx-auto" />
-                          </button>
+                        {/* Actions */}
+                        {isAdmin && !yearData?.chug_locked && (
+                          <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
+                            {teamStat.average > 0 && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Clear chug time for ${teamStat.team.name}?`)) {
+                                    deleteChugMutation.mutate(teamStat.team.id);
+                                  }
+                                }}
+                                disabled={deleteChugMutation.isPending}
+                                className="text-red-500 hover:text-red-700"
+                                title="Clear chug time for this team"
+                              >
+                                <Trash2 size={16} className="mx-auto" />
+                              </button>
+                            )}
+                          </td>
                         )}
-                      </td>
-                    )}
-                  </tr>
-                );
-                  })}
-                </tbody>
-              </table>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
-              {teamStats
-                .map((teamStat: any) => ({
-                  ...teamStat,
-                  points: teamPoints.get(teamStat.team.id) || 0
-                }))
-                .sort((a: any, b: any) => b.points - a.points)
-                .map((teamStat: any, index: number, sortedArray: any[]) => {
-                const points = teamStat.points;
-                const teamsWithPoints = sortedArray.filter((t: any) => t.points > 0);
-                const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const isHighestScore = points === maxPoints && points > 0;
-                const isLowestScore = points === minPoints && points > 0 && teamsWithPoints.length > 1;
-                
-                // Calculate proper rank with ties
-                let displayRank = "-";
-                if (points > 0) {
-                  // Check if there are ties at this rank
-                  const tiedCount = sortedArray.filter((t: any) => t.points === points).length;
-                  if (tiedCount > 1) {
-                    // Find the starting position of this tie group
-                    const firstTiedIndex = sortedArray.findIndex((t: any) => t.points === points);
-                    displayRank = `T-${firstTiedIndex + 1}`;
-                  } else {
-                    displayRank = `${index + 1}`;
-                  }
-                }
-                
-                return (
-                  <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground">{teamStat.team.name}</h3>
-                          {isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
-                          {isLowestScore && <span className="text-amber-600 text-lg">💩</span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {teamStat.members.join(' • ')}
-                        </div>
+              {sortedStats.map((teamStat: any) => (
+                <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-foreground">{teamStat.team.name}</h3>
+                        {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
+                        {teamStat.isLowestScore && <span className="text-amber-600 text-lg">💩</span>}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-foreground">
-                          Rank: {displayRank}
-                        </div>
-                        <div className="text-lg font-bold text-green-400">
-                          {points > 0 ? points : "0"} pts
-                        </div>
+                      <div className="text-xs text-muted-foreground">
+                        {teamStat.members.join(' • ')}
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-muted-foreground font-medium">Times:</span>
-                        <div className="space-y-1 mt-1">
-                          <div>Time 1: {formatChugTime(teamStat.chug1)}</div>
-                          <div>Time 2: {formatChugTime(teamStat.chug2)}</div>
-                        </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-foreground">
+                        Rank: {teamStat.displayRank}
                       </div>
-                      <div>
-                        <span className="text-muted-foreground font-medium">Average:</span>
-                        <div className="text-lg font-bold text-blue-400 mt-1">
-                          {formatChugTime(teamStat.average)}
-                        </div>
+                      <div className="text-lg font-bold text-green-400">
+                        {teamStat.points > 0 ? teamStat.points : "0"} pts
                       </div>
                     </div>
-
-                    {isAdmin && !yearData?.chug_locked && teamStat.average > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Clear chug time for ${teamStat.team.name}?`)) {
-                              deleteChugMutation.mutate(teamStat.team.id);
-                            }
-                          }}
-                          disabled={deleteChugMutation.isPending}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
-                        >
-                          <Trash2 size={16} />
-                          <span>Clear Chug Time</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground font-medium">Times:</span>
+                      <div className="space-y-1 mt-1">
+                        <div>Time 1: {formatChugTime(teamStat.chug1)}</div>
+                        <div>Time 2: {formatChugTime(teamStat.chug2)}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-medium">Average:</span>
+                      <div className="text-lg font-bold text-blue-400 mt-1">
+                        {formatChugTime(teamStat.average)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isAdmin && !yearData?.chug_locked && teamStat.average > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Clear chug time for ${teamStat.team.name}?`)) {
+                            deleteChugMutation.mutate(teamStat.team.id);
+                          }
+                        }}
+                        disabled={deleteChugMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
+                      >
+                        <Trash2 size={16} />
+                        <span>Clear Chug Time</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </>
         )}
@@ -551,7 +509,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-foreground">Add Chug Times</h3>
-            
+
             <div className="space-y-4">
               {/* Team Selection */}
               <div>
@@ -654,7 +612,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
       {sortedTeams.length > 0 && (
         <div className="mt-4 text-sm text-muted-foreground">
           <p>
-            <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place. 
+            <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place.
             Tied teams split the available points equally.
           </p>
         </div>

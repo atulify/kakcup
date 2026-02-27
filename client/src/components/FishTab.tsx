@@ -1,11 +1,11 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, memo } from "react";
+import { useState, memo, useMemo } from "react";
 import { Plus, Lock, Trash2, ChevronDown } from "@/components/icons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
-import type { Team, FishWeight, Year } from "@shared/schema";
+import type { Team } from "@shared/schema";
 import { rankFishTeams } from "@shared/scoring";
 
 interface FishTabProps {
@@ -39,7 +39,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     },
     onError: (error: any) => {
       console.error("Add weight error:", error);
-      
+
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -51,7 +51,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         }, 500);
         return;
       }
-      
+
       if (isAdminError(error)) {
         toast({
           title: "Admin Access Required",
@@ -60,8 +60,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         });
         return;
       }
-      
-      // Handle server error response
+
       if (error?.status === 403) {
         toast({
           title: "Competition Locked",
@@ -124,16 +123,12 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         fishing_locked: true
       });
     },
-    onSuccess: (updatedYear) => {
-      // Invalidate the parent year query to trigger a fresh fetch
+    onSuccess: () => {
       const yearNumber = parentYearData?.year;
       if (yearNumber) {
         queryClient.invalidateQueries({ queryKey: ["/api/years", yearNumber.toString()] });
       }
-
-      // Also invalidate general years queries
-      queryClient.invalidateQueries({ queryKey: ["/api/years"] });
-
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
       toast({
         title: "Competition Locked",
         description: "Fishing competition has been locked successfully.",
@@ -141,7 +136,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     },
     onError: (error: any) => {
       console.error("Lock fishing error:", error);
-      
+
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -153,7 +148,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         }, 500);
         return;
       }
-      
+
       if (isAdminError(error)) {
         toast({
           title: "Admin Access Required",
@@ -162,7 +157,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         });
         return;
       }
-      
+
       toast({
         title: "Error",
         description: "Failed to lock fishing competition. Please try again.",
@@ -170,6 +165,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       });
     }
   });
+
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
     queryFn: async () => {
@@ -186,8 +182,82 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     },
   });
 
-  // Use parent yearData if available, otherwise fall back to fetching
   const yearData = parentYearData;
+
+  // Memoized: sorted teams (fixes in-place mutation of query cache)
+  const sortedTeams = useMemo(
+    () => [...(teams ?? [])].sort((a: Team, b: Team) => a.position - b.position),
+    [teams]
+  );
+
+  // Memoized: full sorted stats with points, rank, and highlight flags pre-computed
+  const sortedStats = useMemo(() => {
+    // Group weights by team
+    const teamWeightsMap = new Map<string, number[]>();
+    fishWeights?.forEach((fw: any) => {
+      if (!teamWeightsMap.has(fw.teamId)) teamWeightsMap.set(fw.teamId, []);
+      teamWeightsMap.get(fw.teamId)!.push(parseFloat(fw.weight?.toString() || '0') || 0);
+    });
+
+    const stats = sortedTeams.map((team: Team) => {
+      const weights = teamWeightsMap.get(team.id) || [];
+      // Use spread to avoid mutating the cached array
+      const sortedWeights = [...weights].sort((a, b) => b - a);
+      const top3 = sortedWeights.slice(0, 3);
+      const total = top3.reduce((sum, w) => sum + w, 0);
+      return {
+        team,
+        weight1: top3[0] || 0,
+        weight2: top3[1] || 0,
+        weight3: top3[2] || 0,
+        total,
+        weights, // raw array used for count display and delete button
+        members: [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean),
+      };
+    });
+
+    const teamWeights = new Map<string, number>();
+    stats.forEach((s: any) => teamWeights.set(s.team.id, s.total));
+    const rankedPoints = rankFishTeams(teamWeights);
+    const teamPoints = new Map<string, number>(rankedPoints.map(({ teamId, points }) => [teamId, points]));
+
+    const sorted = stats
+      .map((s: any) => ({ ...s, points: teamPoints.get(s.team.id) || 0 }))
+      .sort((a: any, b: any) => b.points - a.points);
+
+    // Compute rank/highlight values once for the whole array
+    const teamsWithPoints = sorted.filter((t: any) => t.points > 0);
+    const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
+    const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
+
+    const rankByPoints = new Map<number, string>();
+    sorted.forEach((t: any, i: number) => {
+      if (t.points > 0 && !rankByPoints.has(t.points)) {
+        const tiedCount = teamsWithPoints.filter((x: any) => x.points === t.points).length;
+        rankByPoints.set(t.points, tiedCount > 1 ? `T-${i + 1}` : `${i + 1}`);
+      }
+    });
+
+    return sorted.map((t: any) => ({
+      ...t,
+      displayRank: t.points > 0 ? (rankByPoints.get(t.points) ?? '-') : '-',
+      isHighestScore: t.points === maxPoints && t.points > 0,
+      isLowestScore: t.points === minPoints && t.points > 0 && teamsWithPoints.length > 1,
+    }));
+  }, [sortedTeams, fishWeights]);
+
+  const handleAddWeight = () => {
+    if (!selectedTeamId || weight === "") return;
+
+    const weightValue = parseFloat(weight);
+    if (isNaN(weightValue) || weightValue < 0) return;
+
+    addWeightMutation.mutate({
+      teamId: selectedTeamId,
+      weight: weightValue,
+      notes: notes.trim() || undefined
+    });
+  };
 
   if (teamsLoading || fishLoading) {
     return (
@@ -200,58 +270,6 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     );
   }
 
-  const handleAddWeight = () => {
-    if (!selectedTeamId || weight === "") return;
-    
-    const weightValue = parseFloat(weight);
-    if (isNaN(weightValue) || weightValue < 0) return;
-    
-    addWeightMutation.mutate({
-      teamId: selectedTeamId,
-      weight: weightValue,
-      notes: notes.trim() || undefined
-    });
-  };
-
-  const sortedTeams = teams?.sort((a: Team, b: Team) => a.position - b.position) || [];
-
-  // Group fish weights by team ID and get top 3 for each team
-  const teamWeightsMap = new Map<string, number[]>();
-  fishWeights?.forEach((fw: any) => {
-    if (!teamWeightsMap.has(fw.teamId)) {
-      teamWeightsMap.set(fw.teamId, []);
-    }
-    teamWeightsMap.get(fw.teamId)?.push(parseFloat(fw.weight?.toString() || '0') || 0);
-  });
-
-  // Calculate top 3 weights and totals for each team
-  const teamStats = sortedTeams.map((team: Team) => {
-    const weights = teamWeightsMap.get(team.id) || [];
-    const sortedWeights = weights.sort((a: number, b: number) => b - a); // Sort descending
-    const top3 = sortedWeights.slice(0, 3);
-    const total = top3.reduce((sum: number, weight: number) => sum + weight, 0);
-    
-    return {
-      team,
-      weight1: top3[0] || 0,
-      weight2: top3[1] || 0,
-      weight3: top3[2] || 0,
-      total,
-      members: [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean)
-    };
-  });
-
-  // Calculate points based on rankings using shared scoring utility
-  const teamWeights = new Map<string, number>();
-  teamStats.forEach((teamStat: any) => {
-    teamWeights.set(teamStat.team.id, teamStat.total);
-  });
-
-  const rankedPoints = rankFishTeams(teamWeights);
-  const teamPoints = new Map<string, number>(
-    rankedPoints.map(({ teamId, points }) => [teamId, points])
-  );
-
   return (
     <div className="p-2 sm:p-4 bg-background">
       <div className="mb-3 flex justify-end">
@@ -261,8 +279,8 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
               onClick={() => setShowAddModal(true)}
               disabled={sortedTeams.length === 0 || yearData?.fishing_locked}
               className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                yearData?.fishing_locked 
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed' 
+                yearData?.fishing_locked
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-primary'
               } ${sortedTeams.length === 0 ? 'bg-muted cursor-not-allowed' : ''}`}
               data-testid="button-add-weight"
@@ -276,8 +294,8 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
               onClick={() => lockFishingMutation.mutate()}
               disabled={yearData?.fishing_locked || lockFishingMutation.isPending}
               className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                yearData?.fishing_locked 
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed' 
+                yearData?.fishing_locked
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-destructive'
               }`}
               data-testid="button-lock-fishing"
@@ -334,239 +352,181 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                       )}
                     </tr>
                   </thead>
-            <tbody>
-              {teamStats
-                .map((teamStat: any) => ({
-                  ...teamStat,
-                  points: teamPoints.get(teamStat.team.id) || 0
-                }))
-                .sort((a: any, b: any) => b.points - a.points)
-                .map((teamStat: any, index: number, sortedArray: any[]) => {
-                const points = teamStat.points;
-                
-                // Calculate rank with tie handling
-                let displayRank = (index + 1).toString();
-                
-                if (points > 0) {
-                  const tiedTeams = sortedArray.filter((t: any) => t.points === points);
-                  if (tiedTeams.length > 1) {
-                    // Find the starting rank for this tie group
-                    const firstTiedIndex = sortedArray.findIndex((t: any) => t.points === points);
-                    displayRank = `T-${firstTiedIndex + 1}`;
-                  }
-                }
-                
-                // Find teams with highest and lowest points (but greater than 0)
-                const teamsWithPoints = sortedArray.filter((t: any) => t.points > 0);
-                const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const isHighestScore = points === maxPoints && points > 0;
-                const isLowestScore = points === minPoints && points > 0 && teamsWithPoints.length > 1;
-                
-                return (
-                  <tr key={teamStat.team.id} className="hover:bg-accent/50">
-                    {/* Rank */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
-                      <span className="text-sm font-bold text-foreground">
-                        {points > 0 ? displayRank : "-"}
-                      </span>
-                    </td>
-                    
-                    {/* Team & Members */}
-                    <td className="border border-border px-2 py-2" style={{minWidth: '240px', maxWidth: '360px'}}>
-                      <div>
-                        <div className="font-semibold text-foreground mb-1 text-sm">
-                          {teamStat.team.name}
-                          {isHighestScore && (
-                            <span className="ml-2 text-yellow-400 text-lg">🏆</span>
-                          )}
-                          {isLowestScore && (
-                            <span className="ml-2 text-amber-600 text-lg">💩</span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                          {teamStat.members.map((member: string, index: number) => (
-                            <div key={index} className="text-xs text-muted-foreground truncate">
-                              {member}
+                  <tbody>
+                    {sortedStats.map((teamStat: any) => (
+                      <tr key={teamStat.team.id} className="hover:bg-accent/50">
+                        {/* Rank */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
+                          <span className="text-sm font-bold text-foreground">
+                            {teamStat.points > 0 ? teamStat.displayRank : "-"}
+                          </span>
+                        </td>
+
+                        {/* Team & Members */}
+                        <td className="border border-border px-2 py-2" style={{minWidth: '240px', maxWidth: '360px'}}>
+                          <div>
+                            <div className="font-semibold text-foreground mb-1 text-sm">
+                              {teamStat.team.name}
+                              {teamStat.isHighestScore && (
+                                <span className="ml-2 text-yellow-400 text-lg">🏆</span>
+                              )}
+                              {teamStat.isLowestScore && (
+                                <span className="ml-2 text-amber-600 text-lg">💩</span>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    </td>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                              {teamStat.members.map((member: string, index: number) => (
+                                <div key={index} className="text-xs text-muted-foreground truncate">
+                                  {member}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
 
-                    {/* Weight 1 */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
-                      <span className="text-sm font-medium">
-                        {teamStat.weight1 > 0 ? `${teamStat.weight1}` : "-"}
-                      </span>
-                    </td>
+                        {/* Weight 1 */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
+                          <span className="text-sm font-medium">
+                            {teamStat.weight1 > 0 ? `${teamStat.weight1}` : "-"}
+                          </span>
+                        </td>
 
-                    {/* Weight 2 */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
-                      <span className="text-sm font-medium">
-                        {teamStat.weight2 > 0 ? `${teamStat.weight2}` : "-"}
-                      </span>
-                    </td>
+                        {/* Weight 2 */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
+                          <span className="text-sm font-medium">
+                            {teamStat.weight2 > 0 ? `${teamStat.weight2}` : "-"}
+                          </span>
+                        </td>
 
-                    {/* Weight 3 */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
-                      <span className="text-sm font-medium">
-                        {teamStat.weight3 > 0 ? `${teamStat.weight3}` : "-"}
-                      </span>
-                    </td>
+                        {/* Weight 3 */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '80px'}}>
+                          <span className="text-sm font-medium">
+                            {teamStat.weight3 > 0 ? `${teamStat.weight3}` : "-"}
+                          </span>
+                        </td>
 
-                    {/* Total */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '110px'}}>
-                      <span className="font-bold text-blue-400">
-                        {teamStat.total > 0 ? `${teamStat.total}` : "-"}
-                      </span>
-                    </td>
+                        {/* Total */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '110px'}}>
+                          <span className="font-bold text-blue-400">
+                            {teamStat.total > 0 ? `${teamStat.total}` : "-"}
+                          </span>
+                        </td>
 
-                    {/* Points */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                      <span className="font-bold text-green-400">
-                        {points > 0 ? points : "0"}
-                      </span>
-                    </td>
+                        {/* Points */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
+                          <span className="font-bold text-green-400">
+                            {teamStat.points > 0 ? teamStat.points : "0"}
+                          </span>
+                        </td>
 
-                    {/* Actions */}
-                    {isAdmin && !yearData?.fishing_locked && (
-                      <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
-                        {teamStat.weights.length > 0 && (
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
-                                deleteTeamWeightsMutation.mutate(teamStat.team.id);
-                              }
-                            }}
-                            disabled={deleteTeamWeightsMutation.isPending}
-                            className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Clear all fish weights for this team"
-                          >
-                            <Trash2 size={16} className="mx-auto" />
-                          </button>
+                        {/* Actions */}
+                        {isAdmin && !yearData?.fishing_locked && (
+                          <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
+                            {teamStat.weights.length > 0 && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
+                                    deleteTeamWeightsMutation.mutate(teamStat.team.id);
+                                  }
+                                }}
+                                disabled={deleteTeamWeightsMutation.isPending}
+                                className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Clear all fish weights for this team"
+                              >
+                                <Trash2 size={16} className="mx-auto" />
+                              </button>
+                            )}
+                          </td>
                         )}
-                      </td>
-                    )}
-                  </tr>
-                );
-                  })}
-                </tbody>
-              </table>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
-              {teamStats
-                .map((teamStat: any) => ({
-                  ...teamStat,
-                  points: teamPoints.get(teamStat.team.id) || 0
-                }))
-                .sort((a: any, b: any) => b.points - a.points)
-                .map((teamStat: any, index: number, sortedArray: any[]) => {
-                const points = teamStat.points;
-                const teamsWithPoints = sortedArray.filter((t: any) => t.points > 0);
-                const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const isHighestScore = points === maxPoints && points > 0;
-                const isLowestScore = points === minPoints && points > 0 && teamsWithPoints.length > 1;
-                
-                // Calculate proper rank with ties
-                let displayRank = "-";
-                if (points > 0) {
-                  // Check if there are ties at this rank
-                  const tiedCount = sortedArray.filter((t: any) => t.points === points).length;
-                  if (tiedCount > 1) {
-                    // Find the starting position of this tie group
-                    const firstTiedIndex = sortedArray.findIndex((t: any) => t.points === points);
-                    displayRank = `T-${firstTiedIndex + 1}`;
-                  } else {
-                    displayRank = `${index + 1}`;
-                  }
-                }
-                
-                return (
-                  <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground">{teamStat.team.name}</h3>
-                          {isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
-                          {isLowestScore && <span className="text-orange-500 text-lg">💩</span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {teamStat.members.join(' • ')}
-                        </div>
+              {sortedStats.map((teamStat: any) => (
+                <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-foreground">{teamStat.team.name}</h3>
+                        {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
+                        {teamStat.isLowestScore && <span className="text-orange-500 text-lg">💩</span>}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-foreground">
-                          Rank: {displayRank}
-                        </div>
-                        <div className="text-lg font-bold text-green-400">
-                          {points > 0 ? points : "0"} pts
-                        </div>
+                      <div className="text-xs text-muted-foreground">
+                        {teamStat.members.join(' • ')}
                       </div>
                     </div>
-
-                    <div className="text-sm space-y-2">
-                      <div>
-                        <div className="text-xs text-muted-foreground">Total:</div>
-                        <div className="text-lg font-bold text-blue-400">
-                          {teamStat.total > 0 ? `${teamStat.total} lbs` : "-"}
-                        </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-foreground">
+                        Rank: {teamStat.displayRank}
                       </div>
-
-                      <div>
-                        <button
-                          onClick={() => {
-                            const newExpanded = new Set(expandedWeights);
-                            if (newExpanded.has(teamStat.team.id)) {
-                              newExpanded.delete(teamStat.team.id);
-                            } else {
-                              newExpanded.add(teamStat.team.id);
-                            }
-                            setExpandedWeights(newExpanded);
-                          }}
-                          className="flex items-center gap-1 text-muted-foreground font-medium hover:text-foreground transition-colors"
-                        >
-                          <ChevronDown
-                            className={`w-4 h-4 transition-transform ${
-                              expandedWeights.has(teamStat.team.id) ? 'rotate-180' : ''
-                            }`}
-                          />
-                          <span>Top 3 Weights</span>
-                        </button>
-                        {expandedWeights.has(teamStat.team.id) && (
-                          <div className="space-y-1 mt-2 ml-5">
-                            <div>{teamStat.weight1 > 0 ? `${teamStat.weight1} lbs` : "-"}</div>
-                            <div>{teamStat.weight2 > 0 ? `${teamStat.weight2} lbs` : "-"}</div>
-                            <div>{teamStat.weight3 > 0 ? `${teamStat.weight3} lbs` : "-"}</div>
-                          </div>
-                        )}
+                      <div className="text-lg font-bold text-green-400">
+                        {teamStat.points > 0 ? teamStat.points : "0"} pts
                       </div>
                     </div>
-
-                    {/* Clear All Button (Mobile) */}
-                    {isAdmin && !yearData?.fishing_locked && teamStat.weights.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
-                              deleteTeamWeightsMutation.mutate(teamStat.team.id);
-                            }
-                          }}
-                          disabled={deleteTeamWeightsMutation.isPending}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 size={16} />
-                          <span>Clear All Fish ({teamStat.weights.length})</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+
+                  <div className="text-sm space-y-2">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Total:</div>
+                      <div className="text-lg font-bold text-blue-400">
+                        {teamStat.total > 0 ? `${teamStat.total} lbs` : "-"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <button
+                        onClick={() => {
+                          const newExpanded = new Set(expandedWeights);
+                          if (newExpanded.has(teamStat.team.id)) {
+                            newExpanded.delete(teamStat.team.id);
+                          } else {
+                            newExpanded.add(teamStat.team.id);
+                          }
+                          setExpandedWeights(newExpanded);
+                        }}
+                        className="flex items-center gap-1 text-muted-foreground font-medium hover:text-foreground transition-colors"
+                      >
+                        <ChevronDown
+                          className={`w-4 h-4 transition-transform ${
+                            expandedWeights.has(teamStat.team.id) ? 'rotate-180' : ''
+                          }`}
+                        />
+                        <span>Top 3 Weights</span>
+                      </button>
+                      {expandedWeights.has(teamStat.team.id) && (
+                        <div className="space-y-1 mt-2 ml-5">
+                          <div>{teamStat.weight1 > 0 ? `${teamStat.weight1} lbs` : "-"}</div>
+                          <div>{teamStat.weight2 > 0 ? `${teamStat.weight2} lbs` : "-"}</div>
+                          <div>{teamStat.weight3 > 0 ? `${teamStat.weight3} lbs` : "-"}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clear All Button (Mobile) */}
+                  {isAdmin && !yearData?.fishing_locked && teamStat.weights.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
+                            deleteTeamWeightsMutation.mutate(teamStat.team.id);
+                          }
+                        }}
+                        disabled={deleteTeamWeightsMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 size={16} />
+                        <span>Clear All Fish ({teamStat.weights.length})</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </>
         )}
@@ -577,7 +537,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-foreground">Add Fish Weight</h3>
-            
+
             <div className="space-y-4">
               {/* Team Selection */}
               <div>
@@ -661,7 +621,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       {sortedTeams.length > 0 && (
         <div className="mt-4 text-sm text-muted-foreground">
           <p>
-            <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place. 
+            <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place.
             Tied teams split the available points equally.
           </p>
         </div>

@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, memo } from "react";
+import { useState, memo, useMemo } from "react";
 import { Plus, Lock, Trash2 } from "@/components/icons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -110,12 +110,11 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       });
     },
     onSuccess: () => {
-      // Invalidate the parent year query to trigger a fresh fetch
       const yearNumber = yearData?.year;
       if (yearNumber) {
         queryClient.invalidateQueries({ queryKey: ["/api/years", yearNumber.toString()] });
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/years"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/years", yearId] });
       toast({
         title: "Competition Locked",
         description: "Golf competition has been locked successfully.",
@@ -151,8 +150,6 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
     }
   });
 
-
-
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
     queryFn: async () => {
@@ -169,14 +166,75 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
     },
   });
 
+  // Sort teams once — spread to avoid mutating the query cache
+  const sortedTeams = useMemo(
+    () => [...(teams ?? [])].sort((a: Team, b: Team) => a.position - b.position),
+    [teams]
+  );
 
+  // Build lookup map from golf score data
+  const golfScoreMap = useMemo(() => {
+    const map = new Map<string, any>();
+    golfScores?.forEach((gs: any) => map.set(gs.teamId, gs));
+    return map;
+  }, [golfScores]);
+
+  // Pre-compute all derived values once — avoids O(n²) per-row work in the render loop
+  const sortedStats = useMemo(() => {
+    const stats = sortedTeams.map((team: Team) => {
+      const golfScore = golfScoreMap.get(team.id);
+      const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
+      return {
+        team,
+        score: golfScore ? parseInt(golfScore.score?.toString() || "999") : 999,
+        members,
+        hasScore: !!golfScore,
+      };
+    });
+
+    // Compute points via shared scoring utility
+    const teamScores = new Map<string, number>();
+    stats.forEach((s) => {
+      if (s.hasScore) teamScores.set(s.team.id, s.score);
+    });
+    const rankedPoints = rankGolfTeams(teamScores);
+    const teamPoints = new Map<string, number>(
+      rankedPoints.map(({ teamId, points }) => [teamId, points])
+    );
+
+    // Sort by points descending
+    const sorted = stats
+      .map((s) => ({ ...s, points: teamPoints.get(s.team.id) ?? 0 }))
+      .sort((a, b) => b.points - a.points);
+
+    // Compute highlight thresholds once
+    const teamsWithPoints = sorted.filter((t) => t.points > 0);
+    const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t) => t.points)) : 0;
+    const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t) => t.points)) : 0;
+
+    // Pre-compute per-row display values
+    const rankByPoints = new Map<number, string>();
+    sorted.forEach((t, i) => {
+      if (t.points > 0 && !rankByPoints.has(t.points)) {
+        const tiedCount = teamsWithPoints.filter((x) => x.points === t.points).length;
+        rankByPoints.set(t.points, tiedCount > 1 ? `T-${i + 1}` : `${i + 1}`);
+      }
+    });
+
+    return sorted.map((t) => ({
+      ...t,
+      displayRank: t.points > 0 ? (rankByPoints.get(t.points) ?? "-") : "-",
+      isHighestScore: t.points === maxPoints && t.points > 0,
+      isLowestScore: t.points === minPoints && t.points > 0 && teamsWithPoints.length > 1,
+    }));
+  }, [sortedTeams, golfScoreMap]);
 
   const handleAddGolf = () => {
     if (!selectedTeamId || score === "") return;
-    
+
     const scoreValue = score === "E" ? 0 : parseInt(score);
     if (isNaN(scoreValue) && score !== "E") return;
-    
+
     addGolfMutation.mutate({
       teamId: selectedTeamId,
       score: scoreValue,
@@ -195,6 +253,13 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
     }
   }
 
+  // Format score display
+  const formatScore = (score: number, hasScore: boolean) => {
+    if (!hasScore) return "-";
+    if (score === 0) return "E";
+    return score > 0 ? `+${score}` : `${score}`;
+  };
+
   if (teamsLoading || golfLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -205,47 +270,6 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       </div>
     );
   }
-
-  const sortedTeams = teams?.sort((a: Team, b: Team) => a.position - b.position) || [];
-
-  // Create a map of team ID to golf score for easy lookup
-  const golfScoreMap = new Map<string, any>();
-  golfScores?.forEach((gs: any) => {
-    golfScoreMap.set(gs.teamId, gs);
-  });
-
-  // Calculate team stats with points
-  const teamStats = sortedTeams.map((team: Team) => {
-    const golfScore = golfScoreMap.get(team.id);
-    const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
-    
-    return {
-      team,
-      score: golfScore ? parseInt(golfScore.score?.toString() || '999') : 999, // 999 = no score yet
-      members,
-      hasScore: !!golfScore
-    };
-  });
-
-  // Calculate points based on rankings using shared scoring utility
-  const teamScores = new Map<string, number>();
-  teamStats.forEach((teamStat: any) => {
-    if (teamStat.hasScore) {
-      teamScores.set(teamStat.team.id, teamStat.score);
-    }
-  });
-
-  const rankedPoints = rankGolfTeams(teamScores);
-  const teamPoints = new Map<string, number>(
-    rankedPoints.map(({ teamId, points }) => [teamId, points])
-  );
-
-  // Format score display
-  const formatScore = (score: number, hasScore: boolean) => {
-    if (!hasScore) return "-";
-    if (score === 0) return "E";
-    return score > 0 ? `+${score}` : `${score}`;
-  };
 
   return (
     <div className="p-2 sm:p-4 bg-background">
@@ -320,194 +344,136 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                       )}
                     </tr>
                   </thead>
-            <tbody>
-              {teamStats
-                .map((teamStat: any) => ({
-                  ...teamStat,
-                  points: teamPoints.get(teamStat.team.id) || 0
-                }))
-                .sort((a: any, b: any) => b.points - a.points)
-                .map((teamStat: any, index: number, sortedArray: any[]) => {
-                const points = teamStat.points;
-                
-                // Calculate rank with tie handling
-                let displayRank = (index + 1).toString();
-                
-                if (points > 0) {
-                  const tiedTeams = sortedArray.filter((t: any) => t.points === points);
-                  if (tiedTeams.length > 1) {
-                    // Find the starting rank for this tie group
-                    const firstTiedIndex = sortedArray.findIndex((t: any) => t.points === points);
-                    displayRank = `T-${firstTiedIndex + 1}`;
-                  }
-                }
-                
-                // Find teams with highest and lowest points (but greater than 0)
-                const teamsWithPoints = sortedArray.filter((t: any) => t.points > 0);
-                const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const isHighestScore = points === maxPoints && points > 0;
-                const isLowestScore = points === minPoints && points > 0 && teamsWithPoints.length > 1;
-                
-                return (
-                  <tr key={teamStat.team.id} className="hover:bg-accent/50">
-                    {/* Rank */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
-                      <span className="text-sm font-bold text-foreground">
-                        {points > 0 ? displayRank : "-"}
-                      </span>
-                    </td>
-                    
-                    {/* Team & Members */}
-                    <td className="border border-border px-2 py-2" style={{minWidth: '240px', maxWidth: '360px'}}>
-                      <div>
-                        <div className="font-semibold text-foreground mb-1 text-sm">
-                          {teamStat.team.name}
-                          {isHighestScore && (
-                            <span className="ml-2 text-yellow-400 text-lg">🏆</span>
-                          )}
-                          {isLowestScore && (
-                            <span className="ml-2 text-amber-600 text-lg">💩</span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                          {teamStat.members.map((member: string, index: number) => (
-                            <div key={index} className="text-xs text-muted-foreground truncate">
-                              {member}
+                  <tbody>
+                    {sortedStats.map((teamStat) => (
+                      <tr key={teamStat.team.id} className="hover:bg-accent/50">
+                        {/* Rank */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
+                          <span className="text-sm font-bold text-foreground">
+                            {teamStat.displayRank}
+                          </span>
+                        </td>
+
+                        {/* Team & Members */}
+                        <td className="border border-border px-2 py-2" style={{minWidth: '240px', maxWidth: '360px'}}>
+                          <div>
+                            <div className="font-semibold text-foreground mb-1 text-sm">
+                              {teamStat.team.name}
+                              {teamStat.isHighestScore && (
+                                <span className="ml-2 text-yellow-400 text-lg">🏆</span>
+                              )}
+                              {teamStat.isLowestScore && (
+                                <span className="ml-2 text-amber-600 text-lg">💩</span>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    </td>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                              {teamStat.members.map((member: string, index: number) => (
+                                <div key={index} className="text-xs text-muted-foreground truncate">
+                                  {member}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
 
-                    {/* Golf Score */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                      <span className="font-bold text-blue-400">
-                        {formatScore(teamStat.score, teamStat.hasScore)}
-                      </span>
-                    </td>
+                        {/* Golf Score */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
+                          <span className="font-bold text-blue-400">
+                            {formatScore(teamStat.score, teamStat.hasScore)}
+                          </span>
+                        </td>
 
-                    {/* Points */}
-                    <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                      <span className="font-bold text-green-400">
-                        {points > 0 ? points : "0"}
-                      </span>
-                    </td>
+                        {/* Points */}
+                        <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
+                          <span className="font-bold text-green-400">
+                            {teamStat.points > 0 ? teamStat.points : "0"}
+                          </span>
+                        </td>
 
-                    {/* Actions */}
-                    {isAdmin && !yearData?.golf_locked && (
-                      <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
-                        {teamStat.hasScore && (
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Clear golf score for ${teamStat.team.name}?`)) {
-                                deleteGolfMutation.mutate(teamStat.team.id);
-                              }
-                            }}
-                            disabled={deleteGolfMutation.isPending}
-                            className="text-red-500 hover:text-red-700"
-                            title="Clear golf score for this team"
-                          >
-                            <Trash2 size={16} className="mx-auto" />
-                          </button>
+                        {/* Actions */}
+                        {isAdmin && !yearData?.golf_locked && (
+                          <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
+                            {teamStat.hasScore && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Clear golf score for ${teamStat.team.name}?`)) {
+                                    deleteGolfMutation.mutate(teamStat.team.id);
+                                  }
+                                }}
+                                disabled={deleteGolfMutation.isPending}
+                                className="text-red-500 hover:text-red-700"
+                                title="Clear golf score for this team"
+                              >
+                                <Trash2 size={16} className="mx-auto" />
+                              </button>
+                            )}
+                          </td>
                         )}
-                      </td>
-                    )}
-                  </tr>
-                );
-                  })}
-                </tbody>
-              </table>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
-              {teamStats
-                .map((teamStat: any) => ({
-                  ...teamStat,
-                  points: teamPoints.get(teamStat.team.id) || 0
-                }))
-                .sort((a: any, b: any) => b.points - a.points)
-                .map((teamStat: any, index: number, sortedArray: any[]) => {
-                const points = teamStat.points;
-                const teamsWithPoints = sortedArray.filter((t: any) => t.points > 0);
-                const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
-                const isHighestScore = points === maxPoints && points > 0;
-                const isLowestScore = points === minPoints && points > 0 && teamsWithPoints.length > 1;
-                
-                // Calculate proper rank with ties
-                let displayRank = "-";
-                if (points > 0) {
-                  // Check if there are ties at this rank
-                  const tiedCount = sortedArray.filter((t: any) => t.points === points).length;
-                  if (tiedCount > 1) {
-                    // Find the starting position of this tie group
-                    const firstTiedIndex = sortedArray.findIndex((t: any) => t.points === points);
-                    displayRank = `T-${firstTiedIndex + 1}`;
-                  } else {
-                    displayRank = `${index + 1}`;
-                  }
-                }
-                
-                return (
-                  <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground">{teamStat.team.name}</h3>
-                          {isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
-                          {isLowestScore && <span className="text-amber-600 text-lg">💩</span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {teamStat.members.join(' • ')}
-                        </div>
+              {sortedStats.map((teamStat) => (
+                <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-foreground">{teamStat.team.name}</h3>
+                        {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
+                        {teamStat.isLowestScore && <span className="text-amber-600 text-lg">💩</span>}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-foreground">
-                          Rank: {displayRank}
-                        </div>
-                        <div className="text-lg font-bold text-green-400">
-                          {points > 0 ? points : "0"} pts
-                        </div>
+                      <div className="text-xs text-muted-foreground">
+                        {teamStat.members.join(' • ')}
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-muted-foreground font-medium">Golf Score:</span>
-                        <div className="text-lg font-bold text-blue-400 mt-1">
-                          {formatScore(teamStat.score, teamStat.hasScore)}
-                        </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-foreground">
+                        Rank: {teamStat.displayRank}
                       </div>
-                      <div>
-                        <span className="text-muted-foreground font-medium">Points:</span>
-                        <div className="text-lg font-bold text-green-400 mt-1">
-                          {points > 0 ? points : "0"}
-                        </div>
+                      <div className="text-lg font-bold text-green-400">
+                        {teamStat.points > 0 ? teamStat.points : "0"} pts
                       </div>
                     </div>
-
-                    {isAdmin && !yearData?.golf_locked && teamStat.hasScore && (
-                      <div className="mt-3 pt-3 border-t border-border">
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Clear golf score for ${teamStat.team.name}?`)) {
-                              deleteGolfMutation.mutate(teamStat.team.id);
-                            }
-                          }}
-                          disabled={deleteGolfMutation.isPending}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
-                        >
-                          <Trash2 size={16} />
-                          <span>Clear Golf Score</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground font-medium">Golf Score:</span>
+                      <div className="text-lg font-bold text-blue-400 mt-1">
+                        {formatScore(teamStat.score, teamStat.hasScore)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-medium">Points:</span>
+                      <div className="text-lg font-bold text-green-400 mt-1">
+                        {teamStat.points > 0 ? teamStat.points : "0"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {isAdmin && !yearData?.golf_locked && teamStat.hasScore && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Clear golf score for ${teamStat.team.name}?`)) {
+                            deleteGolfMutation.mutate(teamStat.team.id);
+                          }
+                        }}
+                        disabled={deleteGolfMutation.isPending}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
+                      >
+                        <Trash2 size={16} />
+                        <span>Clear Golf Score</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </>
         )}
@@ -518,7 +484,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-foreground">Add Golf Score</h3>
-            
+
             <div className="space-y-4">
               {/* Team Selection */}
               <div>
@@ -607,7 +573,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       {sortedTeams.length > 0 && (
         <div className="mt-4 text-sm text-muted-foreground">
           <p>
-            <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place. 
+            <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place.
             Tied teams split the available points equally.
           </p>
         </div>
