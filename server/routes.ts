@@ -1,113 +1,76 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import type { Hono } from "hono";
+import { setCookie, deleteCookie } from "hono/cookie";
 import { storage } from "./storage.js";
-import { isAuthenticated, isAdmin, verifyPassword, hashPassword } from "./auth.js";
-import { insertYearSchema, insertTeamSchema } from "../shared/schema.js";
-import { isPostgres, pgPool } from "./db.js";
-import path from "path";
-import { fileURLToPath } from "url";
+import {
+  isAuthenticated,
+  isAdmin,
+  verifyPassword,
+  hashPassword,
+  createToken,
+  type AppEnv,
+} from "./auth.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Session middleware with database-backed storage
-  app.set("trust proxy", 1);
-
-  // Configure session store based on database type
-  let sessionStore;
-  if (isPostgres && pgPool) {
-    // PostgreSQL session store
-    const PgSession = connectPgSimple(session);
-    sessionStore = new PgSession({
-      pool: pgPool,
-      tableName: 'sessions',
-      createTableIfMissing: true,
-    });
-  } else {
-    // SQLite session store (local development only)
-    // Dynamic import to avoid loading native modules in serverless environment
-    const SqliteStore = (await import("better-sqlite3-session-store")).default;
-    const Database = (await import("better-sqlite3")).default;
-    const dbPath = path.resolve(__dirname, "../kakcup.db");
-    const SqliteSessionStore = SqliteStore(session);
-    sessionStore = new SqliteSessionStore({
-      client: new Database(dbPath),
-      expired: {
-        clear: true,
-        intervalMs: 900000, // Clean up expired sessions every 15 minutes
-      },
-    });
-  }
-
-  app.use(session({
-    store: sessionStore,
-    secret: process.env.SESSION_SECRET || 'default-session-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-    },
-  }));
+export function createRoutes(app: Hono<AppEnv>): void {
+  const isProd = process.env.NODE_ENV === "production";
 
   // Auth routes
-  app.post('/api/auth/login', async (req, res) => {
+  app.post("/api/auth/login", async (c) => {
     try {
-      const { username, password } = req.body;
-      
+      const { username, password } = await c.req.json();
       if (!username || !password) {
-        return res.status(400).json({ message: "Username and password required" });
+        return c.json({ message: "Username and password required" }, 400);
       }
 
-      // Find user by username
       const user = await storage.getUserByUsername(username);
       if (!user || !user.passwordHash) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return c.json({ message: "Invalid credentials" }, 401);
       }
 
-      // Verify password
       const isValidPassword = await verifyPassword(password, user.passwordHash);
       if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return c.json({ message: "Invalid credentials" }, 401);
       }
 
-      // Set session
-      req.session.userId = user.id;
-      
-      // Return user data (without password hash)
+      const token = await createToken({
+        userId: user.id,
+        username: user.username ?? "",
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      });
+
+      setCookie(c, "token", token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "Strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
       const { passwordHash, ...userData } = user;
-      res.json(userData);
+      return c.json(userData);
     } catch (error) {
       console.error("Login error:", error);
-      res.status(500).json({ message: "Server error" });
+      return c.json({ message: "Server error" }, 500);
     }
   });
 
-  app.post('/api/auth/register', async (req, res) => {
+  app.post("/api/auth/register", async (c) => {
     try {
-      const { username, email, password, firstName, lastName } = req.body;
-      
+      const { username, email, password, firstName, lastName } = await c.req.json();
       if (!username || !password) {
-        return res.status(400).json({ message: "Username and password required" });
+        return c.json({ message: "Username and password required" }, 400);
       }
 
-      // Check if user already exists
       const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) {
-        return res.status(409).json({ message: "Username already exists" });
-      }
+      if (existingUser) return c.json({ message: "Username already exists" }, 409);
 
       if (email) {
         const existingEmail = await storage.getUserByEmail(email);
-        if (existingEmail) {
-          return res.status(409).json({ message: "Email already exists" });
-        }
+        if (existingEmail) return c.json({ message: "Email already exists" }, 409);
       }
 
-      // Hash password and create user
       const passwordHash = await hashPassword(password);
       const newUser = await storage.createUser({
         username,
@@ -118,278 +81,241 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: "user",
       });
 
-      // Set session
-      req.session.userId = newUser.id;
+      const token = await createToken({
+        userId: newUser.id,
+        username: newUser.username ?? "",
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        role: newUser.role,
+      });
 
-      // Return user data (without password hash)
+      setCookie(c, "token", token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "Strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
       const { passwordHash: _, ...userData } = newUser;
-      res.json(userData);
+      return c.json(userData);
     } catch (error) {
       console.error("Registration error:", error);
-      res.status(500).json({ message: "Server error" });
+      return c.json({ message: "Server error" }, 500);
     }
   });
 
-  app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ message: "Failed to logout" });
-      }
-      res.json({ message: "Logged out successfully" });
+  app.post("/api/auth/logout", (c) => {
+    deleteCookie(c, "token", { path: "/" });
+    return c.json({ message: "Logged out successfully" });
+  });
+
+  app.get("/api/auth/user", isAuthenticated, (c) => {
+    return c.json({
+      id: c.var.userId,
+      username: c.var.username,
+      email: c.var.email,
+      firstName: c.var.firstName,
+      lastName: c.var.lastName,
+      role: c.var.role,
     });
   });
 
-  app.get('/api/auth/user', isAuthenticated, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.session.userId!);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Return user data (without password hash)
-      const { passwordHash, ...userData } = user;
-      res.json(userData);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
   // Year routes
-  app.get("/api/years", async (req, res) => {
+  app.get("/api/years", async (c) => {
     try {
       const years = await storage.getYears();
-      res.json(years);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch years" });
+      return c.json(years);
+    } catch {
+      return c.json({ error: "Failed to fetch years" }, 500);
     }
   });
 
-  app.get("/api/years/:year", async (req, res) => {
+  app.get("/api/years/:year", async (c) => {
     try {
-      const yearParam = req.params.year;
+      const yearParam = c.req.param("year");
       const year = parseInt(yearParam);
-      
+
       if (isNaN(year)) {
-        // If it's not a number, treat it as a UUID
-        console.log("Route handler: Looking for UUID:", yearParam);
         const yearRecord = await storage.getYearById(yearParam);
-        console.log("Route handler: Got record:", yearRecord);
-        if (!yearRecord) {
-          console.log("Route handler: No record found, returning 404");
-          return res.status(404).json({ error: "Year not found" });
-        }
-        return res.json(yearRecord);
+        if (!yearRecord) return c.json({ error: "Year not found" }, 404);
+        return c.json(yearRecord);
       }
-      
-      // It's a year number
+
       const yearRecord = await storage.getYear(year);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-      
-      res.json(yearRecord);
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
+      return c.json(yearRecord);
     } catch (error) {
       console.error("Error fetching year:", error);
-      res.status(500).json({ error: "Failed to fetch year" });
+      return c.json({ error: "Failed to fetch year" }, 500);
     }
   });
 
-
-
-  app.patch("/api/years/:yearId", isAdmin, async (req, res) => {
+  app.patch("/api/years/:yearId", isAdmin, async (c) => {
     try {
-      const yearData = req.body;
-      const year = await storage.updateYear(req.params.yearId, yearData);
-      res.json(year);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update year" });
+      const yearData = await c.req.json();
+      const year = await storage.updateYear(c.req.param("yearId"), yearData);
+      return c.json(year);
+    } catch {
+      return c.json({ error: "Failed to update year" }, 500);
     }
   });
 
   // Team routes
-  app.get("/api/years/:yearId/teams", async (req, res) => {
+  app.get("/api/years/:yearId/teams", async (c) => {
     try {
-      const teams = await storage.getTeamsByYear(req.params.yearId);
-      res.json(teams);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch teams" });
+      const teams = await storage.getTeamsByYear(c.req.param("yearId"));
+      return c.json(teams);
+    } catch {
+      return c.json({ error: "Failed to fetch teams" }, 500);
     }
   });
 
-  app.post("/api/years/:yearId/teams", isAdmin, async (req, res) => {
+  app.post("/api/years/:yearId/teams", isAdmin, async (c) => {
     try {
-      const teamData = req.body;
-      teamData.yearId = req.params.yearId;
+      const teamData = await c.req.json();
+      teamData.yearId = c.req.param("yearId");
       const team = await storage.createTeam(teamData);
-      res.status(201).json(team);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create team" });
+      return c.json(team, 201);
+    } catch {
+      return c.json({ error: "Failed to create team" }, 500);
     }
   });
 
-  app.put("/api/teams/:teamId", isAdmin, async (req, res) => {
+  app.put("/api/teams/:teamId", isAdmin, async (c) => {
     try {
-      const teamData = req.body;
-      const team = await storage.updateTeam(req.params.teamId, teamData);
-      res.json(team);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update team" });
+      const teamData = await c.req.json();
+      const team = await storage.updateTeam(c.req.param("teamId"), teamData);
+      return c.json(team);
+    } catch {
+      return c.json({ error: "Failed to update team" }, 500);
     }
   });
 
   // Fish weights routes
-  app.get("/api/years/:yearId/fish-weights", async (req, res) => {
+  app.get("/api/years/:yearId/fish-weights", async (c) => {
     try {
-      const fishWeights = await storage.getFishWeightsByYear(req.params.yearId);
-      res.json(fishWeights);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch fish weights" });
+      const fishWeights = await storage.getFishWeightsByYear(c.req.param("yearId"));
+      return c.json(fishWeights);
+    } catch {
+      return c.json({ error: "Failed to fetch fish weights" }, 500);
     }
   });
 
-  app.post("/api/years/:yearId/fish-weights", isAdmin, async (req, res) => {
+  app.post("/api/years/:yearId/fish-weights", isAdmin, async (c) => {
     try {
-      // Check if fishing is locked for this year
-      const yearRecord = await storage.getYearById(req.params.yearId);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-
+      const yearRecord = await storage.getYearById(c.req.param("yearId"));
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       if (yearRecord.fishing_locked) {
-        return res.status(403).json({ error: "Fishing competition is locked. No more weights can be added." });
+        return c.json({ error: "Fishing competition is locked. No more weights can be added." }, 403);
       }
 
-      const weightData = req.body;
-      weightData.yearId = req.params.yearId;
+      const weightData = await c.req.json();
+      weightData.yearId = c.req.param("yearId");
       const fishWeight = await storage.createFishWeight(weightData);
-      res.status(201).json(fishWeight);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create fish weight" });
+      return c.json(fishWeight, 201);
+    } catch {
+      return c.json({ error: "Failed to create fish weight" }, 500);
     }
   });
 
-  app.delete("/api/years/:yearId/teams/:teamId/fish-weights", isAdmin, async (req, res) => {
+  app.delete("/api/years/:yearId/teams/:teamId/fish-weights", isAdmin, async (c) => {
     try {
-      // Check if fishing is locked for this year
-      const yearRecord = await storage.getYearById(req.params.yearId);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-
+      const yearRecord = await storage.getYearById(c.req.param("yearId"));
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       if (yearRecord.fishing_locked) {
-        return res.status(403).json({ error: "Fishing competition is locked. Cannot delete weights." });
+        return c.json({ error: "Fishing competition is locked. Cannot delete weights." }, 403);
       }
 
-      await storage.deleteFishWeightsByTeam(req.params.yearId, req.params.teamId);
-      res.json({ message: "Fish weights deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete fish weights" });
+      await storage.deleteFishWeightsByTeam(c.req.param("yearId"), c.req.param("teamId"));
+      return c.json({ message: "Fish weights deleted successfully" });
+    } catch {
+      return c.json({ error: "Failed to delete fish weights" }, 500);
     }
   });
 
   // Chug times routes
-  app.get("/api/years/:yearId/chug-times", async (req, res) => {
+  app.get("/api/years/:yearId/chug-times", async (c) => {
     try {
-      const chugTimes = await storage.getChugTimesByYear(req.params.yearId);
-      res.json(chugTimes);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch chug times" });
+      const chugTimes = await storage.getChugTimesByYear(c.req.param("yearId"));
+      return c.json(chugTimes);
+    } catch {
+      return c.json({ error: "Failed to fetch chug times" }, 500);
     }
   });
 
-  app.post("/api/years/:yearId/chug-times", isAdmin, async (req, res) => {
+  app.post("/api/years/:yearId/chug-times", isAdmin, async (c) => {
     try {
-      // Check if chug is locked for this year
-      const yearRecord = await storage.getYearById(req.params.yearId);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-
+      const yearRecord = await storage.getYearById(c.req.param("yearId"));
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       if (yearRecord.chug_locked) {
-        return res.status(403).json({ error: "Chug competition is locked. No more times can be added." });
+        return c.json({ error: "Chug competition is locked. No more times can be added." }, 403);
       }
 
-      const chugData = req.body;
-      chugData.yearId = req.params.yearId;
+      const chugData = await c.req.json();
+      chugData.yearId = c.req.param("yearId");
       const chugTime = await storage.createChugTime(chugData);
-      res.status(201).json(chugTime);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create chug time" });
+      return c.json(chugTime, 201);
+    } catch {
+      return c.json({ error: "Failed to create chug time" }, 500);
     }
   });
 
-  app.delete("/api/years/:yearId/teams/:teamId/chug-times", isAdmin, async (req, res) => {
+  app.delete("/api/years/:yearId/teams/:teamId/chug-times", isAdmin, async (c) => {
     try {
-      // Check if chug is locked for this year
-      const yearRecord = await storage.getYearById(req.params.yearId);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-
+      const yearRecord = await storage.getYearById(c.req.param("yearId"));
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       if (yearRecord.chug_locked) {
-        return res.status(403).json({ error: "Chug competition is locked. Cannot delete times." });
+        return c.json({ error: "Chug competition is locked. Cannot delete times." }, 403);
       }
 
-      await storage.deleteChugTime(req.params.yearId, req.params.teamId);
-      res.json({ message: "Chug time deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete chug time" });
+      await storage.deleteChugTime(c.req.param("yearId"), c.req.param("teamId"));
+      return c.json({ message: "Chug time deleted successfully" });
+    } catch {
+      return c.json({ error: "Failed to delete chug time" }, 500);
     }
   });
 
   // Golf scores routes
-  app.get("/api/years/:yearId/golf-scores", async (req, res) => {
+  app.get("/api/years/:yearId/golf-scores", async (c) => {
     try {
-      const golfScores = await storage.getGolfScoresByYear(req.params.yearId);
-      res.json(golfScores);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch golf scores" });
+      const golfScores = await storage.getGolfScoresByYear(c.req.param("yearId"));
+      return c.json(golfScores);
+    } catch {
+      return c.json({ error: "Failed to fetch golf scores" }, 500);
     }
   });
 
-  app.post("/api/years/:yearId/golf-scores", isAdmin, async (req, res) => {
+  app.post("/api/years/:yearId/golf-scores", isAdmin, async (c) => {
     try {
-      // Check if golf is locked for this year
-      const yearRecord = await storage.getYearById(req.params.yearId);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-
+      const yearRecord = await storage.getYearById(c.req.param("yearId"));
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       if (yearRecord.golf_locked) {
-        return res.status(403).json({ error: "Golf competition is locked. No more scores can be added." });
+        return c.json({ error: "Golf competition is locked. No more scores can be added." }, 403);
       }
 
-      const golfData = req.body;
-      golfData.yearId = req.params.yearId;
+      const golfData = await c.req.json();
+      golfData.yearId = c.req.param("yearId");
       const golfScore = await storage.createGolfScore(golfData);
-      res.status(201).json(golfScore);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create golf score" });
+      return c.json(golfScore, 201);
+    } catch {
+      return c.json({ error: "Failed to create golf score" }, 500);
     }
   });
 
-  app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, async (req, res) => {
+  app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, async (c) => {
     try {
-      // Check if golf is locked for this year
-      const yearRecord = await storage.getYearById(req.params.yearId);
-      if (!yearRecord) {
-        return res.status(404).json({ error: "Year not found" });
-      }
-
+      const yearRecord = await storage.getYearById(c.req.param("yearId"));
+      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       if (yearRecord.golf_locked) {
-        return res.status(403).json({ error: "Golf competition is locked. Cannot delete scores." });
+        return c.json({ error: "Golf competition is locked. Cannot delete scores." }, 403);
       }
 
-      await storage.deleteGolfScore(req.params.yearId, req.params.teamId);
-      res.json({ message: "Golf score deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete golf score" });
+      await storage.deleteGolfScore(c.req.param("yearId"), c.req.param("teamId"));
+      return c.json({ message: "Golf score deleted successfully" });
+    } catch {
+      return c.json({ error: "Failed to delete golf score" }, 500);
     }
   });
-
-  const httpServer = createServer(app);
-
-  return httpServer;
 }

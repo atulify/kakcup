@@ -1,8 +1,6 @@
-import { db, isPostgres, pgPool } from "./db.js";
-import { readFileSync, existsSync } from "fs";
+import { isPostgres } from "./db.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import Database from "better-sqlite3";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -11,21 +9,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 async function isDatabaseInitialized(): Promise<boolean> {
   try {
-    if (isPostgres && pgPool) {
-      // Check if years table exists in PostgreSQL
-      const result = await pgPool.query(
-        `SELECT EXISTS (
+    if (isPostgres) {
+      const DATABASE_URL = process.env.DATABASE_URL!;
+      const { neon } = await import("@neondatabase/serverless");
+      const sql = neon(DATABASE_URL);
+      const [row] = await sql`
+        SELECT EXISTS (
           SELECT FROM information_schema.tables
           WHERE table_name = 'years'
-        )`
-      );
-      return result.rows[0]?.exists || false;
+        ) AS "exists"
+      `;
+      return (row as any).exists === true;
     } else {
-      // Check if years table exists in SQLite
+      // SQLite path — only reached in local dev without DATABASE_URL
+      const Database = (await import("better-sqlite3")).default;
       const sqlite = new Database(path.resolve(__dirname, "../kakcup.db"));
-      const result = sqlite.prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name='years'`
-      ).all();
+      const result = sqlite
+        .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='years'`)
+        .all();
       sqlite.close();
       return (result as any[]).length > 0;
     }
@@ -41,9 +42,9 @@ async function isDatabaseInitialized(): Promise<boolean> {
 async function initializeDatabase() {
   console.log("Checking database initialization...");
 
-  const isInitialized = await isDatabaseInitialized();
+  const initialized = await isDatabaseInitialized();
 
-  if (isInitialized) {
+  if (initialized) {
     console.log("✓ Database is already initialized");
     return;
   }
@@ -51,7 +52,6 @@ async function initializeDatabase() {
   console.log("Database not initialized. Running migrations...");
 
   try {
-    // Import and run the migration module
     const { migrateSqlite, migratePostgreSQL } = await import("./migrate.js");
 
     if (isPostgres) {
@@ -65,8 +65,6 @@ async function initializeDatabase() {
     console.log("✓ Database initialized successfully with seeded data");
   } catch (error) {
     console.error("Failed to initialize database:", error);
-    // Don't exit - let the app start anyway
-    // The tables might be created but data import failed
     console.warn("⚠ App starting despite database initialization issues");
   }
 }

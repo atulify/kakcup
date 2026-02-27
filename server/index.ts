@@ -1,77 +1,27 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { createRoutes } from "./routes.js";
 import { initializeDatabase } from "./init-db.js";
+import type { AppEnv } from "./auth.js";
 
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Local dev SQLite setup — only runs when DATABASE_URL is not set
+// Must happen before any route handlers are invoked so storage.ts sees the correct db
+if (!process.env.DATABASE_URL) {
+  const [{ drizzle }, { default: Database }, schema, { setDb }] = await Promise.all([
+    import("drizzle-orm/better-sqlite3"),
+    import("better-sqlite3"),
+    import("../shared/schema.js"),
+    import("./db.js"),
+  ]);
+  const sqlite = new Database("./kakcup.db");
+  setDb(drizzle(sqlite, { schema }));
+}
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  const isDevelopment = app.get("env") === "development";
+await initializeDatabase();
 
-  // Only capture response body in development to avoid double serialization overhead
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+const app = new Hono<AppEnv>();
+createRoutes(app);
 
-  if (isDevelopment) {
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
-  }
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-
-      // Only include response body in development
-      if (isDevelopment && capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
-
-(async () => {
-  // Initialize database on first run
-  await initializeDatabase();
-
-  const server = await registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Default to 3000 for local development.
-  // this serves both the API and the client.
-  const port = parseInt(process.env.PORT || '3000', 10);
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
-  });
-})();
+const port = parseInt(process.env.PORT ?? "3000", 10);
+serve({ fetch: app.fetch, port });
+console.log(`API server running on http://localhost:${port}`);

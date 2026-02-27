@@ -11,7 +11,6 @@ const activeSchema = isPostgres ? postgresSchema : sqliteSchema;
 
 // Re-export all exports from the active schema
 export const {
-  sessions,
   users,
   years,
   teams,

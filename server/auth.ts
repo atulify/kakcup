@@ -1,29 +1,68 @@
 import bcrypt from "bcryptjs";
-import type { RequestHandler } from "express";
-import { storage } from "./storage.js";
+import { sign, verify } from "hono/jwt";
+import { getCookie } from "hono/cookie";
+import type { Context, MiddlewareHandler } from "hono";
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  next();
+export type AppEnv = {
+  Variables: {
+    userId: string;
+    role: string;
+    username: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+  };
 };
 
-export const isAdmin: RequestHandler = async (req, res, next) => {
-  if (!req.session.userId) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
+const JWT_SECRET = process.env.JWT_SECRET ?? process.env.SESSION_SECRET ?? "dev-secret";
 
+type JWTClaims = {
+  userId: string;
+  username: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  exp: number;
+};
+
+export async function createToken(claims: Omit<JWTClaims, "exp">): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7; // 7 days
+  return sign({ ...claims, exp }, JWT_SECRET, "HS256");
+}
+
+async function getPayload(c: Context): Promise<JWTClaims | null> {
+  const token = getCookie(c, "token");
+  if (!token) return null;
   try {
-    const user = await storage.getUser(req.session.userId);
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    next();
-  } catch (error) {
-    console.error("Error checking admin status:", error);
-    res.status(500).json({ message: "Server error" });
+    return (await verify(token, JWT_SECRET, "HS256")) as unknown as JWTClaims;
+  } catch {
+    return null;
   }
+}
+
+function setVarsFromPayload(c: Context<AppEnv>, payload: JWTClaims) {
+  c.set("userId", payload.userId);
+  c.set("role", payload.role);
+  c.set("username", payload.username);
+  c.set("email", payload.email);
+  c.set("firstName", payload.firstName);
+  c.set("lastName", payload.lastName);
+}
+
+export const isAuthenticated: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const payload = await getPayload(c);
+  if (!payload) return c.json({ message: "Unauthorized" }, 401);
+  setVarsFromPayload(c, payload);
+  await next();
+};
+
+export const isAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const payload = await getPayload(c);
+  if (!payload) return c.json({ message: "Unauthorized" }, 401);
+  if (payload.role !== "admin") return c.json({ message: "Admin access required" }, 403);
+  setVarsFromPayload(c, payload);
+  await next();
 };
 
 export async function hashPassword(password: string): Promise<string> {
@@ -32,11 +71,4 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return bcrypt.compare(password, hash);
-}
-
-// Extend session type
-declare module 'express-session' {
-  interface SessionData {
-    userId?: string;
-  }
 }

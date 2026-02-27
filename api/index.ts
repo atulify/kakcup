@@ -1,109 +1,21 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "../server/routes.js";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
+import { createRoutes } from "../server/routes.js";
+import type { AppEnv } from "../server/auth.js";
 
-// Create Express app once at module level (reused across warm invocations)
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Phase 3: Vercel Edge Runtime — ~0ms cold start via V8 isolates
+export const config = { runtime: "edge" };
 
-// Request logging middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  const isDevelopment = process.env.NODE_ENV === 'development';
+const app = new Hono<AppEnv>();
+createRoutes(app);
+const honoHandler = handle(app);
 
-  // Only capture response body in development to avoid double serialization overhead
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  if (isDevelopment) {
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
+// Vercel strips /api prefix when routing to api/index — restore it for Hono routing
+export default async function handler(req: Request) {
+  const url = new URL(req.url);
+  if (!url.pathname.startsWith("/api")) {
+    url.pathname = "/api" + url.pathname;
+    req = new Request(url.toString(), req);
   }
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-
-      // Only include response body in development
-      if (isDevelopment && capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      console.log(logLine);
-    }
-  });
-
-  next();
-});
-
-// Initialize routes (done once at module level)
-let isInitialized = false;
-let initPromise: Promise<void> | null = null;
-
-async function initializeApp() {
-  if (isInitialized) return;
-
-  if (initPromise) {
-    await initPromise;
-    return;
-  }
-
-  initPromise = (async () => {
-    await registerRoutes(app);
-
-    // Error handler
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-
-      res.status(status).json({ message });
-      console.error(err);
-    });
-
-    isInitialized = true;
-  })();
-
-  await initPromise;
-}
-
-// Serverless function handler
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    console.log(`[API] Incoming request: ${req.method} ${req.url}`);
-
-    // Initialize app on first request (warm starts will skip this)
-    await initializeApp();
-
-    // Vercel strips /api prefix when routing to api/[...route].ts, so restore it for Express routing
-    const originalUrl = req.url;
-    if (!originalUrl?.startsWith('/api')) {
-      req.url = `/api${originalUrl}`;
-    }
-
-    console.log(`[API] Modified URL for Express: ${req.url}`);
-
-    // Handle the request with Express
-    return new Promise((resolve, reject) => {
-      app(req as any, res as any, (err?: any) => {
-        if (err) {
-          console.error("[API] Express error:", err);
-          reject(err);
-        } else {
-          resolve(undefined);
-        }
-      });
-    });
-  } catch (error) {
-    console.error("Serverless function error:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
+  return honoHandler(req);
 }
