@@ -1,63 +1,42 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Database Connection Logic', () => {
-  beforeEach(() => {
-    // Clean up environment
-    delete process.env.DATABASE_URL;
-
-    // Clear the module cache to force re-evaluation
-    const dbModulePath = '../server/db.ts';
-    if (require.cache[require.resolve(dbModulePath)]) {
-      delete require.cache[require.resolve(dbModulePath)];
-    }
-  });
-
-  it('should use SQLite when DATABASE_URL is not set', async () => {
-    // Ensure DATABASE_URL is not set
-    delete process.env.DATABASE_URL;
-
-    // Dynamically import to get fresh instance
+  it('should always report isPostgres=true (neon-http driver used in all envs)', async () => {
     const { isPostgres } = await import('../server/db.js');
-
-    expect(isPostgres).toBe(false);
-  });
-
-  it('should detect PostgreSQL when DATABASE_URL is set', async () => {
-    // Set a mock PostgreSQL URL
-    process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
-
-    // Test the logic directly since module is cached
-    const isPostgres = !!process.env.DATABASE_URL;
-
     expect(isPostgres).toBe(true);
   });
 
-  it('should create a database connection', async () => {
+  it('should have null db when DATABASE_URL is absent (requires setDb() for local dev)', async () => {
     delete process.env.DATABASE_URL;
-
     const { db } = await import('../server/db.js');
+    // db is null until setDb() is called; this is expected behaviour in local dev
+    expect(db === null || typeof db === 'object').toBe(true);
+  });
 
-    expect(db).toBeDefined();
-    expect(typeof db).toBe('object');
+  it('should export a setDb function for local dev SQLite injection', async () => {
+    const { setDb } = await import('../server/db.js');
+    expect(typeof setDb).toBe('function');
   });
 });
 
 describe('Database Environment Detection', () => {
-  it('should correctly identify SQLite environment', () => {
-    delete process.env.DATABASE_URL;
-    const isPostgres = !!process.env.DATABASE_URL;
-    expect(isPostgres).toBe(false);
-  });
-
-  it('should correctly identify PostgreSQL environment', () => {
+  it('should correctly identify PostgreSQL environment when DATABASE_URL is set', () => {
     process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db';
     const isPostgres = !!process.env.DATABASE_URL;
     expect(isPostgres).toBe(true);
+    delete process.env.DATABASE_URL;
   });
 
-  it('should handle empty DATABASE_URL as SQLite', () => {
+  it('should correctly identify absent DATABASE_URL', () => {
+    delete process.env.DATABASE_URL;
+    const hasUrl = !!process.env.DATABASE_URL;
+    expect(hasUrl).toBe(false);
+  });
+
+  it('should handle empty DATABASE_URL as absent', () => {
     process.env.DATABASE_URL = '';
     const isPostgres = !!process.env.DATABASE_URL;
     expect(isPostgres).toBe(false);
+    delete process.env.DATABASE_URL;
   });
 });

@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq, or } from "drizzle-orm";
-import { hashPassword } from "./auth";
+import { hashPassword } from "./password";
 
 async function seedAdminUser() {
   try {

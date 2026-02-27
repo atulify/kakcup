@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+// No bcryptjs here — kept in server/password.ts so this file is Edge-compatible.
 import { sign, verify } from "hono/jwt";
 import { getCookie } from "hono/cookie";
 import type { Context, MiddlewareHandler } from "hono";
@@ -65,10 +65,3 @@ export const isAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
-}
-
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
-}

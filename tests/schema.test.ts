@@ -21,8 +21,7 @@ describe('Schema Switching Logic', () => {
   it('should have all required table definitions', async () => {
     const schema = await import('../shared/schema.js');
 
-    // Check that all tables are defined
-    expect(schema.sessions).toBeDefined();
+    // Check that all tables are defined (sessions removed — JWT replaces session store)
     expect(schema.users).toBeDefined();
     expect(schema.years).toBeDefined();
     expect(schema.teams).toBeDefined();
