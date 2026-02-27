@@ -6,32 +6,41 @@ This document provides essential information about the KakCup repository archite
 
 ## Project Overview
 
-KakCup is a web application for tracking competition data (fish weights, chug times, golf scores) across multiple years and teams. The application uses a modern full-stack architecture with React on the frontend and Express/Node.js on the backend.
+KakCup is a web application for tracking competition data (fish weights, chug times, golf scores) across multiple years and teams. The application uses a modern full-stack architecture with React on the frontend and Hono on the backend.
 
 ---
 
 ## Architecture
 
 ### Deployment Architecture
-- **Platform**: Vercel (serverless functions)
+- **Platform**: Vercel (Edge Runtime for data routes, Node.js for auth)
 - **Frontend**: Static React app built with Vite, served from CDN
-- **Backend**: Express.js wrapped as serverless function in `api/index.ts`
+- **Backend**: Two Vercel serverless functions:
+  - `api/index.ts` — **Edge Runtime** (V8 isolate, ~0ms cold start), handles all `/api/*` data routes
+  - `api/auth.ts` — **Node.js Runtime**, handles all `/api/auth/*` routes (bcrypt requires Node.js)
 - **Database**:
-  - PostgreSQL (production on Vercel)
-  - SQLite (local development)
+  - PostgreSQL via `@neondatabase/serverless` HTTP driver (production on Neon)
+  - SQLite via `better-sqlite3` (local development)
   - Automatic selection based on `DATABASE_URL` environment variable
 
 ### Serverless Functions
-The application uses Vercel's serverless function model:
-- **Entry Point**: `api/index.ts`
-- **Handler**: Default export function that wraps the Express app
-- **Routing**: All API routes prefixed with `/api/*` are routed to the serverless function
-- **Warm Start Optimization**: Express app and routes are initialized at module level to be reused across invocations
+
+**`api/index.ts`** — Edge Runtime
+- `export const config = { runtime: 'edge' }` — runs in V8 isolate (no Node.js APIs)
+- Wraps Hono app with `handle(app)` from `hono/vercel`
+- Restores `/api` prefix if Vercel strips it
+- Handles all data routes: fish weights, chug times, golf scores, teams, years, standings
+
+**`api/auth.ts`** — Node.js Runtime
+- Plain `VercelRequest`/`VercelResponse` handler (no Hono adapter — avoids body stream issues)
+- Reads request body from raw stream (Vercel pre-consumes IncomingMessage before function call)
+- Handles: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`, `GET /api/auth/user`
+- Requires `globalThis.crypto` polyfill for `hono/jwt` on Node.js < 18
 
 ### Request Flow
 1. Static files (frontend) → Vercel CDN
-2. `/api/*` requests → `api/index.ts` serverless function
-3. Serverless function → Express router → Database
+2. `/api/auth/*` requests → `api/auth.ts` (Node.js function)
+3. `/api/*` requests → `api/index.ts` (Edge function) → Hono router → Neon HTTP → PostgreSQL
 4. All other routes → `index.html` (SPA routing)
 
 ---
@@ -47,15 +56,15 @@ The application uses Vercel's serverless function model:
 - **Build Tool**: Vite
 
 ### Backend
-- **Runtime**: Node.js (ES Modules)
-- **Framework**: Express.js
+- **Runtime**: Edge (V8 isolate) for data routes; Node.js for auth
+- **Framework**: Hono
 - **Database ORM**: Drizzle ORM
-- **Session Store**: PostgreSQL-backed sessions (connect-pg-simple) or SQLite-backed (memorystore)
-- **Authentication**: Express sessions with bcrypt password hashing
+- **Authentication**: JWT in HttpOnly cookie (`token`) — no session store, no DB roundtrip on auth checks
+- **Password Hashing**: bcryptjs (runs only in Node.js auth function)
 
 ### Database
-- **Production**: PostgreSQL (Neon, Vercel Postgres, or other providers)
-- **Development**: SQLite (better-sqlite3)
+- **Production**: PostgreSQL on Neon, accessed via `@neondatabase/serverless` HTTP driver (plain HTTPS fetch — no TCP pool, no SSL handshake on cold start)
+- **Development**: SQLite (`better-sqlite3`) — injected at startup via `setDb()` in `server/db.ts`
 - **Migrations**: Drizzle Kit
 - **Schema**: Dual schema files (`schema-postgres.ts` and `schema-sqlite.ts`) with automatic selection
 
@@ -72,19 +81,22 @@ The application uses Vercel's serverless function model:
 ```
 kakcup/
 ├── api/                    # Vercel serverless functions
-│   └── index.ts           # Main serverless entry point
+│   ├── index.ts           # Edge Runtime entry — data routes
+│   └── auth.ts            # Node.js Runtime entry — auth routes
 ├── client/                # React frontend
 │   ├── public/            # Static assets
 │   └── src/
 │       ├── components/    # React components
 │       ├── pages/         # Page components
 │       └── main.tsx       # Frontend entry point
-├── server/                # Express backend
-│   ├── index.ts          # Local dev server entry point
-│   ├── routes.ts         # API route definitions
-│   ├── auth.ts           # Authentication logic
-│   ├── db.ts             # Database connection
-│   └── storage.ts        # Data access layer
+├── server/                # Backend (shared between Vercel functions and local dev)
+│   ├── index.ts          # Local dev server entry (Hono + @hono/node-server)
+│   ├── routes.ts         # Data API route definitions (createDataRoutes)
+│   ├── auth-routes.ts    # Auth Hono routes (used in local dev via server/routes.ts)
+│   ├── auth.ts           # JWT middleware: isAuthenticated, isAdmin, createToken
+│   ├── password.ts       # hashPassword, verifyPassword (bcryptjs — Node.js only)
+│   ├── db.ts             # Database connection + setDb() for local dev SQLite override
+│   └── storage.ts        # Data access layer (Drizzle-based)
 ├── shared/               # Shared code between frontend/backend
 │   ├── schema.ts         # Schema export coordinator
 │   ├── schema-postgres.ts # PostgreSQL schema
@@ -104,19 +116,45 @@ kakcup/
 
 ---
 
+## Authentication
+
+### JWT Flow
+- **Login**: `POST /api/auth/login` → bcrypt verify → `createToken()` → `Set-Cookie: token=<jwt>; HttpOnly; Secure; SameSite=Strict`
+- **Auth check** (`GET /api/auth/user`): reads `token` cookie → `verify(token, JWT_SECRET, 'HS256')` → returns payload (no DB call)
+- **Data route auth** (`isAuthenticated` middleware): reads `token` cookie → verifies JWT → sets `c.var.{userId, role, username, ...}` (no DB call)
+- **Admin check** (`isAdmin` middleware): same as above + asserts `role === 'admin'` (no DB call)
+- **Logout**: `POST /api/auth/logout` → clears cookie with `Max-Age=0`
+
+### JWT Payload
+```typescript
+{ userId, username, email, firstName, lastName, role, exp }
+```
+
+### Why Two Functions?
+`bcryptjs` is pure JS but requires Node.js `crypto` internals and is CPU-intensive (~400ms at cost 12) — unsuitable for Edge's 50ms CPU limit. Auth routes run as a separate Node.js function while all other routes benefit from Edge's near-zero cold start.
+
+---
+
 ## Database
 
 ### Schema Management
 - **Two Schema Files**: Separate schemas for PostgreSQL and SQLite to handle dialect differences
 - **Automatic Selection**: `shared/schema.ts` exports the correct schema based on `DATABASE_URL`
-- **Tables**: users, years, teams, fishWeights, chugTimes, golfScores, sessions
+- **Tables**: users, years, teams, fishWeights, chugTimes, golfScores
 
 ### Database Selection Logic
 ```javascript
 const isPostgres = !!process.env.DATABASE_URL;
-// If DATABASE_URL exists → PostgreSQL
-// If DATABASE_URL is empty → SQLite
+// If DATABASE_URL exists → Neon HTTP driver (PostgreSQL)
+// If DATABASE_URL is empty → SQLite (local dev)
 ```
+
+### Neon HTTP Driver
+The production database uses `@neondatabase/serverless` instead of `pg`:
+- Each query is a plain HTTPS fetch — no persistent TCP connection, no SSL handshake on cold start
+- Compatible with Edge Runtime (no Node.js net/tls required)
+- `drizzle-orm/neon-http` adapter — identical Drizzle API to `node-postgres`
+- **Version**: `@neondatabase/serverless@^0.10.4` — do NOT upgrade to 1.x (breaks drizzle-orm@0.39.x neon-http session API)
 
 ### Migrations
 - Run migrations with: `npm run db:push` (Drizzle Kit)
@@ -129,23 +167,18 @@ const isPostgres = !!process.env.DATABASE_URL;
 
 ### Local Development
 ```bash
-npm run dev              # Start development server on port 3000
+npm run dev              # Starts API (tsx server/index.ts on :3000) + Vite dev server (proxies /api to :3000)
 ```
 - Uses SQLite database (`kakcup.db`)
-- Vite dev server with HMR
-- Express API server with live reload (tsx)
+- Vite dev server with HMR on :5173
+- Hono API server with live reload (tsx) on :3000
+- Vite proxies all `/api` requests to `:3000` — no CORS needed
 
 ### Build Process
 ```bash
 npm run build           # Full production build
-npm run vercel-build    # Vercel-specific build (frontend only)
+npm run vercel-build    # Vercel-specific build (frontend only — Vercel handles API bundling)
 ```
-
-Build steps:
-1. Inject service worker version
-2. Build frontend with Vite → `dist/public/`
-3. Bundle server with esbuild → `dist/`
-4. Bundle API function with esbuild → `.vercel/output/functions/api/`
 
 ### Type Checking
 ```bash
@@ -172,14 +205,14 @@ npm run test:coverage   # Run tests with coverage report
 2. **After making changes to**:
    - API endpoints (`server/routes.ts`)
    - Business logic (`server/storage.ts`, `shared/`)
-   - Authentication (`server/auth.ts`)
+   - Authentication (`server/auth.ts`, `api/auth.ts`)
    - Database schema (`shared/schema-*.ts`)
 3. **During development**: Use watch mode for immediate feedback
 4. **Before creating PRs**: Run with coverage to ensure adequate coverage
 
 ### Test Files
-- `api.test.ts` - Tests all API endpoints
-- `auth.test.ts` - Tests authentication flows
+- `api.test.ts` - Tests all data API endpoints
+- `auth.test.ts` - Tests authentication flows (JWT creation, middleware)
 - `db.test.ts` - Tests database connections
 - `scoring.test.ts` - Tests scoring calculations
 - `storage.test.ts` - Tests data access layer
@@ -199,22 +232,22 @@ The application is deployed on Vercel with the following configuration:
 **Output Directory**: `dist/public`
 
 **Environment Variables Required**:
-- `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Secure random string (32+ chars)
+- `DATABASE_URL` - Neon PostgreSQL connection string
+- `JWT_SECRET` - Secure random string (32+ chars) for signing JWTs
+- `SESSION_SECRET` - Legacy fallback used if `JWT_SECRET` is absent
 - `NODE_ENV` - Set to "production"
 
 **Routing Rules** (from `vercel.json`):
-- `/api/:path*` → Serverless function at `api/index.ts`
+- `/api/auth/:path*` → Node.js function at `api/auth.ts`
+- `/api/:path*` → Edge function at `api/index.ts`
 - All other routes → `index.html` (SPA)
 
 ### Pre-Deployment Checklist
 1. ✅ All tests passing (`npm test`)
 2. ✅ TypeScript checks passing (`npm run check`)
 3. ✅ Database initialized (`npm run db:init-vercel` with production DATABASE_URL)
-4. ✅ Environment variables configured in Vercel dashboard
+4. ✅ Environment variables configured in Vercel dashboard (`DATABASE_URL`, `JWT_SECRET`)
 5. ✅ Build succeeds locally (`npm run build`)
-
-See `DEPLOYMENT.md` for detailed deployment instructions.
 
 ---
 
@@ -233,27 +266,54 @@ See `DEPLOYMENT.md` for detailed deployment instructions.
 ### API Routes
 - All routes prefixed with `/api`
 - RESTful conventions
-- Session-based authentication
+- JWT cookie authentication (HttpOnly, no JS access)
 - JSON request/response bodies
 
+### Hono Route Patterns
+```typescript
+// Data routes (server/routes.ts)
+app.get('/api/fish-weights/:yearId', isAuthenticated, async (c) => {
+  const yearId = c.req.param('yearId');
+  const userId = c.var.userId;      // set by isAuthenticated middleware
+  return c.json(data);
+});
+
+// Admin routes
+app.post('/api/fish-weights', isAdmin, async (c) => {
+  const body = await c.req.json();
+  return c.json(result, 201);
+});
+```
+
+### Auth Routes (api/auth.ts)
+Auth routes are implemented directly against `VercelRequest`/`VercelResponse` (no Hono adapter):
+```typescript
+// Read body from stream (Vercel pre-consumes IncomingMessage)
+const rawBody = await new Promise<string>((resolve) => {
+  const chunks: Buffer[] = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+});
+const { username, password } = JSON.parse(rawBody || '{}');
+```
+
 ### Environment-Specific Code
-The codebase gracefully handles both development and production environments:
-- **Database**: Automatic SQLite/PostgreSQL selection
-- **Sessions**: Different stores for SQLite vs PostgreSQL
-- **Logging**: Enhanced logging in development mode
+- **Database**: Automatic SQLite/PostgreSQL selection via `DATABASE_URL`
+- **Auth secrets**: `JWT_SECRET` → `SESSION_SECRET` → `'dev-secret'` (dev fallback)
+- **Cookies**: `Secure` flag only in production
 
 ### Code Quality
 - **Type Safety**: Full TypeScript coverage
 - **ES Modules**: All files use ES module syntax (`.js` imports even for `.ts` files)
 - **No Console in Production**: Terser drops console.log in production builds
-- **Session Security**: Sessions stored in database, not memory (production)
+- **Edge-safe code**: No Node.js-specific APIs in `api/index.ts` or `server/routes.ts`
 
 ---
 
 ## Common Tasks for Agents
 
-### Adding a New API Endpoint
-1. Add route handler to `server/routes.ts`
+### Adding a New Data API Endpoint
+1. Add route handler to `server/routes.ts` (use Hono syntax: `c.req.param()`, `c.req.json()`, `c.json()`)
 2. Add data access methods to `server/storage.ts` if needed
 3. Update types in `shared/` if needed
 4. **Write tests in `tests/api.test.ts`**
@@ -274,27 +334,26 @@ The codebase gracefully handles both development and production environments:
 5. **Run server tests to ensure API compatibility**: `npm test`
 
 ### Debugging Issues
-1. Check server logs (Express request logging is enabled)
-2. Verify environment variables (`.env.local` for local, Vercel dashboard for production)
-3. Check database connection (SQLite file vs PostgreSQL URL)
-4. **Run tests to isolate the issue**: `npm test`
-5. Use `npm run test:coverage` to identify untested code paths
+1. Check Vercel function logs (two separate functions: `api` and `api/auth`)
+2. Verify environment variables (`DATABASE_URL`, `JWT_SECRET` in Vercel dashboard)
+3. Check database connection (SQLite file locally, Neon URL in production)
+4. For auth issues: check JWT cookie is set (`token` in browser DevTools → Application → Cookies)
+5. **Run tests to isolate the issue**: `npm test`
 
 ---
 
 ## Performance Considerations
+
+### Cold Start
+- **Edge function** (`api/index.ts`): ~0ms cold start (V8 isolate — no Node.js boot)
+- **Node.js function** (`api/auth.ts`): ~200–500ms cold start (only invoked at login/logout)
+- **Neon HTTP driver**: no TCP connection pool — each query is a fresh HTTPS fetch (fast cold start, slightly higher per-query latency vs persistent connection on warm instances)
 
 ### Frontend Optimization
 - Manual code splitting configured in `vite.config.ts`
 - Vendor chunks: react-vendor, query-vendor, ui-* chunks
 - CSS code splitting enabled
 - Terser minification with console.log removal
-
-### Backend Optimization
-- Connection pooling for PostgreSQL (max 10 connections)
-- Serverless function warm start optimization
-- Idle timeout: 30 seconds
-- Connection timeout: 10 seconds
 
 ### Caching
 - Service worker configured (see `scripts/inject-sw-version.js`)
@@ -305,28 +364,32 @@ The codebase gracefully handles both development and production environments:
 
 ## Security Notes
 
-- **Password Hashing**: bcrypt with secure defaults
-- **Session Security**:
-  - Secure random session secrets (32+ chars required)
-  - HttpOnly cookies
-  - Database-backed session storage
+- **Password Hashing**: bcryptjs with secure defaults (runs only in Node.js auth function)
+- **JWT Security**:
+  - Signed with `HS256` + `JWT_SECRET` (32+ chars recommended)
+  - HttpOnly cookie — not accessible from JavaScript
+  - `Secure` flag in production (HTTPS only)
+  - `SameSite=Strict` — CSRF protection
+  - 7-day expiry
 - **SQL Injection Protection**: Drizzle ORM parameterized queries
-- **HTTPS**: Required via sslmode=verify-full for PostgreSQL
+- **HTTPS**: Neon uses SSL; Vercel enforces HTTPS
 - **Environment Variables**: Never commit `.env.*` files (in `.gitignore`)
+- **Edge-safe**: No secrets or Node.js internals exposed in Edge bundle
 
 ---
 
 ## Important Files to Check
 
 Before making changes, familiarize yourself with these key files:
-- `vercel.json` - Deployment configuration
+- `vercel.json` - Deployment configuration and routing rules
 - `package.json` - Scripts and dependencies
-- `server/routes.ts` - All API endpoints
+- `api/index.ts` - Edge function entry point
+- `api/auth.ts` - Node.js auth function
+- `server/routes.ts` - All data API endpoints
+- `server/auth.ts` - JWT middleware and token creation
 - `server/storage.ts` - Data access layer
 - `shared/schema.ts` - Database schema coordination
 - `tests/` - All test files
-- `DEPLOYMENT.md` - Detailed deployment guide
-- `SELF_HOSTED.md` - Self-hosting instructions
 
 ---
 
@@ -334,10 +397,10 @@ Before making changes, familiarize yourself with these key files:
 
 When working on this repository:
 1. ✅ **ALWAYS run tests** before committing (`npm test`)
-2. ✅ Understand the serverless architecture (Vercel + Express wrapper)
-3. ✅ Check both PostgreSQL and SQLite schemas when modifying database
-4. ✅ Use the correct import aliases (`@/`, `@shared/`, `@assets/`)
-5. ✅ Follow existing patterns for API routes and data access
-6. ✅ Test changes locally before deploying
-7. ✅ Verify TypeScript types with `npm run check`
-8. ✅ **Run tests in watch mode during development** (`npm run test:watch`)
+2. ✅ **Two Vercel functions**: Edge (`api/index.ts`) for data, Node.js (`api/auth.ts`) for auth — do not mix Node.js APIs into the Edge function
+3. ✅ **Hono syntax** for data routes: `c.req.param()`, `c.req.json()`, `c.json()`, `c.var.userId`
+4. ✅ **No `pg` or connection pools** — use `@neondatabase/serverless` neon-http driver (do not upgrade to 1.x)
+5. ✅ Check both PostgreSQL and SQLite schemas when modifying database
+6. ✅ Use the correct import aliases (`@/`, `@shared/`, `@assets/`)
+7. ✅ JWT authentication — no sessions, no `req.session`, no connect-pg-simple
+8. ✅ Verify TypeScript types with `npm run check`
