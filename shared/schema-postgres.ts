@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, integer, numeric, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, numeric, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -74,7 +74,7 @@ export const chugTimes = pgTable("chug_times", {
   average: numeric("average", { precision: 10, scale: 3 }), // average of chug1 and chug2 (3 decimal places)
   notes: text("notes"), // optional notes about the chug
 }, (table) => ({
-  uniqueYearTeam: index("unique_chug_year_team").on(table.yearId, table.teamId),
+  uniqueYearTeam: uniqueIndex("unique_chug_year_team").on(table.yearId, table.teamId),
 }));
 
 export const golfScores = pgTable("golf_scores", {
@@ -84,7 +84,7 @@ export const golfScores = pgTable("golf_scores", {
   score: integer("score"), // golf score
   notes: text("notes"), // optional notes about the round
 }, (table) => ({
-  uniqueYearTeam: index("unique_golf_year_team").on(table.yearId, table.teamId),
+  uniqueYearTeam: uniqueIndex("unique_golf_year_team").on(table.yearId, table.teamId),
 }));
 
 // Relations

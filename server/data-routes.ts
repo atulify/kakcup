@@ -1,7 +1,19 @@
 // Edge-compatible — no bcryptjs in this import chain.
-import type { Hono } from "hono";
+import type { Hono, MiddlewareHandler } from "hono";
 import { storage } from "./storage.js";
 import { isAdmin, type AppEnv } from "./auth.js";
+
+// Fetches the year record once and caches it in c.var for the handler.
+const requireYear: MiddlewareHandler<AppEnv> = async (c, next) => {
+  try {
+    const year = await storage.getYearById(c.req.param("yearId"));
+    if (!year) return c.json({ error: "Year not found" }, 404);
+    c.set("year", year);
+    await next();
+  } catch {
+    return c.json({ error: "Failed to fetch year" }, 500);
+  }
+};
 
 export function createDataRoutes(app: Hono<AppEnv>): void {
   // Year routes
@@ -85,14 +97,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.post("/api/years/:yearId/fish-weights", isAdmin, async (c) => {
+  app.post("/api/years/:yearId/fish-weights", isAdmin, requireYear, async (c) => {
     try {
-      const yearRecord = await storage.getYearById(c.req.param("yearId"));
-      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      if (yearRecord.fishing_locked) {
+      if (c.var.year!.fishing_locked) {
         return c.json({ error: "Fishing competition is locked. No more weights can be added." }, 403);
       }
-
       const weightData = await c.req.json();
       weightData.yearId = c.req.param("yearId");
       const fishWeight = await storage.createFishWeight(weightData);
@@ -102,14 +111,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.delete("/api/years/:yearId/teams/:teamId/fish-weights", isAdmin, async (c) => {
+  app.delete("/api/years/:yearId/teams/:teamId/fish-weights", isAdmin, requireYear, async (c) => {
     try {
-      const yearRecord = await storage.getYearById(c.req.param("yearId"));
-      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      if (yearRecord.fishing_locked) {
+      if (c.var.year!.fishing_locked) {
         return c.json({ error: "Fishing competition is locked. Cannot delete weights." }, 403);
       }
-
       await storage.deleteFishWeightsByTeam(c.req.param("yearId"), c.req.param("teamId"));
       return c.json({ message: "Fish weights deleted successfully" });
     } catch {
@@ -127,14 +133,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.post("/api/years/:yearId/chug-times", isAdmin, async (c) => {
+  app.post("/api/years/:yearId/chug-times", isAdmin, requireYear, async (c) => {
     try {
-      const yearRecord = await storage.getYearById(c.req.param("yearId"));
-      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      if (yearRecord.chug_locked) {
+      if (c.var.year!.chug_locked) {
         return c.json({ error: "Chug competition is locked. No more times can be added." }, 403);
       }
-
       const chugData = await c.req.json();
       chugData.yearId = c.req.param("yearId");
       const chugTime = await storage.createChugTime(chugData);
@@ -144,14 +147,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.delete("/api/years/:yearId/teams/:teamId/chug-times", isAdmin, async (c) => {
+  app.delete("/api/years/:yearId/teams/:teamId/chug-times", isAdmin, requireYear, async (c) => {
     try {
-      const yearRecord = await storage.getYearById(c.req.param("yearId"));
-      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      if (yearRecord.chug_locked) {
+      if (c.var.year!.chug_locked) {
         return c.json({ error: "Chug competition is locked. Cannot delete times." }, 403);
       }
-
       await storage.deleteChugTime(c.req.param("yearId"), c.req.param("teamId"));
       return c.json({ message: "Chug time deleted successfully" });
     } catch {
@@ -169,14 +169,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.post("/api/years/:yearId/golf-scores", isAdmin, async (c) => {
+  app.post("/api/years/:yearId/golf-scores", isAdmin, requireYear, async (c) => {
     try {
-      const yearRecord = await storage.getYearById(c.req.param("yearId"));
-      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      if (yearRecord.golf_locked) {
+      if (c.var.year!.golf_locked) {
         return c.json({ error: "Golf competition is locked. No more scores can be added." }, 403);
       }
-
       const golfData = await c.req.json();
       golfData.yearId = c.req.param("yearId");
       const golfScore = await storage.createGolfScore(golfData);
@@ -186,14 +183,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, async (c) => {
+  app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, requireYear, async (c) => {
     try {
-      const yearRecord = await storage.getYearById(c.req.param("yearId"));
-      if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      if (yearRecord.golf_locked) {
+      if (c.var.year!.golf_locked) {
         return c.json({ error: "Golf competition is locked. Cannot delete scores." }, 403);
       }
-
       await storage.deleteGolfScore(c.req.param("yearId"), c.req.param("teamId"));
       return c.json({ message: "Golf score deleted successfully" });
     } catch {

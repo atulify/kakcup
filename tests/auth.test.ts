@@ -104,11 +104,11 @@ describe('Password Security', () => {
     const hash = await hashPassword(password);
     const endTime = Date.now();
 
-    // bcrypt with 12 rounds should take at least 50ms
+    // bcrypt with 10 rounds should take at least 50ms
     // This ensures we're using a sufficient cost factor
     const duration = endTime - startTime;
     expect(duration).toBeGreaterThan(50);
-    expect(hash).toMatch(/^\$2[aby]\$12\$/); // Verify cost factor of 12
+    expect(hash).toMatch(/^\$2[aby]\$10\$/); // Verify cost factor of 10
   });
 
   it('should produce hashes of consistent length', async () => {

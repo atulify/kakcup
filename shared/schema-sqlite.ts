@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -74,7 +74,7 @@ export const chugTimes = sqliteTable("chug_times", {
   average: real("average"), // average of chug1 and chug2
   notes: text("notes"), // optional notes about the chug
 }, (table) => ({
-  uniqueYearTeam: index("unique_chug_year_team").on(table.yearId, table.teamId),
+  uniqueYearTeam: uniqueIndex("unique_chug_year_team").on(table.yearId, table.teamId),
 }));
 
 export const golfScores = sqliteTable("golf_scores", {
@@ -84,7 +84,7 @@ export const golfScores = sqliteTable("golf_scores", {
   score: integer("score"), // golf score
   notes: text("notes"), // optional notes about the round
 }, (table) => ({
-  uniqueYearTeam: index("unique_golf_year_team").on(table.yearId, table.teamId),
+  uniqueYearTeam: uniqueIndex("unique_golf_year_team").on(table.yearId, table.teamId),
 }));
 
 // Relations

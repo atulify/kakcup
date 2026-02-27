@@ -147,18 +147,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createChugTime(chugTimeData: any): Promise<any> {
-    // Delete existing entry for this team/year if it exists (upsert behavior)
-    await db
-      .delete(chugTimes)
-      .where(and(
-        eq(chugTimes.yearId, chugTimeData.yearId),
-        eq(chugTimes.teamId, chugTimeData.teamId)
-      ));
-
-    // Insert the new entry
     const [chugTime] = await db
       .insert(chugTimes)
       .values(chugTimeData)
+      .onConflictDoUpdate({
+        target: [chugTimes.yearId, chugTimes.teamId],
+        set: {
+          chug1: chugTimeData.chug1,
+          chug2: chugTimeData.chug2,
+          average: chugTimeData.average,
+          notes: chugTimeData.notes,
+        },
+      })
       .returning();
     return chugTime;
   }
@@ -180,18 +180,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGolfScore(golfScoreData: any): Promise<any> {
-    // Delete existing entry for this team/year if it exists (upsert behavior)
-    await db
-      .delete(golfScores)
-      .where(and(
-        eq(golfScores.yearId, golfScoreData.yearId),
-        eq(golfScores.teamId, golfScoreData.teamId)
-      ));
-
-    // Insert the new entry
     const [golfScore] = await db
       .insert(golfScores)
       .values(golfScoreData)
+      .onConflictDoUpdate({
+        target: [golfScores.yearId, golfScores.teamId],
+        set: {
+          score: golfScoreData.score,
+          notes: golfScoreData.notes,
+        },
+      })
       .returning();
     return golfScore;
   }

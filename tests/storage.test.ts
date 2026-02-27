@@ -5,6 +5,8 @@ import { users, years, teams, fishWeights, chugTimes, golfScores } from '../shar
 import { eq } from 'drizzle-orm';
 import Database from 'better-sqlite3';
 import { existsSync, unlinkSync } from 'fs';
+import { DatabaseStorage } from '../server/storage.js';
+import { setDb } from '../server/db.js';
 
 describe('Storage Layer - User Operations', () => {
   let sqlite: Database.Database;
@@ -306,5 +308,72 @@ describe('Storage Layer - Competition Data', () => {
 
     const weights = await db.select().from(fishWeights).where(eq(fishWeights.yearId, yearId));
     expect(weights.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Storage Layer - Upsert Behaviour', () => {
+  let sqlite: Database.Database;
+  let store: DatabaseStorage;
+
+  beforeEach(() => {
+    const testDb = createTestDatabase();
+    sqlite = testDb.sqlite;
+    setDb(drizzle(sqlite, { schema: { users, years, teams, fishWeights, chugTimes, golfScores } }));
+    store = new DatabaseStorage();
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  it('createChugTime should update existing row rather than insert a duplicate', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+
+    await store.createChugTime({ id: crypto.randomUUID(), yearId, teamId, chug1: 8.5, chug2: 9.2, average: 8.85, notes: 'First' });
+    await store.createChugTime({ id: crypto.randomUUID(), yearId, teamId, chug1: 7.0, chug2: 7.5, average: 7.25, notes: 'Updated' });
+
+    const rows = await store.getChugTimesByYear(yearId);
+    expect(rows).toHaveLength(1);
+    expect(parseFloat(rows[0].chug1 as any)).toBeCloseTo(7.0, 1);
+    expect(parseFloat(rows[0].average as any)).toBeCloseTo(7.25, 2);
+    expect(rows[0].notes).toBe('Updated');
+  });
+
+  it('createGolfScore should update existing row rather than insert a duplicate', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+
+    await store.createGolfScore({ id: crypto.randomUUID(), yearId, teamId, score: 85, notes: 'First round' });
+    await store.createGolfScore({ id: crypto.randomUUID(), yearId, teamId, score: 72, notes: 'Better round' });
+
+    const rows = await store.getGolfScoresByYear(yearId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].score).toBe(72);
+    expect(rows[0].notes).toBe('Better round');
+  });
+
+  it('createChugTime should allow different teams to each have their own row', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+    const teamId2 = crypto.randomUUID();
+    sqlite.prepare(`INSERT INTO teams (id, year_id, name, position, locked) VALUES (?, ?, ?, ?, ?)`)
+      .run(teamId2, yearId, 'Team 2', 2, 0);
+
+    await store.createChugTime({ id: crypto.randomUUID(), yearId, teamId, chug1: 8.0, chug2: 8.0, average: 8.0 });
+    await store.createChugTime({ id: crypto.randomUUID(), yearId, teamId: teamId2, chug1: 9.0, chug2: 9.0, average: 9.0 });
+
+    const rows = await store.getChugTimesByYear(yearId);
+    expect(rows).toHaveLength(2);
+  });
+
+  it('createGolfScore should allow different teams to each have their own row', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+    const teamId2 = crypto.randomUUID();
+    sqlite.prepare(`INSERT INTO teams (id, year_id, name, position, locked) VALUES (?, ?, ?, ?, ?)`)
+      .run(teamId2, yearId, 'Team 2', 2, 0);
+
+    await store.createGolfScore({ id: crypto.randomUUID(), yearId, teamId, score: 80 });
+    await store.createGolfScore({ id: crypto.randomUUID(), yearId, teamId: teamId2, score: 75 });
+
+    const rows = await store.getGolfScoresByYear(yearId);
+    expect(rows).toHaveLength(2);
   });
 });

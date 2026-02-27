@@ -2,6 +2,7 @@
 import { sign, verify } from "hono/jwt";
 import { getCookie } from "hono/cookie";
 import type { Context, MiddlewareHandler } from "hono";
+import type { Year } from "../shared/schema.js";
 
 export type AppEnv = {
   Variables: {
@@ -11,6 +12,7 @@ export type AppEnv = {
     email: string | null;
     firstName: string | null;
     lastName: string | null;
+    year?: Year;
   };
 };
 

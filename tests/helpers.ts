@@ -99,6 +99,10 @@ export function createTestDatabase() {
     );
   `);
 
+  // Unique constraints required for ON CONFLICT DO UPDATE upsert behaviour
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_chug_year_team ON chug_times(year_id, team_id);`);
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_golf_year_team ON golf_scores(year_id, team_id);`);
+
   return { sqlite, db: drizzle(sqlite), dbPath };
 }
 
