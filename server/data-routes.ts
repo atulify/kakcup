@@ -7,7 +7,7 @@ import { cached, cacheKeys, invalidate } from "./cache.js";
 // Fetches the year record once and caches it in c.var for the handler.
 const requireYear: MiddlewareHandler<AppEnv> = async (c, next) => {
   try {
-    const year = await storage.getYearById(c.req.param("yearId"));
+    const year = await storage.getYearById(c.req.param("yearId")!);
     if (!year) return c.json({ error: "Year not found" }, 404);
     c.set("year", year);
     await next();
