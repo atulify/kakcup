@@ -134,4 +134,13 @@
   .table-cell {
     @apply border-border;
   }
+
+  /* iOS safe area support for PWA bottom nav */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-nav-safe {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
 }

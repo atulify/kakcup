@@ -124,7 +124,7 @@ export default function YearPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pb-16">
+      <main className="flex-1 overflow-y-auto pb-nav-safe">
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
