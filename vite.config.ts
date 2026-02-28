@@ -1,16 +1,19 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import preact from "@preact/preset-vite";
 import path from "path";
 
 export default defineConfig({
   plugins: [
-    react(),
+    preact(),
   ],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "react": "preact/compat",
+      "react-dom": "preact/compat",
+      "react/jsx-runtime": "preact/jsx-runtime",
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
@@ -30,7 +33,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           // Core framework dependencies
-          'react-vendor': ['react', 'react-dom', 'wouter'],
+          'framework': ['preact', 'preact/compat', 'wouter'],
           'query-vendor': ['@tanstack/react-query'],
 
           // Split UI components into smaller, more granular chunks
