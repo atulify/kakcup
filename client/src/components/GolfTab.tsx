@@ -367,7 +367,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                               )}
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                              {teamStat.members.map((member: string, index: number) => (
+                              {teamStat.members.map((member, index) => (
                                 <div key={index} className="text-xs text-muted-foreground truncate">
                                   {member}
                                 </div>

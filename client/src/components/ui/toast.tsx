@@ -1,6 +1,5 @@
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
-import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "@/components/icons"
 
 import { cn } from "@/lib/utils"
@@ -22,30 +21,21 @@ const ToastViewport = React.forwardRef<
 ))
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
-const toastVariants = cva(
-  "group pointer-events-auto relative flex items-center justify-center overflow-hidden rounded-full p-2 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-  {
-    variants: {
-      variant: {
-        default: "bg-white dark:bg-gray-800",
-        destructive: "bg-white dark:bg-gray-800",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+const toastBase =
+  "group pointer-events-auto relative flex items-center justify-center overflow-hidden rounded-full p-2 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 bg-white dark:bg-gray-800"
+
+export type ToastVariant = "default" | "destructive"
 
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
-    VariantProps<typeof toastVariants>
->(({ className, variant, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> & {
+    variant?: ToastVariant
+  }
+>(({ className, variant: _variant, ...props }, ref) => {
   return (
     <ToastPrimitives.Root
       ref={ref}
-      className={cn(toastVariants({ variant }), className)}
+      className={cn(toastBase, className)}
       {...props}
     />
   )

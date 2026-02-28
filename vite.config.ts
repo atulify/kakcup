@@ -51,22 +51,11 @@ export default defineConfig({
           'framework': ['preact', 'preact/compat', 'wouter'],
           'query-vendor': ['@tanstack/react-query'],
 
-          // Split UI components into smaller, more granular chunks
-          // Core UI primitives used throughout the app
-          'ui-core': [
-            '@radix-ui/react-slot',
-            '@radix-ui/react-label',
-          ],
-
           // Tab components (used in YearPage)
-          'ui-tabs': [
-            '@radix-ui/react-tabs',
-          ],
+          'ui-tabs': ['@radix-ui/react-tabs'],
 
           // Toast notifications
-          'ui-toast': [
-            '@radix-ui/react-toast',
-          ],
+          'ui-toast': ['@radix-ui/react-toast'],
         },
       },
     },
