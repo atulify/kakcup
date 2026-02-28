@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, ArrowRight, LogOut, LogIn } from "@/components/icons";
+import { Trophy, ArrowRight, LogOut, LogIn, Github } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -192,8 +192,21 @@ export default function SelectYear() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-muted-foreground text-sm">
-        <p>KAK Cup Tournament Platform</p>
+      <footer className="py-6 text-center text-muted-foreground text-sm space-y-1">
+        <div className="flex items-center justify-center gap-2">
+          <a
+            href="https://github.com/atulify/kakcup/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+          >
+            <Github size={16} />
+            <span>atulify/kakcup</span>
+          </a>
+        </div>
+        <p className="text-xs text-muted-foreground/60">
+          {__COMMIT_HASH__}
+        </p>
       </footer>
     </div>
   );

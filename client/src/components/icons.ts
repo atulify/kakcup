@@ -10,6 +10,7 @@ export { default as Check } from 'lucide-react/dist/esm/icons/check';
 export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down';
 export { default as Edit } from 'lucide-react/dist/esm/icons/edit';
 export { default as Fish } from 'lucide-react/dist/esm/icons/fish';
+export { default as Github } from 'lucide-react/dist/esm/icons/github';
 export { default as Flag } from 'lucide-react/dist/esm/icons/flag';
 export { default as Home } from 'lucide-react/dist/esm/icons/home';
 export { default as Lock } from 'lucide-react/dist/esm/icons/lock';
