@@ -6,7 +6,7 @@ This document provides essential information about the KakCup repository archite
 
 ## Project Overview
 
-KakCup is a web application for tracking competition data (fish weights, chug times, golf scores) across multiple years and teams. The application uses a modern full-stack architecture with React on the frontend and Hono on the backend.
+KakCup is a web application for tracking competition data (fish weights, chug times, golf scores) across multiple years and teams. The application uses a modern full-stack architecture with Preact on the frontend and Hono on the backend.
 
 ---
 
@@ -22,6 +22,7 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
   - PostgreSQL via `@neondatabase/serverless` HTTP driver (production on Neon)
   - SQLite via `better-sqlite3` (local development)
   - Automatic selection based on `DATABASE_URL` environment variable
+- **Cache**: Upstash Redis (REST/fetch — Edge-compatible) via `server/cache.ts`; no-op when `UPSTASH_REDIS_REST_URL` is absent (local dev)
 
 ### Serverless Functions
 
@@ -40,7 +41,7 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
 ### Request Flow
 1. Static files (frontend) → Vercel CDN
 2. `/api/auth/*` requests → `api/auth.ts` (Node.js function)
-3. `/api/*` requests → `api/index.ts` (Edge function) → Hono router → Neon HTTP → PostgreSQL
+3. `/api/*` requests → `api/index.ts` (Edge function) → Hono router → Upstash Redis cache (read hit) OR Neon HTTP → PostgreSQL (cache miss, then write-through to Redis)
 4. All other routes → `index.html` (SPA routing)
 
 ---
@@ -48,7 +49,7 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
 ## Tech Stack
 
 ### Frontend
-- **Framework**: React 18
+- **Framework**: Preact 10 (React-compatible API, ~3KB vs React's ~40KB; aliased via `@preact/preset-vite`)
 - **Routing**: Wouter (lightweight client-side routing)
 - **State Management**: TanStack Query (React Query)
 - **UI Components**: Radix UI primitives + shadcn/ui
@@ -61,6 +62,7 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
 - **Database ORM**: Drizzle ORM
 - **Authentication**: JWT in HttpOnly cookie (`token`) — no session store, no DB roundtrip on auth checks
 - **Password Hashing**: bcryptjs (runs only in Node.js auth function)
+- **Cache**: `@upstash/redis` — write-through Redis cache for read routes; `cached()` / `invalidate()` helpers in `server/cache.ts`; 1-hour TTL; no-op in local dev
 
 ### Database
 - **Production**: PostgreSQL on Neon, accessed via `@neondatabase/serverless` HTTP driver (plain HTTPS fetch — no TCP pool, no SSL handshake on cold start)
@@ -236,6 +238,8 @@ The application is deployed on Vercel with the following configuration:
 - `JWT_SECRET` - Secure random string (32+ chars) for signing JWTs
 - `SESSION_SECRET` - Legacy fallback used if `JWT_SECRET` is absent
 - `NODE_ENV` - Set to "production"
+- `UPSTASH_REDIS_REST_URL` - Upstash Redis REST endpoint (optional; cache disabled if absent)
+- `UPSTASH_REDIS_REST_TOKEN` - Upstash Redis REST token (required when URL is set)
 
 **Routing Rules** (from `vercel.json`):
 - `/api/auth/:path*` → Node.js function at `api/auth.ts`
@@ -331,7 +335,8 @@ const { username, password } = JSON.parse(rawBody || '{}');
 2. Update pages in `client/src/pages/`
 3. Use TanStack Query for data fetching
 4. Follow existing UI patterns (Radix UI + Tailwind)
-5. **Run server tests to ensure API compatibility**: `npm test`
+5. Use Preact-compatible imports — `import { h } from 'preact'` or JSX (aliased via `@preact/preset-vite`; `react` imports are automatically aliased to `preact/compat`)
+6. **Run server tests to ensure API compatibility**: `npm test`
 
 ### Debugging Issues
 1. Check Vercel function logs (two separate functions: `api` and `api/auth`)
@@ -351,14 +356,14 @@ const { username, password } = JSON.parse(rawBody || '{}');
 
 ### Frontend Optimization
 - Manual code splitting configured in `vite.config.ts`
-- Vendor chunks: react-vendor, query-vendor, ui-* chunks
+- Vendor chunks: preact-vendor, query-vendor, ui-* chunks
 - CSS code splitting enabled
 - Terser minification with console.log removal
 
 ### Caching
-- Service worker configured (see `scripts/inject-sw-version.js`)
-- `/sw.js` served with no-cache headers
-- Static assets cached by Vercel CDN
+- **Upstash Redis** (server-side): write-through cache on all read routes (years, teams, fish weights, chug times, golf scores); mutations call `invalidate()` to bust relevant keys; 1-hour safety TTL
+- **Service worker** (client-side): configured via `scripts/inject-sw-version.js`; `/sw.js` served with no-cache headers
+- **CDN**: static assets cached by Vercel CDN
 
 ---
 
@@ -388,6 +393,7 @@ Before making changes, familiarize yourself with these key files:
 - `server/routes.ts` - All data API endpoints
 - `server/auth.ts` - JWT middleware and token creation
 - `server/storage.ts` - Data access layer
+- `server/cache.ts` - Upstash Redis cache helpers (`cached`, `invalidate`, `cacheKeys`)
 - `shared/schema.ts` - Database schema coordination
 - `tests/` - All test files
 
@@ -404,3 +410,5 @@ When working on this repository:
 6. ✅ Use the correct import aliases (`@/`, `@shared/`, `@assets/`)
 7. ✅ JWT authentication — no sessions, no `req.session`, no connect-pg-simple
 8. ✅ Verify TypeScript types with `npm run check`
+9. ✅ **Frontend is Preact**, not React — `react` imports are aliased to `preact/compat` automatically; no React-specific APIs
+10. ✅ **Cache invalidation**: after any write in `server/routes.ts`, call `invalidate(cacheKeys.*)` for affected keys
