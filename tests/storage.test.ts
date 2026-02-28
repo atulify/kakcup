@@ -311,6 +311,68 @@ describe('Storage Layer - Competition Data', () => {
   });
 });
 
+describe('Storage Layer - Delete All Scores By Year', () => {
+  let sqlite: Database.Database;
+  let store: DatabaseStorage;
+
+  beforeEach(() => {
+    const testDb = createTestDatabase();
+    sqlite = testDb.sqlite;
+    setDb(drizzle(sqlite, { schema: { users, years, teams, fishWeights, chugTimes, golfScores } }));
+    store = new DatabaseStorage();
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  it('deleteAllFishWeightsByYear removes all fish weights for a year', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+    await store.createFishWeight({ id: crypto.randomUUID(), yearId, teamId, weight: 10.0 });
+    await store.createFishWeight({ id: crypto.randomUUID(), yearId, teamId, weight: 12.5 });
+
+    await store.deleteAllFishWeightsByYear(yearId);
+    const rows = await store.getFishWeightsByYear(yearId);
+    expect(rows).toHaveLength(0);
+  });
+
+  it('deleteAllChugTimesByYear removes all chug times for a year', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+    await store.createChugTime({ id: crypto.randomUUID(), yearId, teamId, chug1: 8.0, chug2: 8.0, average: 8.0 });
+
+    await store.deleteAllChugTimesByYear(yearId);
+    const rows = await store.getChugTimesByYear(yearId);
+    expect(rows).toHaveLength(0);
+  });
+
+  it('deleteAllGolfScoresByYear removes all golf scores for a year', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+    await store.createGolfScore({ id: crypto.randomUUID(), yearId, teamId, score: 72 });
+
+    await store.deleteAllGolfScoresByYear(yearId);
+    const rows = await store.getGolfScoresByYear(yearId);
+    expect(rows).toHaveLength(0);
+  });
+
+  it('deleting scores for one year does not affect another year', async () => {
+    const { yearId, teamId } = seedTestDatabase(sqlite);
+
+    // Create a second year + team
+    const yearId2 = crypto.randomUUID();
+    const teamId2 = crypto.randomUUID();
+    sqlite.prepare(`INSERT INTO years (id, year, name, status, fishing_locked) VALUES (?, ?, ?, ?, ?)`).run(yearId2, 2026, 'Test Year 2026', 'upcoming', 0);
+    sqlite.prepare(`INSERT INTO teams (id, year_id, name, position, locked) VALUES (?, ?, ?, ?, ?)`).run(teamId2, yearId2, 'Team 2026', 1, 0);
+
+    await store.createFishWeight({ id: crypto.randomUUID(), yearId, teamId, weight: 10.0 });
+    await store.createFishWeight({ id: crypto.randomUUID(), yearId: yearId2, teamId: teamId2, weight: 15.0 });
+
+    await store.deleteAllFishWeightsByYear(yearId);
+
+    expect(await store.getFishWeightsByYear(yearId)).toHaveLength(0);
+    expect(await store.getFishWeightsByYear(yearId2)).toHaveLength(1);
+  });
+});
+
 describe('Storage Layer - Upsert Behaviour', () => {
   let sqlite: Database.Database;
   let store: DatabaseStorage;

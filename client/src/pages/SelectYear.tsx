@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, ArrowRight, LogOut, LogIn, Github } from "@/components/icons";
+import { Trophy, ArrowRight, LogOut, LogIn, Github, Settings } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,6 +56,16 @@ export default function SelectYear() {
                     </span>
                   )}
                 </span>
+                {user?.role === 'admin' && (
+                  <Button
+                    onClick={() => setLocation('/settings')}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Settings size={16} />
+                  </Button>
+                )}
                 <Button
                   onClick={handleLogout}
                   variant="outline"

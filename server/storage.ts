@@ -28,6 +28,9 @@ export interface IStorage {
   getGolfScoresByYear(yearId: string): Promise<any[]>;
   createGolfScore(golfScore: any): Promise<any>;
   deleteGolfScore(yearId: string, teamId: string): Promise<void>;
+  deleteAllFishWeightsByYear(yearId: string): Promise<void>;
+  deleteAllChugTimesByYear(yearId: string): Promise<void>;
+  deleteAllGolfScoresByYear(yearId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -203,7 +206,17 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
+  async deleteAllFishWeightsByYear(yearId: string): Promise<void> {
+    await db.delete(fishWeights).where(eq(fishWeights.yearId, yearId));
+  }
 
+  async deleteAllChugTimesByYear(yearId: string): Promise<void> {
+    await db.delete(chugTimes).where(eq(chugTimes.yearId, yearId));
+  }
+
+  async deleteAllGolfScoresByYear(yearId: string): Promise<void> {
+    await db.delete(golfScores).where(eq(golfScores.yearId, yearId));
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -17,6 +17,7 @@ export { default as Lock } from 'lucide-react/dist/esm/icons/lock';
 export { default as LogIn } from 'lucide-react/dist/esm/icons/log-in';
 export { default as LogOut } from 'lucide-react/dist/esm/icons/log-out';
 export { default as Plus } from 'lucide-react/dist/esm/icons/plus';
+export { default as Settings } from 'lucide-react/dist/esm/icons/settings';
 export { default as Smartphone } from 'lucide-react/dist/esm/icons/smartphone';
 export { default as Trash2 } from 'lucide-react/dist/esm/icons/trash-2';
 export { default as Trophy } from 'lucide-react/dist/esm/icons/trophy';

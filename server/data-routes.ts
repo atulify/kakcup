@@ -210,6 +210,26 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
+  app.delete("/api/years/:yearId/scores", isAdmin, requireYear, async (c) => {
+    try {
+      const yearId = c.req.param("yearId");
+      await Promise.all([
+        storage.deleteAllFishWeightsByYear(yearId),
+        storage.deleteAllChugTimesByYear(yearId),
+        storage.deleteAllGolfScoresByYear(yearId),
+      ]);
+      await invalidate(
+        cacheKeys.fishWeights(yearId),
+        cacheKeys.chugTimes(yearId),
+        cacheKeys.golfScores(yearId),
+        cacheKeys.years,
+      );
+      return c.json({ message: "All scores cleared for year" });
+    } catch {
+      return c.json({ error: "Failed to clear scores" }, 500);
+    }
+  });
+
   app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, requireYear, async (c) => {
     try {
       if (c.var.year!.golf_locked) {

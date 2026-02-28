@@ -9,6 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 const SelectYear = lazy(() => import("@/pages/SelectYear"));
 const YearPage = lazy(() => import("@/pages/YearPage"));
 const Login = lazy(() => import("@/pages/Login"));
+const Settings = lazy(() => import("@/pages/Settings"));
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
         <Route path="/select-year" component={SelectYear} />
         <Route path="/year/:year" component={YearPage} />
         <Route path="/login" component={Login} />
+        <Route path="/settings" component={Settings} />
         {/* Fallback to Select Year page for any unknown routes */}
         <Route component={SelectYear} />
       </Switch>

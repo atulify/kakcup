@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
-import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn } from "@/components/icons";
+import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn, Settings } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -97,6 +97,16 @@ export default function YearPage() {
                       </span>
                     )}
                   </span>
+                  {user?.role === 'admin' && (
+                    <Button
+                      onClick={() => setLocation('/settings')}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 px-2 py-1"
+                    >
+                      <Settings size={14} />
+                    </Button>
+                  )}
                   <Button
                     onClick={handleLogout}
                     variant="outline"
