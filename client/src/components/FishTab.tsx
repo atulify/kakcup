@@ -217,7 +217,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     });
 
     const teamWeights = new Map<string, number>();
-    stats.forEach((s: any) => teamWeights.set(s.team.id, s.total));
+    stats.forEach((s: any) => { if (s.total > 0) teamWeights.set(s.team.id, s.total); });
     const rankedPoints = rankFishTeams(teamWeights);
     const teamPoints = new Map<string, number>(rankedPoints.map(({ teamId, points }) => [teamId, points]));
 
