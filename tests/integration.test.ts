@@ -155,6 +155,23 @@ function adminReq(path: string, method = 'GET', body?: unknown) {
 
 // ── Tests ──────────────────────────────────────────────────────────
 
+// Expected standings after each competition is added (fish → chug → golf)
+const EXPECTED_AFTER_FISH: Record<string, number> = {
+  'Champs': 5, 'Team 1': 4, 'Team 2': 1, 'Team 3': 3, 'Team 4': 7, 'Team 5': 2, 'Team 6': 6,
+};
+
+const EXPECTED_AFTER_FISH_CHUG: Record<string, number> = {
+  'Champs': 11, // 5+6
+  'Team 1': 11, // 4+7
+  'Team 2':  3, // 1+2
+  'Team 3':  6, // 3+3
+  'Team 4':  8, // 7+1
+  'Team 5':  7, // 2+5
+  'Team 6': 10, // 6+4
+};
+
+// EXPECTED_TOTAL is the final standings after all three (already defined above)
+
 // Storage used to create the year (no public POST endpoint for years)
 import { DatabaseStorage } from '../server/storage.js';
 
@@ -427,5 +444,148 @@ describe('2025 KAK Cup — Full Lifecycle', () => {
     expect(res.status).toBe(200);
     const year = await res.json();
     expect(year.status).toBe('completed');
+  });
+});
+
+// ── Incremental standings test ─────────────────────────────────────
+// Enters data one competition at a time and verifies standings update
+// correctly after each: fish → fish+chug → fish+chug+golf.
+
+describe('Incremental Standings — scores update after each competition', () => {
+  const store = new DatabaseStorage();
+  const ids = new Map<string, string>();
+  let yId: string;
+
+  /** Compute standings the same way StandingsTab does: fetch API data, run scoring functions */
+  async function computeStandings() {
+    const [fishRes, chugRes, golfRes] = await Promise.all([
+      app.request(`/api/years/${yId}/fish-weights`),
+      app.request(`/api/years/${yId}/chug-times`),
+      app.request(`/api/years/${yId}/golf-scores`),
+    ]);
+    const fishData = await fishRes.json();
+    const chugData = await chugRes.json();
+    const golfData = await golfRes.json();
+
+    // Fish points
+    const teamWeightsMap = new Map<string, number[]>();
+    for (const fw of fishData) {
+      const w = parseFloat(fw.weight);
+      if (w > 0) {
+        if (!teamWeightsMap.has(fw.teamId)) teamWeightsMap.set(fw.teamId, []);
+        teamWeightsMap.get(fw.teamId)!.push(w);
+      }
+    }
+    const fishTotals = new Map<string, number>();
+    teamWeightsMap.forEach((weights, teamId) => {
+      const total = calculateTop3FishTotal(weights);
+      if (total > 0) fishTotals.set(teamId, total);
+    });
+    const fishPts = new Map(rankFishTeams(fishTotals).map(p => [p.teamId, p.points]));
+
+    // Chug points
+    const chugAvgs = new Map<string, number>();
+    for (const ct of chugData) {
+      const avg = parseFloat(ct.average);
+      if (avg > 0) chugAvgs.set(ct.teamId, avg);
+    }
+    const chugPts = new Map(rankChugTeams(chugAvgs).map(p => [p.teamId, p.points]));
+
+    // Golf points
+    const golfScoresMap = new Map<string, number>();
+    for (const gs of golfData) {
+      if (gs.score !== null && gs.score !== undefined) {
+        golfScoresMap.set(gs.teamId, gs.score);
+      }
+    }
+    const golfPts = new Map(rankGolfTeams(golfScoresMap).map(p => [p.teamId, p.points]));
+
+    // Combine
+    const totals: Record<string, number> = {};
+    for (const [name, id] of ids) {
+      totals[name] = (fishPts.get(id) || 0) + (chugPts.get(id) || 0) + (golfPts.get(id) || 0);
+    }
+    return totals;
+  }
+
+  beforeAll(async () => {
+    const year = await store.createYear({ year: 2024, name: 'Incremental Test', status: 'active' });
+    yId = year.id;
+
+    for (const t of TEAMS) {
+      const res = await adminReq(`/api/years/${yId}/teams`, 'POST', t);
+      expect(res.status).toBe(201);
+      const team = await res.json();
+      ids.set(t.name, team.id);
+    }
+  });
+
+  it('standings are all zeros before any scores are entered', async () => {
+    const standings = await computeStandings();
+    for (const name of TEAMS.map(t => t.name)) {
+      expect(standings[name]).toBe(0);
+    }
+  });
+
+  it('enters fish weights and standings reflect fish-only points', async () => {
+    for (const [teamName, weights] of Object.entries(FISH)) {
+      for (const weight of weights) {
+        const res = await adminReq(`/api/years/${yId}/fish-weights`, 'POST', {
+          teamId: ids.get(teamName)!, weight,
+        });
+        expect(res.status).toBe(201);
+      }
+    }
+
+    const standings = await computeStandings();
+    for (const [name, expected] of Object.entries(EXPECTED_AFTER_FISH)) {
+      expect(standings[name]).toBe(expected);
+    }
+  });
+
+  it('enters chug times and standings reflect fish + chug points', async () => {
+    for (const [teamName, [chug1, chug2]] of Object.entries(CHUGS)) {
+      const average = Math.round((chug1 + chug2) / 2 * 1000) / 1000;
+      const res = await adminReq(`/api/years/${yId}/chug-times`, 'POST', {
+        teamId: ids.get(teamName)!, chug1, chug2, average,
+      });
+      expect(res.status).toBe(201);
+    }
+
+    const standings = await computeStandings();
+    for (const [name, expected] of Object.entries(EXPECTED_AFTER_FISH_CHUG)) {
+      expect(standings[name]).toBe(expected);
+    }
+  });
+
+  it('enters golf scores and standings reflect final totals', async () => {
+    for (const [teamName, score] of Object.entries(GOLF)) {
+      const res = await adminReq(`/api/years/${yId}/golf-scores`, 'POST', {
+        teamId: ids.get(teamName)!, score,
+      });
+      expect(res.status).toBe(201);
+    }
+
+    const standings = await computeStandings();
+    for (const [name, expected] of Object.entries(EXPECTED_TOTAL)) {
+      expect(standings[name]).toBe(expected);
+    }
+  });
+
+  it('leader changes correctly across phases', () => {
+    // After fish: Team 4 leads (7 pts)
+    const fishLeader = Object.entries(EXPECTED_AFTER_FISH).sort((a, b) => b[1] - a[1])[0];
+    expect(fishLeader[0]).toBe('Team 4');
+
+    // After fish+chug: Champs and Team 1 tied at 11
+    const fishChugSorted = Object.entries(EXPECTED_AFTER_FISH_CHUG).sort((a, b) => b[1] - a[1]);
+    expect(fishChugSorted[0][1]).toBe(11);
+    expect(fishChugSorted[1][1]).toBe(11);
+    const topTwo = [fishChugSorted[0][0], fishChugSorted[1][0]].sort();
+    expect(topTwo).toEqual(['Champs', 'Team 1']);
+
+    // After all three: Champs wins outright with 16
+    const finalSorted = Object.entries(EXPECTED_TOTAL).sort((a, b) => b[1] - a[1]);
+    expect(finalSorted[0]).toEqual(['Champs', 16]);
   });
 });
