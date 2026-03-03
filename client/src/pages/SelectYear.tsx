@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Trophy, ArrowRight, LogOut, LogIn, Github, Settings } from "@/components/icons";
@@ -12,6 +12,17 @@ export default function SelectYear() {
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
+
+  // Prefetch YearPage chunk on idle so navigation is instant on 3G
+  useEffect(() => {
+    const prefetch = () => { import("@/pages/YearPage"); };
+    if ("requestIdleCallback" in window) {
+      const id = requestIdleCallback(prefetch);
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(prefetch, 2000);
+    return () => clearTimeout(id);
+  }, []);
 
   // Fetch available years from database
   const { data: years, isLoading: yearsLoading } = useQuery({

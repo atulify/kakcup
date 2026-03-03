@@ -65,9 +65,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const token = await createToken({
         userId: user.id,
         username: user.username ?? "",
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
         role: user.role,
       });
       res.setHeader("Set-Cookie", tokenCookie(token));
@@ -99,9 +96,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const token = await createToken({
         userId: newUser.id,
         username: newUser.username ?? "",
-        email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
         role: newUser.role,
       });
       res.setHeader("Set-Cookie", tokenCookie(token));
@@ -128,13 +122,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const token = cookies["token"];
       if (!token) return res.status(401).json({ message: "Unauthorized" });
       const payload = (await verify(token, JWT_SECRET, "HS256")) as any;
+      const user = await storage.getUser(payload.userId);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
       return res.status(200).json({
-        id: payload.userId,
-        username: payload.username,
-        email: payload.email,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        role: payload.role,
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
       });
     } catch {
       return res.status(401).json({ message: "Unauthorized" });

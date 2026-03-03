@@ -1,15 +1,14 @@
 // Use fixed version for cache - update this when deploying
-const CACHE_VERSION = '00acca1';
+const CACHE_VERSION = 'e1d76df';
 const CACHE_NAME = `kak-cup-${CACHE_VERSION}`;
 const STATIC_CACHE = 'kak-cup-static';
 
+// This array is rewritten at build time by swPrecachePlugin in vite.config.ts
+// with the actual hashed asset paths from the Vite manifest.
 const urlsToCache = [
   '/',
-  '/src/main.tsx',
-  '/src/index.css',
   '/icon-192.png',
-  '/icon-180.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap'
+  '/icon-180.png'
 ];
 
 self.addEventListener('install', (event) => {

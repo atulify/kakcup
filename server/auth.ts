@@ -9,9 +9,6 @@ export type AppEnv = {
     userId: string;
     role: string;
     username: string;
-    email: string | null;
-    firstName: string | null;
-    lastName: string | null;
     year?: Year;
   };
 };
@@ -21,9 +18,6 @@ const JWT_SECRET = process.env.JWT_SECRET ?? process.env.SESSION_SECRET ?? "dev-
 type JWTClaims = {
   userId: string;
   username: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
   role: string;
   exp: number;
 };
@@ -47,9 +41,6 @@ function setVarsFromPayload(c: Context<AppEnv>, payload: JWTClaims) {
   c.set("userId", payload.userId);
   c.set("role", payload.role);
   c.set("username", payload.username);
-  c.set("email", payload.email);
-  c.set("firstName", payload.firstName);
-  c.set("lastName", payload.lastName);
 }
 
 export const isAuthenticated: MiddlewareHandler<AppEnv> = async (c, next) => {

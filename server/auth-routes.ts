@@ -27,9 +27,6 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
       const token = await createToken({
         userId: user.id,
         username: user.username ?? "",
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
         role: user.role,
       });
 
@@ -77,9 +74,6 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
       const token = await createToken({
         userId: newUser.id,
         username: newUser.username ?? "",
-        email: newUser.email,
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
         role: newUser.role,
       });
 
@@ -104,14 +98,16 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
     return c.json({ message: "Logged out successfully" });
   });
 
-  app.get("/api/auth/user", isAuthenticated, (c) => {
+  app.get("/api/auth/user", isAuthenticated, async (c) => {
+    const user = await storage.getUser(c.var.userId);
+    if (!user) return c.json({ message: "Unauthorized" }, 401);
     return c.json({
-      id: c.var.userId,
-      username: c.var.username,
-      email: c.var.email,
-      firstName: c.var.firstName,
-      lastName: c.var.lastName,
-      role: c.var.role,
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
     });
   });
 }
