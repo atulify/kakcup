@@ -25,7 +25,14 @@ function swPrecachePlugin(outDir: string): Plugin {
       if (!fs.existsSync(manifestPath)) return;
       const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
       // Start with static assets that aren't in the Vite manifest
-      const assets = new Set<string>(["/", "/icon-192.png", "/icon-180.png"]);
+      const assets = new Set<string>([
+        "/",
+        "/icon-192.png",
+        "/icon-180.png",
+        "/fonts/fonts.css",
+        "/fonts/inter-latin.woff2",
+        "/fonts/geist-mono-latin.woff2",
+      ]);
       for (const entry of Object.values(manifest) as any[]) {
         if (entry.file) assets.add("/" + entry.file);
         for (const css of entry.css ?? []) assets.add("/" + css);
