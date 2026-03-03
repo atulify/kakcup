@@ -1,8 +1,25 @@
 // Edge-compatible — no bcryptjs in this import chain.
-import type { Hono, MiddlewareHandler } from "hono";
+import type { Context, Hono, MiddlewareHandler } from "hono";
 import { storage } from "./storage.js";
 import { isAdmin, type AppEnv } from "./auth.js";
 import { cached, cacheKeys, invalidate } from "./cache.js";
+
+const encoder = new TextEncoder();
+
+/** Return JSON with ETag; responds 304 if the client already has it. */
+async function jsonWithEtag(c: Context, data: unknown) {
+  const body = JSON.stringify(data);
+  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(body));
+  const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const etag = `"${hex.slice(0, 16)}"`;
+
+  if (c.req.header("if-none-match") === etag) {
+    return c.body(null, 304);
+  }
+  c.header("ETag", etag);
+  c.header("Content-Type", "application/json");
+  return c.body(body);
+}
 
 // Fetches the year record once and caches it in c.var for the handler.
 const requireYear: MiddlewareHandler<AppEnv> = async (c, next) => {
@@ -21,7 +38,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
   app.get("/api/years", async (c) => {
     try {
       const years = await cached(cacheKeys.years, () => storage.getYears());
-      return c.json(years);
+      return jsonWithEtag(c, years);
     } catch {
       return c.json({ error: "Failed to fetch years" }, 500);
     }
@@ -35,12 +52,12 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       if (isNaN(year)) {
         const yearRecord = await storage.getYearById(yearParam);
         if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-        return c.json(yearRecord);
+        return jsonWithEtag(c, yearRecord);
       }
 
       const yearRecord = await storage.getYear(year);
       if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-      return c.json(yearRecord);
+      return jsonWithEtag(c, yearRecord);
     } catch (error) {
       console.error("Error fetching year:", error);
       return c.json({ error: "Failed to fetch year" }, 500);
@@ -65,7 +82,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       const teams = await cached(cacheKeys.teams(yearId), () =>
         storage.getTeamsByYear(yearId)
       );
-      return c.json(teams);
+      return jsonWithEtag(c, teams);
     } catch {
       return c.json({ error: "Failed to fetch teams" }, 500);
     }
@@ -102,7 +119,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       const fishWeights = await cached(cacheKeys.fishWeights(yearId), () =>
         storage.getFishWeightsByYear(yearId)
       );
-      return c.json(fishWeights);
+      return jsonWithEtag(c, fishWeights);
     } catch {
       return c.json({ error: "Failed to fetch fish weights" }, 500);
     }
@@ -145,7 +162,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       const chugTimes = await cached(cacheKeys.chugTimes(yearId), () =>
         storage.getChugTimesByYear(yearId)
       );
-      return c.json(chugTimes);
+      return jsonWithEtag(c, chugTimes);
     } catch {
       return c.json({ error: "Failed to fetch chug times" }, 500);
     }
@@ -188,7 +205,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       const golfScores = await cached(cacheKeys.golfScores(yearId), () =>
         storage.getGolfScoresByYear(yearId)
       );
-      return c.json(golfScores);
+      return jsonWithEtag(c, golfScores);
     } catch {
       return c.json({ error: "Failed to fetch golf scores" }, 500);
     }
