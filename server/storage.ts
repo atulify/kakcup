@@ -120,7 +120,7 @@ export class DatabaseStorage implements IStorage {
 
   async getFishWeightsByYear(yearId: string): Promise<any[]> {
     return await db
-      .select()
+      .select({ teamId: fishWeights.teamId, weight: fishWeights.weight })
       .from(fishWeights)
       .where(eq(fishWeights.yearId, yearId));
   }
@@ -144,7 +144,12 @@ export class DatabaseStorage implements IStorage {
 
   async getChugTimesByYear(yearId: string): Promise<any[]> {
     return await db
-      .select()
+      .select({
+        teamId: chugTimes.teamId,
+        chug1: chugTimes.chug1,
+        chug2: chugTimes.chug2,
+        average: chugTimes.average,
+      })
       .from(chugTimes)
       .where(eq(chugTimes.yearId, yearId));
   }
@@ -177,7 +182,7 @@ export class DatabaseStorage implements IStorage {
 
   async getGolfScoresByYear(yearId: string): Promise<any[]> {
     return await db
-      .select()
+      .select({ teamId: golfScores.teamId, score: golfScores.score })
       .from(golfScores)
       .where(eq(golfScores.yearId, yearId));
   }

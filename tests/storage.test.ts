@@ -398,7 +398,6 @@ describe('Storage Layer - Upsert Behaviour', () => {
     expect(rows).toHaveLength(1);
     expect(parseFloat(rows[0].chug1 as any)).toBeCloseTo(7.0, 1);
     expect(parseFloat(rows[0].average as any)).toBeCloseTo(7.25, 2);
-    expect(rows[0].notes).toBe('Updated');
   });
 
   it('createGolfScore should update existing row rather than insert a duplicate', async () => {
@@ -410,7 +409,6 @@ describe('Storage Layer - Upsert Behaviour', () => {
     const rows = await store.getGolfScoresByYear(yearId);
     expect(rows).toHaveLength(1);
     expect(rows[0].score).toBe(72);
-    expect(rows[0].notes).toBe('Better round');
   });
 
   it('createChugTime should allow different teams to each have their own row', async () => {
