@@ -571,7 +571,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       )}
 
       {sortedTeams.length > 0 && (
-        <div className="mt-4 text-sm text-muted-foreground">
+        <div className="mt-4 text-sm text-muted-foreground text-center">
           <p>
             <strong>Scoring:</strong> 7 points for 1st place down to 1 point for 7th place.
             Tied teams split the available points equally.

@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
-import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn, Settings } from "@/components/icons";
+import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn, Settings, Github } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -149,6 +149,20 @@ export default function YearPage() {
           {activeTab === "golf" && <GolfTab yearId={yearData.id} yearData={yearData} />}
           {activeTab === "standings" && <StandingsTab yearId={yearData.id} />}
         </Suspense>
+
+        {/* Footer */}
+        <footer className="py-3 text-center">
+          <a
+            href="https://github.com/atulify/kakcup/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+          >
+            <Github size={14} />
+            <span>atulify/kakcup</span>
+            <span>{__COMMIT_HASH__}</span>
+          </a>
+        </footer>
       </main>
 
       {/* Bottom Tabs - Fixed to bottom */}
