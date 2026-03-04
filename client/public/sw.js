@@ -1,5 +1,5 @@
 // Use fixed version for cache - update this when deploying
-const CACHE_VERSION = 'c6c7428';
+const CACHE_VERSION = '9613b7c';
 const CACHE_NAME = `kak-cup-${CACHE_VERSION}`;
 const STATIC_CACHE = 'kak-cup-static';
 
@@ -19,10 +19,8 @@ self.addEventListener('install', (event) => {
         console.log('[ServiceWorker] Caching app shell');
         return cache.addAll(urlsToCache);
       })
-      .then(() => {
-        // Force the waiting service worker to become the active service worker
-        return self.skipWaiting();
-      })
+      // Don't call skipWaiting() here — let the client control activation
+      // via SKIP_WAITING message to avoid cache mismatch with running JS
   );
 });
 
@@ -53,31 +51,53 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Navigation requests (HTML pages) — network-first so new deploys take effect immediately
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache the fresh HTML for offline use
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          return response;
+        })
+        .catch(() => {
+          // Offline fallback: serve cached HTML
+          return caches.match(event.request)
+            .then((cached) => cached || caches.match('/'));
+        })
+    );
+    return;
+  }
+
+  // Static assets (JS, CSS, etc.) — cache-first with fallback
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Return cached version if available
         if (response) {
           return response;
         }
-        
-        // Fetch from network and cache the response
+
         return fetch(event.request)
           .then((response) => {
-            // Check if valid response
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
-            
-            // Clone the response for caching
+
             const responseToCache = response.clone();
-            
             caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-              
+              .then((cache) => cache.put(event.request, responseToCache));
+
             return response;
+          })
+          .catch(() => {
+            // If a JS/CSS chunk fails to load (old hash after new deploy),
+            // return the cached index.html so the app can reload cleanly
+            const url = new URL(event.request.url);
+            if (url.pathname.match(/\.(js|css)$/)) {
+              return caches.match('/');
+            }
+            return new Response('', { status: 408 });
           });
       })
   );
