@@ -7,6 +7,7 @@ import { createRoutes } from '../server/routes.js';
 import { setDb } from '../server/db.js';
 import { createTestDatabase, seedTestDatabase } from './helpers.js';
 import type { AppEnv } from '../server/auth.js';
+import { createToken } from '../server/auth.js';
 
 let app: Hono<AppEnv>;
 
@@ -157,6 +158,47 @@ describe('DELETE /api/years/:yearId/scores', () => {
       method: 'DELETE',
     });
     expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /api/years', () => {
+  it('should return 401 without auth', async () => {
+    const res = await app.request('/api/years', { method: 'POST' });
+    expect(res.status).toBe(401);
+  });
+
+  it('should return 403 for non-admin user', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'testuser', role: 'user' });
+    const res = await app.request('/api/years', {
+      method: 'POST',
+      headers: { Cookie: `token=${token}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('should create next year with admin auth', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'testuser', role: 'admin' });
+    const res = await app.request('/api/years', {
+      method: 'POST',
+      headers: { Cookie: `token=${token}` },
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.year).toBe(2026);
+    expect(body.name).toBe('2026 KAK Cup');
+    expect(body.status).toBe('upcoming');
+  });
+
+  it('should create sequential years on repeated calls', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'testuser', role: 'admin' });
+    const res = await app.request('/api/years', {
+      method: 'POST',
+      headers: { Cookie: `token=${token}` },
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.year).toBe(2027);
+    expect(body.name).toBe('2027 KAK Cup');
   });
 });
 

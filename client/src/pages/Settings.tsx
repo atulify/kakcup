@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Settings as SettingsIcon, Home, Trash2 } from "@/components/icons";
+import { Settings as SettingsIcon, Home, Trash2, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -59,6 +59,17 @@ export default function Settings() {
     setLocation("/");
     return null;
   }
+
+  const createYearMutation = useMutation({
+    mutationFn: () => apiRequest("/api/years", "POST"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years"] });
+      toast({ title: "Year created" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create year", variant: "destructive" });
+    },
+  });
 
   const sortedYears = [...(years || [])].sort((a, b) => b.year - a.year);
   const selectedStatusYear = sortedYears.find((y) => y.id === statusYearId);
@@ -131,7 +142,23 @@ export default function Settings() {
           )}
         </section>
 
-        {/* Section B: Clear Scores */}
+        {/* Section B: Create Next Year */}
+        <section className="bg-card border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Create Next Year</h2>
+          <Button
+            size="sm"
+            disabled={createYearMutation.isPending || !sortedYears.length}
+            onClick={() => createYearMutation.mutate()}
+            className="flex items-center gap-2"
+          >
+            <Plus size={14} />
+            {createYearMutation.isPending
+              ? "Creating..."
+              : `Create ${sortedYears.length ? sortedYears[0].year + 1 : "Year"}`}
+          </Button>
+        </section>
+
+        {/* Section C: Clear Scores */}
         <section className="bg-card border border-border rounded-lg p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">Clear Scores</h2>
 

@@ -64,6 +64,26 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
     }
   });
 
+  app.post("/api/years", isAdmin, async (c) => {
+    try {
+      const years = await storage.getYears();
+      if (years.length === 0) {
+        return c.json({ error: "No existing years found" }, 400);
+      }
+      const maxYear = Math.max(...years.map((y) => y.year));
+      const nextYear = maxYear + 1;
+      const year = await storage.createYear({
+        year: nextYear,
+        name: `${nextYear} KAK Cup`,
+        status: "upcoming",
+      });
+      await invalidate(cacheKeys.years);
+      return c.json(year, 201);
+    } catch {
+      return c.json({ error: "Failed to create year" }, 500);
+    }
+  });
+
   app.patch("/api/years/:yearId", isAdmin, async (c) => {
     try {
       const yearData = await c.req.json();
