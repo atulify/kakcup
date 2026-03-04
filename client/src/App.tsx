@@ -2,8 +2,9 @@ import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+
+const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
 
 // Lazy load route components for code splitting
 const SelectYear = lazy(() => import("@/pages/SelectYear"));
@@ -35,7 +36,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
-      <Toaster />
+      <Suspense fallback={null}><Toaster /></Suspense>
       <SpeedInsights />
     </QueryClientProvider>
   );

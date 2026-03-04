@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
@@ -20,7 +20,6 @@
     
     <!-- Self-hosted fonts (eliminates external DNS+TLS on 3G) -->
     <link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin.woff2" crossorigin>
-    <link rel="preload" as="font" type="font/woff2" href="/fonts/geist-mono-latin.woff2" crossorigin>
     <link rel="stylesheet" href="/fonts/fonts.css">
     
     <title>KAK Cup</title>
@@ -28,19 +27,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-      }
-    </script>
   </body>
 </html>

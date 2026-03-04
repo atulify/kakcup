@@ -1,16 +1,12 @@
 import { useToast } from "@/hooks/use-toast"
-import {
-  Toast,
-  ToastProvider,
-  ToastViewport,
-} from "@/components/ui/toast"
+import { Toast, ToastViewport } from "@/components/ui/toast"
 import { Check, X } from "@/components/icons"
 
 export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <ToastProvider duration={800}>
+    <ToastViewport>
       {toasts.map(function ({ id, title, variant, ...props }) {
         const isError = variant === "destructive" ||
           title === "Error" ||
@@ -20,7 +16,7 @@ export function Toaster() {
           title === "Admin Access Required"
 
         return (
-          <Toast key={id} variant={variant} {...props}>
+          <Toast key={id} {...props}>
             {isError ? (
               <X className="h-5 w-5 text-red-500" />
             ) : (
@@ -29,7 +25,6 @@ export function Toaster() {
           </Toast>
         )
       })}
-      <ToastViewport />
-    </ToastProvider>
+    </ToastViewport>
   )
 }

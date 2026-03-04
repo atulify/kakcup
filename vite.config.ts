@@ -31,7 +31,6 @@ function swPrecachePlugin(outDir: string): Plugin {
         "/icon-180.png",
         "/fonts/fonts.css",
         "/fonts/inter-latin.woff2",
-        "/fonts/geist-mono-latin.woff2",
       ]);
       for (const entry of Object.values(manifest) as any[]) {
         if (entry.file) assets.add("/" + entry.file);
@@ -92,12 +91,6 @@ export default defineConfig({
           // Core framework dependencies
           'framework': ['preact', 'preact/compat', 'wouter'],
           'query-vendor': ['@tanstack/react-query'],
-
-          // Tab components (used in YearPage)
-          'ui-tabs': ['@radix-ui/react-tabs'],
-
-          // Toast notifications
-          'ui-toast': ['@radix-ui/react-toast'],
         },
       },
     },
