@@ -33,7 +33,7 @@ export default function Home() {
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
                 <span className="text-slate-600">
-                  Welcome, {user?.firstName || user?.email}
+                  Welcome, {user?.firstName || user?.username}
                   {user?.role === 'admin' && (
                     <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
                       Admin

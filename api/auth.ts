@@ -122,15 +122,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const token = cookies["token"];
       if (!token) return res.status(401).json({ message: "Unauthorized" });
       const payload = (await verify(token, JWT_SECRET, "HS256")) as any;
-      const user = await storage.getUser(payload.userId);
-      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      // JWT already contains everything the client needs — skip the DB query
       return res.status(200).json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
+        id: payload.userId,
+        username: payload.username,
+        role: payload.role,
       });
     } catch {
       return res.status(401).json({ message: "Unauthorized" });

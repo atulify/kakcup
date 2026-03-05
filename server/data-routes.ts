@@ -4,14 +4,20 @@ import { storage } from "./storage.js";
 import { isAdmin, type AppEnv } from "./auth.js";
 import { cached, cacheKeys, invalidate } from "./cache.js";
 
-const encoder = new TextEncoder();
+/** FNV-1a 32-bit hash — fast, non-cryptographic, perfect for ETags. */
+export function fnv1a(str: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
 
 /** Return JSON with ETag; responds 304 if the client already has it. */
-async function jsonWithEtag(c: Context, data: unknown) {
+function jsonWithEtag(c: Context, data: unknown) {
   const body = JSON.stringify(data);
-  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(body));
-  const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  const etag = `"${hex.slice(0, 16)}"`;
+  const etag = `"${fnv1a(body)}"`;
 
   if (c.req.header("if-none-match") === etag) {
     return c.body(null, 304);

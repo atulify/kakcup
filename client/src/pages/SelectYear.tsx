@@ -60,7 +60,7 @@ export default function SelectYear() {
             {isAuthenticated ? (
               <>
                 <span className="text-muted-foreground">
-                  Welcome, {user?.firstName || user?.email}
+                  Welcome, {user?.firstName || user?.username}
                   {user?.role === 'admin' && (
                     <span className="ml-2 px-2 py-1 text-xs bg-primary/20 text-primary rounded-full">
                       Admin

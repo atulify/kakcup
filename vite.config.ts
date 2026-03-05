@@ -71,6 +71,9 @@ export default defineConfig({
       "react/jsx-runtime": "preact/jsx-runtime",
     },
   },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir,
@@ -78,13 +81,7 @@ export default defineConfig({
     manifest: true,
     target: 'es2020',
     cssCodeSplit: true, // Enable CSS code splitting for lazy-loaded components
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {

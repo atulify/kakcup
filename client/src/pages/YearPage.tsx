@@ -89,7 +89,7 @@ export default function YearPage() {
               {isAuthenticated ? (
                 <>
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    <span className="hidden sm:inline text-foreground">{user?.firstName || user?.email}</span>
+                    <span className="hidden sm:inline text-foreground">{user?.firstName || user?.username}</span>
                     <span className="sm:hidden text-foreground">{user?.username}</span>
                     {user?.role === 'admin' && (
                       <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
