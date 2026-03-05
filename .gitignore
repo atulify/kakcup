@@ -13,3 +13,5 @@ test-*.db
 .env.init
 .env.vercel.local
 api/index.js
+.replit
+replit.md

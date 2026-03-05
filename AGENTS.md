@@ -52,8 +52,8 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
 - **Framework**: Preact 10 (React-compatible API, ~3KB vs React's ~40KB; aliased via `@preact/preset-vite`)
 - **Routing**: Wouter (lightweight client-side routing)
 - **State Management**: TanStack Query (React Query)
-- **UI Components**: Radix UI primitives + shadcn/ui
-- **Styling**: Tailwind CSS v4
+- **UI Components**: Custom components (formerly Radix UI, now lightweight)
+- **Styling**: Tailwind CSS v3
 - **Build Tool**: Vite
 
 ### Backend
@@ -73,7 +73,7 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
 ### Testing
 - **Framework**: Vitest
 - **Coverage**: V8 coverage provider
-- **API Testing**: Supertest for HTTP assertions
+- **API Testing**: Hono `app.request()` for HTTP assertions
 - **Timeout**: 10 second default timeout for tests
 
 ---
@@ -93,8 +93,10 @@ kakcup/
 │       └── main.tsx       # Frontend entry point
 ├── server/                # Backend (shared between Vercel functions and local dev)
 │   ├── index.ts          # Local dev server entry (Hono + @hono/node-server)
-│   ├── routes.ts         # Data API route definitions (createDataRoutes)
+│   ├── routes.ts         # Combined route loader (delegates to data-routes + auth-routes)
+│   ├── data-routes.ts    # Data API route definitions (createDataRoutes)
 │   ├── auth-routes.ts    # Auth Hono routes (used in local dev via server/routes.ts)
+│   ├── cache.ts          # Upstash Redis cache helpers (cached, invalidate, cacheKeys)
 │   ├── auth.ts           # JWT middleware: isAuthenticated, isAdmin, createToken
 │   ├── password.ts       # hashPassword, verifyPassword (bcryptjs — Node.js only)
 │   ├── db.ts             # Database connection + setDb() for local dev SQLite override
@@ -106,8 +108,12 @@ kakcup/
 ├── tests/                # Test files
 │   ├── api.test.ts       # API endpoint tests
 │   ├── auth.test.ts      # Authentication tests
+│   ├── cache.test.ts     # Redis cache tests
 │   ├── db.test.ts        # Database tests
+│   ├── etag.test.ts      # ETag hash tests
+│   ├── integration.test.ts # Integration tests
 │   ├── scoring.test.ts   # Business logic tests
+│   ├── schema.test.ts    # Schema selection tests
 │   └── storage.test.ts   # Data access tests
 ├── data/                 # Seed data (JSON files)
 ├── scripts/              # Build and deployment scripts
@@ -129,7 +135,7 @@ kakcup/
 
 ### JWT Payload
 ```typescript
-{ userId, username, email, firstName, lastName, role, exp }
+{ userId, username, role, exp }
 ```
 
 ### Why Two Functions?
@@ -205,7 +211,7 @@ npm run test:coverage   # Run tests with coverage report
 ### When to Run Tests
 1. **Before committing**: ALWAYS
 2. **After making changes to**:
-   - API endpoints (`server/routes.ts`)
+   - API endpoints (`server/data-routes.ts`)
    - Business logic (`server/storage.ts`, `shared/`)
    - Authentication (`server/auth.ts`, `api/auth.ts`)
    - Database schema (`shared/schema-*.ts`)
@@ -215,7 +221,11 @@ npm run test:coverage   # Run tests with coverage report
 ### Test Files
 - `api.test.ts` - Tests all data API endpoints
 - `auth.test.ts` - Tests authentication flows (JWT creation, middleware)
+- `cache.test.ts` - Tests Redis cache helpers
 - `db.test.ts` - Tests database connections
+- `etag.test.ts` - Tests ETag hash function
+- `integration.test.ts` - End-to-end integration tests
+- `schema.test.ts` - Tests schema selection logic
 - `scoring.test.ts` - Tests scoring calculations
 - `storage.test.ts` - Tests data access layer
 
@@ -260,7 +270,6 @@ The application is deployed on Vercel with the following configuration:
 ### Import Aliases
 - `@/` → `client/src/`
 - `@shared/` → `shared/`
-- `@assets/` → `attached_assets/`
 
 ### File Naming
 - React components: PascalCase (`YearPage.tsx`)
@@ -275,7 +284,7 @@ The application is deployed on Vercel with the following configuration:
 
 ### Hono Route Patterns
 ```typescript
-// Data routes (server/routes.ts)
+// Data routes (server/data-routes.ts)
 app.get('/api/fish-weights/:yearId', isAuthenticated, async (c) => {
   const yearId = c.req.param('yearId');
   const userId = c.var.userId;      // set by isAuthenticated middleware
@@ -309,7 +318,7 @@ const { username, password } = JSON.parse(rawBody || '{}');
 ### Code Quality
 - **Type Safety**: Full TypeScript coverage
 - **ES Modules**: All files use ES module syntax (`.js` imports even for `.ts` files)
-- **No Console in Production**: Terser drops console.log in production builds
+- **No Console in Production**: esbuild drops console.log in production builds
 - **Edge-safe code**: No Node.js-specific APIs in `api/index.ts` or `server/routes.ts`
 
 ---
@@ -317,7 +326,7 @@ const { username, password } = JSON.parse(rawBody || '{}');
 ## Common Tasks for Agents
 
 ### Adding a New Data API Endpoint
-1. Add route handler to `server/routes.ts` (use Hono syntax: `c.req.param()`, `c.req.json()`, `c.json()`)
+1. Add route handler to `server/data-routes.ts` (use Hono syntax: `c.req.param()`, `c.req.json()`, `c.json()`)
 2. Add data access methods to `server/storage.ts` if needed
 3. Update types in `shared/` if needed
 4. **Write tests in `tests/api.test.ts`**
@@ -334,7 +343,7 @@ const { username, password } = JSON.parse(rawBody || '{}');
 1. Create/modify components in `client/src/components/`
 2. Update pages in `client/src/pages/`
 3. Use TanStack Query for data fetching
-4. Follow existing UI patterns (Radix UI + Tailwind)
+4. Follow existing UI patterns (Tailwind CSS)
 5. Use Preact-compatible imports — `import { h } from 'preact'` or JSX (aliased via `@preact/preset-vite`; `react` imports are automatically aliased to `preact/compat`)
 6. **Run server tests to ensure API compatibility**: `npm test`
 
@@ -356,13 +365,13 @@ const { username, password } = JSON.parse(rawBody || '{}');
 
 ### Frontend Optimization
 - Manual code splitting configured in `vite.config.ts`
-- Vendor chunks: preact-vendor, query-vendor, ui-* chunks
+- Vendor chunks: `framework` (preact + wouter), `query-vendor` (TanStack Query)
 - CSS code splitting enabled
-- Terser minification with console.log removal
+- esbuild minification with console/debugger removal
 
 ### Caching
 - **Upstash Redis** (server-side): write-through cache on all read routes (years, teams, fish weights, chug times, golf scores); mutations call `invalidate()` to bust relevant keys; 1-hour safety TTL
-- **Service worker** (client-side): configured via `scripts/inject-sw-version.js`; `/sw.js` served with no-cache headers
+- **Service worker** (client-side): network-first for navigation, cache-first for assets; client-controlled activation to avoid cache/JS mismatch; configured via `scripts/inject-sw-version.js`; `/sw.js` served with no-cache headers
 - **CDN**: static assets cached by Vercel CDN
 
 ---
@@ -390,7 +399,7 @@ Before making changes, familiarize yourself with these key files:
 - `package.json` - Scripts and dependencies
 - `api/index.ts` - Edge function entry point
 - `api/auth.ts` - Node.js auth function
-- `server/routes.ts` - All data API endpoints
+- `server/data-routes.ts` - All data API endpoints
 - `server/auth.ts` - JWT middleware and token creation
 - `server/storage.ts` - Data access layer
 - `server/cache.ts` - Upstash Redis cache helpers (`cached`, `invalidate`, `cacheKeys`)
@@ -407,8 +416,8 @@ When working on this repository:
 3. ✅ **Hono syntax** for data routes: `c.req.param()`, `c.req.json()`, `c.json()`, `c.var.userId`
 4. ✅ **No `pg` or connection pools** — use `@neondatabase/serverless` neon-http driver (do not upgrade to 1.x)
 5. ✅ Check both PostgreSQL and SQLite schemas when modifying database
-6. ✅ Use the correct import aliases (`@/`, `@shared/`, `@assets/`)
+6. ✅ Use the correct import aliases (`@/`, `@shared/`)
 7. ✅ JWT authentication — no sessions, no `req.session`, no connect-pg-simple
 8. ✅ Verify TypeScript types with `npm run check`
 9. ✅ **Frontend is Preact**, not React — `react` imports are aliased to `preact/compat` automatically; no React-specific APIs
-10. ✅ **Cache invalidation**: after any write in `server/routes.ts`, call `invalidate(cacheKeys.*)` for affected keys
+10. ✅ **Cache invalidation**: after any write in `server/data-routes.ts`, call `invalidate(cacheKeys.*)` for affected keys
