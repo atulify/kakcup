@@ -178,6 +178,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
       const response = await fetch(`/api/years/${yearId}/teams`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const { data: chugTimes, isLoading: chugLoading } = useQuery({
@@ -186,6 +187,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
       const response = await fetch(`/api/years/${yearId}/chug-times`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   // Memoized: sorted teams (fixes in-place mutation of query cache)

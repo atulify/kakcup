@@ -172,6 +172,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       const response = await fetch(`/api/years/${yearId}/teams`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const { data: fishWeights, isLoading: fishLoading } = useQuery({
@@ -180,6 +181,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       const response = await fetch(`/api/years/${yearId}/fish-weights`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const yearData = parentYearData;

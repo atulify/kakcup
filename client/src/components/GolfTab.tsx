@@ -156,6 +156,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       const response = await fetch(`/api/years/${yearId}/teams`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const { data: golfScores, isLoading: golfLoading } = useQuery({
@@ -164,6 +165,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       const response = await fetch(`/api/years/${yearId}/golf-scores`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   // Sort teams once — spread to avoid mutating the query cache

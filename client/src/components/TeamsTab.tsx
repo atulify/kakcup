@@ -35,6 +35,7 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
     queryFn: async () => {
       return await apiRequest(`/api/years/${yearId}/teams`);
     },
+    staleTime: 2_000,
   });
 
 

@@ -15,6 +15,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       const response = await fetch(`/api/years/${yearId}/teams`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const { data: fishWeights, isLoading: fishLoading } = useQuery({
@@ -23,6 +24,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       const response = await fetch(`/api/years/${yearId}/fish-weights`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const { data: chugTimes, isLoading: chugLoading } = useQuery({
@@ -31,6 +33,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       const response = await fetch(`/api/years/${yearId}/chug-times`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   const { data: golfScores, isLoading: golfLoading } = useQuery({
@@ -39,6 +42,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       const response = await fetch(`/api/years/${yearId}/golf-scores`);
       return response.json();
     },
+    staleTime: 2_000,
   });
 
   // All useMemo hooks - must be called unconditionally
