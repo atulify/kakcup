@@ -202,6 +202,71 @@ describe('POST /api/years', () => {
   });
 });
 
+describe('Parallel data prefetch', () => {
+  it('should return all tab data in parallel for a valid year', async () => {
+    // Get a valid yearId from the seeded data
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    expect(years.length).toBeGreaterThan(0);
+    const yearId = years[0].id;
+
+    // Fire all four data requests in parallel — same as YearPage prefetch
+    const [teamsRes, fishRes, chugRes, golfRes] = await Promise.all([
+      app.request(`/api/years/${yearId}/teams`),
+      app.request(`/api/years/${yearId}/fish-weights`),
+      app.request(`/api/years/${yearId}/chug-times`),
+      app.request(`/api/years/${yearId}/golf-scores`),
+    ]);
+
+    expect(teamsRes.status).toBe(200);
+    expect(fishRes.status).toBe(200);
+    expect(chugRes.status).toBe(200);
+    expect(golfRes.status).toBe(200);
+
+    // All should return arrays
+    expect(Array.isArray(await teamsRes.json())).toBe(true);
+    expect(Array.isArray(await fishRes.json())).toBe(true);
+    expect(Array.isArray(await chugRes.json())).toBe(true);
+    expect(Array.isArray(await golfRes.json())).toBe(true);
+  });
+
+  it('should return ETag headers on all data endpoints', async () => {
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    const yearId = years[0].id;
+
+    const [teamsRes, fishRes, chugRes, golfRes] = await Promise.all([
+      app.request(`/api/years/${yearId}/teams`),
+      app.request(`/api/years/${yearId}/fish-weights`),
+      app.request(`/api/years/${yearId}/chug-times`),
+      app.request(`/api/years/${yearId}/golf-scores`),
+    ]);
+
+    // All should have ETag headers for 304 support
+    expect(teamsRes.headers.get('etag')).toBeTruthy();
+    expect(fishRes.headers.get('etag')).toBeTruthy();
+    expect(chugRes.headers.get('etag')).toBeTruthy();
+    expect(golfRes.headers.get('etag')).toBeTruthy();
+  });
+
+  it('should return 304 when ETag matches', async () => {
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    const yearId = years[0].id;
+
+    // First request — get the ETag
+    const firstRes = await app.request(`/api/years/${yearId}/teams`);
+    const etag = firstRes.headers.get('etag');
+    expect(etag).toBeTruthy();
+
+    // Second request with If-None-Match — should get 304
+    const secondRes = await app.request(`/api/years/${yearId}/teams`, {
+      headers: { 'If-None-Match': etag! },
+    });
+    expect(secondRes.status).toBe(304);
+  });
+});
+
 describe('API Error Handling', () => {
   it('should handle invalid JSON body gracefully', async () => {
     const res = await app.request('/api/auth/login', {

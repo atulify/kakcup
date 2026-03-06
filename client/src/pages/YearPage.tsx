@@ -1,5 +1,5 @@
-import { useState, lazy, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn, Settings, Github } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ export default function YearPage() {
   const [activeTab, setActiveTab] = useState("teams");
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
+  const queryClient = useQueryClient();
+
   const { data: yearData, isLoading } = useQuery<Year>({
     queryKey: ["/api/years", year],
     queryFn: async () => {
@@ -43,6 +45,17 @@ export default function YearPage() {
     },
     enabled: !!year,
   });
+
+  // Prefetch all tab data in parallel as soon as we have the yearId
+  const yearId = yearData?.id;
+  useEffect(() => {
+    if (!yearId) return;
+    const fetchJson = (url: string) => () => fetch(url).then(r => r.json());
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "teams"], queryFn: fetchJson(`/api/years/${yearId}/teams`) });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "fish-weights"], queryFn: fetchJson(`/api/years/${yearId}/fish-weights`) });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "chug-times"], queryFn: fetchJson(`/api/years/${yearId}/chug-times`) });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "golf-scores"], queryFn: fetchJson(`/api/years/${yearId}/golf-scores`) });
+  }, [yearId, queryClient]);
 
   if (isLoading) {
     return (
