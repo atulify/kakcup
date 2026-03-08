@@ -443,18 +443,10 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground font-medium">Golf Score:</span>
-                      <div className="text-lg font-bold text-blue-400 mt-1">
-                        {formatScore(teamStat.score, teamStat.hasScore)}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground font-medium">Points:</span>
-                      <div className="text-lg font-bold text-green-400 mt-1">
-                        {teamStat.points > 0 ? teamStat.points : "0"}
-                      </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground font-medium">Golf Score:</span>
+                    <div className="text-lg font-bold text-blue-400 mt-1">
+                      {formatScore(teamStat.score, teamStat.hasScore)}
                     </div>
                   </div>
 

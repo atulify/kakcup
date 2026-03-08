@@ -51,10 +51,11 @@ export default function YearPage() {
   useEffect(() => {
     if (!yearId) return;
     const fetchJson = (url: string) => () => fetch(url).then(r => r.json());
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "teams"], queryFn: fetchJson(`/api/years/${yearId}/teams`) });
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "fish-weights"], queryFn: fetchJson(`/api/years/${yearId}/fish-weights`) });
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "chug-times"], queryFn: fetchJson(`/api/years/${yearId}/chug-times`) });
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "golf-scores"], queryFn: fetchJson(`/api/years/${yearId}/golf-scores`) });
+    const staleTime = 2_000;
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "teams"], queryFn: fetchJson(`/api/years/${yearId}/teams`), staleTime });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "fish-weights"], queryFn: fetchJson(`/api/years/${yearId}/fish-weights`), staleTime });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "chug-times"], queryFn: fetchJson(`/api/years/${yearId}/chug-times`), staleTime });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "golf-scores"], queryFn: fetchJson(`/api/years/${yearId}/golf-scores`), staleTime });
   }, [yearId, queryClient]);
 
   if (isLoading) {
