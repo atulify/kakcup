@@ -291,19 +291,19 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="text-center">
-                        <span className="text-xs text-muted-foreground font-medium block">🐟 Fish</span>
+                      <div className="text-center bg-background/60 border border-border/40 rounded-lg py-2 px-1">
+                        <span className="text-xs text-muted-foreground font-medium block">🎣 Fish</span>
                         <div className={`text-lg font-bold ${isFirst ? 'text-orange-200' : 'text-orange-400'} mt-1`}>
                           {standing.fishPoints || 0}
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="text-center bg-background/60 border border-border/40 rounded-lg py-2 px-1">
                         <span className="text-xs text-muted-foreground font-medium block">🍺 Chug</span>
                         <div className={`text-lg font-bold ${isFirst ? 'text-amber-200' : 'text-amber-400'} mt-1`}>
                           {standing.chugPoints || 0}
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="text-center bg-background/60 border border-border/40 rounded-lg py-2 px-1">
                         <span className="text-xs text-muted-foreground font-medium block">⛳ Golf</span>
                         <div className={`text-lg font-bold ${isFirst ? 'text-green-300' : 'text-green-400'} mt-1`}>
                           {standing.golfPoints || 0}

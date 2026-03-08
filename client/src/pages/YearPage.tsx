@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
-import { Users, Fish, Beer, Flag, Trophy, Home, LogOut, LogIn, Settings, Github } from "@/components/icons";
+import { Home, LogOut, LogIn, Settings, Github } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,15 +18,15 @@ const StandingsTab = lazy(() => import("@/components/StandingsTab"));
 type Tab = {
   id: string;
   name: string;
-  icon: React.ComponentType<{ className?: string }>;
+  emoji: string;
 };
 
 const tabs: Tab[] = [
-  { id: "teams", name: "Teams", icon: Users },
-  { id: "fish", name: "Fish", icon: Fish },
-  { id: "chug", name: "Chug", icon: Beer },
-  { id: "golf", name: "Golf", icon: Flag },
-  { id: "standings", name: "Standings", icon: Trophy },
+  { id: "teams", name: "Teams", emoji: "👥" },
+  { id: "fish", name: "Fish", emoji: "🎣" },
+  { id: "chug", name: "Chug", emoji: "🍺" },
+  { id: "golf", name: "Golf", emoji: "⛳" },
+  { id: "standings", name: "Standings", emoji: "🏆" },
 ];
 
 export default function YearPage() {
@@ -51,10 +51,11 @@ export default function YearPage() {
   useEffect(() => {
     if (!yearId) return;
     const fetchJson = (url: string) => () => fetch(url).then(r => r.json());
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "teams"], queryFn: fetchJson(`/api/years/${yearId}/teams`) });
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "fish-weights"], queryFn: fetchJson(`/api/years/${yearId}/fish-weights`) });
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "chug-times"], queryFn: fetchJson(`/api/years/${yearId}/chug-times`) });
-    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "golf-scores"], queryFn: fetchJson(`/api/years/${yearId}/golf-scores`) });
+    const staleTime = 2_000;
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "teams"], queryFn: fetchJson(`/api/years/${yearId}/teams`), staleTime });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "fish-weights"], queryFn: fetchJson(`/api/years/${yearId}/fish-weights`), staleTime });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "chug-times"], queryFn: fetchJson(`/api/years/${yearId}/chug-times`), staleTime });
+    queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "golf-scores"], queryFn: fetchJson(`/api/years/${yearId}/golf-scores`), staleTime });
   }, [yearId, queryClient]);
 
   if (isLoading) {
@@ -182,24 +183,21 @@ export default function YearPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-area-pb z-10">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-5 gap-0">
-            {tabs.map((tab) => {
-              const IconComponent = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center justify-center py-2 px-1 transition-colors duration-200 border-r border-border last:border-r-0 ${
-                    activeTab === tab.id 
-                      ? "text-primary bg-primary/10 border-t-2 border-t-primary" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                  }`}
-                  data-testid={`tab-${tab.id}`}
-                >
-                  <IconComponent className="w-5 h-5 mb-0.5" />
-                  <span className="text-xs font-medium">{tab.name}</span>
-                </button>
-              );
-            })}
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-col items-center justify-center py-2 px-1 transition-colors duration-200 border-r border-border last:border-r-0 ${
+                  activeTab === tab.id
+                    ? "text-primary bg-primary/10 border-t-2 border-t-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+                data-testid={`tab-${tab.id}`}
+              >
+                <span className="text-xl mb-0.5 leading-none">{tab.emoji}</span>
+                <span className="text-xs font-medium">{tab.name}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
