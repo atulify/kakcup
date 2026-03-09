@@ -88,7 +88,7 @@ function ResultCard({ label, emoji, names, highlight }: { label: string; emoji: 
       </div>
       <ul className="space-y-0.5">
         {names.map((name) => (
-          <li key={name} className={`text-sm font-medium ${highlight ? "text-white" : "text-foreground"}`}>
+          <li key={name} className={`text-sm font-medium ${highlight ? "text-green-400" : "text-foreground"}`}>
             {name}
           </li>
         ))}
@@ -205,7 +205,7 @@ export default function KakStatsPage() {
                       <ResultCard label="Champs" emoji="🏆" names={yr.champs} highlight />
                     )}
                     {yr.boots.length > 0 && (
-                      <ResultCard label="Last Place" emoji="🥾" names={yr.boots} />
+                      <ResultCard label="Boot" emoji="🥾" names={yr.boots} />
                     )}
                   </div>
                 </div>
