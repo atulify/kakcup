@@ -58,10 +58,12 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
       <tbody>
         {ranked.map((row) => {
           const isFirst = row.rank === 1;
+          const isTied = ranked.filter(r => r.total === row.total).length > 1;
+          const rankLabel = isTied ? `T-${row.rank}` : `${row.rank}`;
           return (
             <tr key={row.kakId} className={`border-b border-border last:border-0 hover:bg-accent/30 ${isFirst ? "bg-primary/20" : ""}`}>
               <td className={`px-4 py-2 font-extrabold ${isFirst ? "text-white" : "text-foreground"}`}>
-                {row.rank}
+                {rankLabel}
               </td>
               <td className={`px-4 py-2 font-medium whitespace-nowrap ${isFirst ? "text-white" : "text-foreground"}`}>
                 {row.name}
@@ -81,18 +83,29 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
 // ResultCard — one card per champ or boot group in a year
 // ---------------------------------------------------------------------------
 function ResultCard({ label, emoji, names, highlight }: { label: string; emoji: string; names: string[]; highlight?: boolean }) {
+  const nameColor = highlight ? "text-green-400" : "text-foreground";
+  // Split into columns of 4 when there are more than 4 names
+  const columns: string[][] = [];
+  for (let i = 0; i < names.length; i += 4) {
+    columns.push(names.slice(i, i + 4));
+  }
+
   return (
-    <div className={`rounded-lg border p-3 min-w-[130px] flex-shrink-0 ${highlight ? "bg-primary/20 border-primary/40" : "bg-card border-border"}`}>
+    <div className={`rounded-lg border p-3 flex-shrink-0 ${highlight ? "bg-primary/20 border-primary/40" : "bg-card border-border"}`}>
       <div className={`text-xs font-semibold mb-2 ${highlight ? "text-primary" : "text-muted-foreground"}`}>
         {emoji} {label}
       </div>
-      <ul className="space-y-0.5">
-        {names.map((name) => (
-          <li key={name} className={`text-sm font-medium ${highlight ? "text-green-400" : "text-foreground"}`}>
-            {name}
-          </li>
+      <div className="flex gap-4">
+        {columns.map((col, ci) => (
+          <ul key={ci} className="space-y-0.5">
+            {col.map((name) => (
+              <li key={name} className={`text-sm font-medium whitespace-nowrap ${nameColor}`}>
+                {name}
+              </li>
+            ))}
+          </ul>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

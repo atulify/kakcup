@@ -25,7 +25,8 @@ A KAK is a registered participant. The system tracks all KAKs across years, reco
 - `GET /api/kaks` — list all KAKs, optional `?status=` filter (public, cached)
 - `POST /api/kaks` — create KAK (admin); returns 400 if name missing, 409 on name collision
 - `PATCH /api/kaks/:kakId` — update name/status (admin); 404 if not found, 409 on name collision
-- `GET /api/kak-stats` — lifetime champ/boot counts per KAK, sorted descending (public, cached)
+- `GET /api/kak-stats` — lifetime champ/boot counts per KAK, sorted descending (public, cached, 5-min TTL)
+- `GET /api/kak-results` — per-year results: `{ year, champs: string[], boots: string[] }[]`, sorted year descending (public, cached, 5-min TTL)
 
 ### Year completion logic (`PATCH /api/years/:yearId` with `status=completed`)
 - Hard fails (400) if any of `fishing_locked`, `chug_locked`, `golf_locked` are false on the year
@@ -40,7 +41,11 @@ A KAK is a registered participant. The system tracks all KAKs across years, reco
 
 ### Frontend
 - **`TeamsTab`** — replaced 4 free-text member inputs with `KakCombobox` (searchable dropdown of active KAKs); sends both legacy text and FK id fields
-- **`KakStatsPage`** (`/kak-stats`) — two tables: Champ counts and Boot counts with tied-rank display; linked from Home and YearPage headers
+- **`KakStatsPage`** (`/kak-stats`) — three-section layout with a left sidebar nav:
+  - **Results** (default) — per-year cards; one highlighted Champs card (neon green names) and one Boot card per year row; boot cards with >4 names render as multi-column (4 rows per column)
+  - **Champs** — lifetime champ count table, sorted descending; tied ranks shown as `T-N`; top rank highlighted
+  - **Boot** — lifetime boot count table, same format as Champs
+  - Linked from Home and YearPage headers
 - **`KakManagement`** component (Settings → KAKs nav) — inline-edit table for active KAKs; collapsed sections for inactive/retired/in-memoriam; add-new form with client-side + server-side name collision guard
 
 ### Settings page redesign
@@ -49,7 +54,9 @@ Settings was refactored to a **two-panel layout** with a side nav:
 - 👥 **KAKs** — KAK Roster management (new)
 
 ### Cache keys added
-`cacheKeys.kaks` (`"kaks"`) and `cacheKeys.kakStats` (`"kak-stats"`)
+- `cacheKeys.kaks` (`"kaks"`) — 1-hour TTL
+- `cacheKeys.kakStats` (`"kak-stats"`) — 5-min TTL (short because champs/boots can be inserted directly into DB)
+- `cacheKeys.kakResults` (`"kak-results"`) — 5-min TTL (same reason)
 
 ### New test files
 - `tests/kaks.test.ts` — schema-level tests for kaks/champs/boots tables (35 tests)
