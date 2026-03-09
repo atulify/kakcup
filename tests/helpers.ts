@@ -42,6 +42,14 @@ export function createTestDatabase() {
   `);
 
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS "kaks" (
+      "id" TEXT PRIMARY KEY,
+      "name" TEXT NOT NULL UNIQUE,
+      "status" TEXT NOT NULL DEFAULT 'active'
+    );
+  `);
+
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS "years" (
       "id" TEXT PRIMARY KEY,
       "year" INTEGER NOT NULL UNIQUE,
@@ -63,7 +71,29 @@ export function createTestDatabase() {
       "kak2" TEXT,
       "kak3" TEXT,
       "kak4" TEXT,
+      "kak_1" TEXT REFERENCES kaks(id),
+      "kak_2" TEXT REFERENCES kaks(id),
+      "kak_3" TEXT REFERENCES kaks(id),
+      "kak_4" TEXT REFERENCES kaks(id),
       "locked" INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS "champs" (
+      "id" TEXT PRIMARY KEY,
+      "year_id" TEXT NOT NULL REFERENCES years(id),
+      "kak_id" TEXT NOT NULL REFERENCES kaks(id),
+      UNIQUE(year_id, kak_id)
+    );
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS "boots" (
+      "id" TEXT PRIMARY KEY,
+      "year_id" TEXT NOT NULL REFERENCES years(id),
+      "kak_id" TEXT NOT NULL REFERENCES kaks(id),
+      UNIQUE(year_id, kak_id)
     );
   `);
 
@@ -102,6 +132,8 @@ export function createTestDatabase() {
   // Unique constraints required for ON CONFLICT DO UPDATE upsert behaviour
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_chug_year_team ON chug_times(year_id, team_id);`);
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_golf_year_team ON golf_scores(year_id, team_id);`);
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_champs_year_kak ON champs(year_id, kak_id);`);
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_boots_year_kak ON boots(year_id, kak_id);`);
 
   return { sqlite, db: drizzle(sqlite), dbPath };
 }
@@ -110,6 +142,12 @@ export function createTestDatabase() {
  * Seeds test database with sample data
  */
 export function seedTestDatabase(sqlite: Database.Database) {
+  // Insert two test kaks
+  const kakId1 = 'aa000000-0000-0000-0000-000000000001';
+  const kakId2 = 'aa000000-0000-0000-0000-000000000002';
+  sqlite.prepare(`INSERT INTO kaks (id, name, status) VALUES (?, ?, ?)`).run(kakId1, 'Seed KAK 1', 'active');
+  sqlite.prepare(`INSERT INTO kaks (id, name, status) VALUES (?, ?, ?)`).run(kakId2, 'Seed KAK 2', 'active');
+
   // Insert a test year
   const yearId = '11111111-1111-1111-1111-111111111111';
   sqlite.prepare(`
@@ -117,7 +155,7 @@ export function seedTestDatabase(sqlite: Database.Database) {
     VALUES (?, ?, ?, ?, ?)
   `).run(yearId, 2025, 'Test Year 2025', 'active', 0);
 
-  // Insert a test team
+  // Insert a test team (uses legacy text columns; FK columns left null for backward compat)
   const teamId = '22222222-2222-2222-2222-222222222222';
   sqlite.prepare(`
     INSERT INTO teams (id, year_id, name, position, kak1, kak2, kak3, kak4, locked)
@@ -141,6 +179,6 @@ export function seedTestDatabase(sqlite: Database.Database) {
     Date.now()
   );
 
-  return { yearId, teamId, userId };
+  return { yearId, teamId, userId, kakId1, kakId2 };
 }
 

@@ -283,3 +283,362 @@ describe('API Error Handling', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ---------------------------------------------------------------------------
+// GET /api/kaks
+// ---------------------------------------------------------------------------
+
+describe('GET /api/kaks', () => {
+  it('returns 200 with an array', async () => {
+    const res = await app.request('/api/kaks');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  it('returns seeded kaks with correct shape', async () => {
+    const res = await app.request('/api/kaks');
+    const body = await res.json();
+    expect(body.length).toBeGreaterThanOrEqual(2);
+    const kak = body[0];
+    expect(kak).toHaveProperty('id');
+    expect(kak).toHaveProperty('name');
+    expect(kak).toHaveProperty('status');
+  });
+
+  it('filters by status=active', async () => {
+    const res = await app.request('/api/kaks?status=active');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.every((k: { status: string }) => k.status === 'active')).toBe(true);
+  });
+
+  it('returns empty array for status with no matches', async () => {
+    const res = await app.request('/api/kaks?status=in-memoriam');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(0);
+  });
+
+  it('is publicly accessible (no auth required)', async () => {
+    const res = await app.request('/api/kaks');
+    expect(res.status).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/kaks
+// ---------------------------------------------------------------------------
+
+describe('POST /api/kaks', () => {
+  it('returns 401 without auth', async () => {
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'TestKAK' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for non-admin user', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'user', role: 'user' });
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: 'TestKAK' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('creates a kak with admin auth', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+    const ts = Date.now();
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `NewKAK${ts}` }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body).toHaveProperty('id');
+    expect(body.name).toBe(`NewKAK${ts}`);
+    expect(body.status).toBe('active');
+  });
+
+  it('creates a kak with explicit status', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+    const ts = Date.now();
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `RetiredKAK${ts}`, status: 'retired' }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.status).toBe('retired');
+  });
+
+  it('returns 400 when name is missing', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ status: 'active' }),
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/kaks/:kakId
+// ---------------------------------------------------------------------------
+
+describe('PATCH /api/kaks/:kakId', () => {
+  const kakId1 = 'aa000000-0000-0000-0000-000000000001';
+
+  it('returns 401 without auth', async () => {
+    const res = await app.request(`/api/kaks/${kakId1}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'retired' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for non-admin user', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'user', role: 'user' });
+    const res = await app.request(`/api/kaks/${kakId1}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ status: 'retired' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('updates kak status with admin auth', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+    // First create a fresh kak so we don't disturb other tests
+    const createRes = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `PatchTargetKAK${Date.now()}` }),
+    });
+    const created = await createRes.json();
+
+    const res = await app.request(`/api/kaks/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ status: 'retired' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe('retired');
+  });
+
+  it('updates kak name with admin auth', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+    const createRes = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `OldKAKName${Date.now()}` }),
+    });
+    const created = await createRes.json();
+
+    const newName = `NewKAKName${Date.now()}`;
+    const res = await app.request(`/api/kaks/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: newName }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.name).toBe(newName);
+  });
+
+  it('returns 404 for non-existent kak id', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+    const res = await app.request('/api/kaks/00000000-0000-0000-0000-000000000000', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ status: 'retired' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/kak-stats
+// ---------------------------------------------------------------------------
+
+describe('GET /api/kak-stats', () => {
+  it('returns 200 with champs and boots arrays', async () => {
+    const res = await app.request('/api/kak-stats');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('champs');
+    expect(body).toHaveProperty('boots');
+    expect(Array.isArray(body.champs)).toBe(true);
+    expect(Array.isArray(body.boots)).toBe(true);
+  });
+
+  it('is publicly accessible (no auth required)', async () => {
+    const res = await app.request('/api/kak-stats');
+    expect(res.status).toBe(200);
+  });
+
+  it('stat rows have correct shape when populated', async () => {
+    // The seeded DB has no champs/boots by default so we just check the empty shape
+    const res = await app.request('/api/kak-stats');
+    const body = await res.json();
+    // If there happen to be rows, verify their shape
+    if (body.champs.length > 0) {
+      const row = body.champs[0];
+      expect(row).toHaveProperty('kakId');
+      expect(row).toHaveProperty('name');
+      expect(row).toHaveProperty('total');
+    }
+    if (body.boots.length > 0) {
+      const row = body.boots[0];
+      expect(row).toHaveProperty('kakId');
+      expect(row).toHaveProperty('name');
+      expect(row).toHaveProperty('total');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/years/:yearId — completion validation
+// ---------------------------------------------------------------------------
+
+describe('PATCH /api/years/:yearId — completion validation', () => {
+  it('returns 400 when marking completed with no events locked', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+
+    // Use the seeded year (all locks default to false)
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    const yearId = years[0].id;
+
+    const res = await app.request(`/api/years/${yearId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ status: 'completed' }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+    expect(body.error).toMatch(/lock/i);
+  });
+
+  it('returns 401 without auth', async () => {
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    const yearId = years[0].id;
+
+    const res = await app.request(`/api/years/${yearId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'completed' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('allows locking individual events without status change', async () => {
+    const token = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    const yearId = years[0].id;
+
+    // Lock fishing — should succeed
+    const res = await app.request(`/api/years/${yearId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ fishing_locked: true }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.fishing_locked).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// KAK name collision
+// ---------------------------------------------------------------------------
+
+describe('KAK name collision prevention', () => {
+  async function adminToken() {
+    return createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'admin', role: 'admin' });
+  }
+
+  it('POST /api/kaks returns 409 when name already exists (exact match)', async () => {
+    const token = await adminToken();
+    // Create a kak first
+    const ts = Date.now();
+    const name = `CollisionKAK${ts}`;
+    await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name }),
+    });
+    // Try to create another with the same name
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name }),
+    });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toMatch(/already exists/i);
+  });
+
+  it('PATCH /api/kaks/:kakId returns 409 when renaming to existing name', async () => {
+    const token = await adminToken();
+    const ts = Date.now();
+    // Create two distinct kaks
+    const res1 = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `Alpha${ts}` }),
+    });
+    const res2 = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `Beta${ts}` }),
+    });
+    const kak1 = await res1.json();
+    await res2.json(); // just consume
+
+    // Try to rename kak1 to Beta (taken)
+    const patchRes = await app.request(`/api/kaks/${kak1.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `Beta${ts}` }),
+    });
+    expect(patchRes.status).toBe(409);
+    const body = await patchRes.json();
+    expect(body.error).toMatch(/already exists/i);
+  });
+
+  it('PATCH /api/kaks/:kakId allows saving own name (no collision)', async () => {
+    const token = await adminToken();
+    const ts = Date.now();
+    const res = await app.request('/api/kaks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `SameNameOK${ts}` }),
+    });
+    const kak = await res.json();
+
+    // Patch with same name + status change — should succeed
+    const patchRes = await app.request(`/api/kaks/${kak.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${token}` },
+      body: JSON.stringify({ name: `SameNameOK${ts}`, status: 'retired' }),
+    });
+    expect(patchRes.status).toBe(200);
+    const body = await patchRes.json();
+    expect(body.status).toBe('retired');
+  });
+});

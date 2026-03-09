@@ -13,6 +13,8 @@ const TTL = 3600; // 1-hour safety TTL in case an invalidation is ever missed
 
 export const cacheKeys = {
   years: "years",
+  kaks: "kaks",
+  kakStats: "kak-stats",
   teams: (yearId: string) => `teams:${yearId}`,
   fishWeights: (yearId: string) => `fw:${yearId}`,
   chugTimes: (yearId: string) => `ct:${yearId}`,

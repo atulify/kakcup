@@ -7,6 +7,7 @@
 export { default as ArrowRight } from 'lucide-react/dist/esm/icons/arrow-right';
 export { default as Check } from 'lucide-react/dist/esm/icons/check';
 export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down';
+export { default as ChevronRight } from 'lucide-react/dist/esm/icons/chevron-right';
 export { default as Edit } from 'lucide-react/dist/esm/icons/edit';
 export { default as Github } from 'lucide-react/dist/esm/icons/github';
 export { default as Home } from 'lucide-react/dist/esm/icons/home';

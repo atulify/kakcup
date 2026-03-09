@@ -3,6 +3,12 @@ import type { Context, Hono, MiddlewareHandler } from "hono";
 import { storage } from "./storage.js";
 import { isAdmin, type AppEnv } from "./auth.js";
 import { cached, cacheKeys, invalidate } from "./cache.js";
+import {
+  calculateTop3FishTotal,
+  rankFishTeams,
+  rankChugTeams,
+  rankGolfTeams,
+} from "../shared/scoring.js";
 
 /** FNV-1a 32-bit hash — fast, non-cryptographic, perfect for ETags. */
 export function fnv1a(str: string): string {
@@ -92,8 +98,36 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
 
   app.patch("/api/years/:yearId", isAdmin, async (c) => {
     try {
+      const yearId = c.req.param("yearId");
       const yearData = await c.req.json();
-      const year = await storage.updateYear(c.req.param("yearId"), yearData);
+
+      // When marking a year as completed, validate all events are locked
+      // then calculate and persist champs/boots.
+      if (yearData.status === "completed") {
+        const current = await storage.getYearById(yearId);
+        if (!current) return c.json({ error: "Year not found" }, 404);
+
+        const allLocked =
+          (yearData.fishing_locked ?? current.fishing_locked) &&
+          (yearData.chug_locked ?? current.chug_locked) &&
+          (yearData.golf_locked ?? current.golf_locked);
+
+        if (!allLocked) {
+          return c.json(
+            { error: "All three events must be locked before marking the year as completed." },
+            400
+          );
+        }
+      }
+
+      const year = await storage.updateYear(yearId, yearData);
+
+      // After a successful transition to completed, calculate and store champs/boots
+      if (year.status === "completed") {
+        await calculateAndStoreChampsBoots(year.id);
+        await invalidate(cacheKeys.kakStats);
+      }
+
       await invalidate(cacheKeys.years);
       return c.json(year);
     } catch {
@@ -286,4 +320,126 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       return c.json({ error: "Failed to delete golf score" }, 500);
     }
   });
+
+  // KAK routes
+  app.get("/api/kaks", async (c) => {
+    try {
+      const status = c.req.query("status");
+      const kakList = await cached(
+        status ? `${cacheKeys.kaks}:${status}` : cacheKeys.kaks,
+        () => storage.getKaks(status)
+      );
+      return jsonWithEtag(c, kakList);
+    } catch {
+      return c.json({ error: "Failed to fetch KAKs" }, 500);
+    }
+  });
+
+  app.post("/api/kaks", isAdmin, async (c) => {
+    try {
+      const kakData = await c.req.json();
+      if (!kakData.name) return c.json({ error: "name is required" }, 400);
+      const kak = await storage.createKak(kakData);
+      await invalidate(cacheKeys.kaks, `${cacheKeys.kaks}:active`);
+      return c.json(kak, 201);
+    } catch (err: any) {
+      if (err?.message?.toLowerCase().includes("unique")) {
+        return c.json({ error: "A KAK with that name already exists" }, 409);
+      }
+      return c.json({ error: "Failed to create KAK" }, 500);
+    }
+  });
+
+  app.patch("/api/kaks/:kakId", isAdmin, async (c) => {
+    try {
+      const kakData = await c.req.json();
+      const kak = await storage.updateKak(c.req.param("kakId"), kakData);
+      if (!kak) return c.json({ error: "KAK not found" }, 404);
+      await invalidate(cacheKeys.kaks, `${cacheKeys.kaks}:active`);
+      return c.json(kak);
+    } catch (err: any) {
+      if (err?.message?.toLowerCase().includes("unique")) {
+        return c.json({ error: "A KAK with that name already exists" }, 409);
+      }
+      return c.json({ error: "Failed to update KAK" }, 500);
+    }
+  });
+
+  app.get("/api/kak-stats", async (c) => {
+    try {
+      const stats = await cached(cacheKeys.kakStats, () => storage.getKakStats());
+      return jsonWithEtag(c, stats);
+    } catch {
+      return c.json({ error: "Failed to fetch KAK stats" }, 500);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+/** Calculates standings for a year and writes champs + boots entries. */
+async function calculateAndStoreChampsBoots(yearId: string): Promise<void> {
+  const [allTeams, fishData, chugData, golfData] = await Promise.all([
+    storage.getTeamsByYear(yearId),
+    storage.getFishWeightsByYear(yearId),
+    storage.getChugTimesByYear(yearId),
+    storage.getGolfScoresByYear(yearId),
+  ]);
+
+  // Build fish totals (top 3 per team)
+  const fishByTeam = new Map<string, number[]>();
+  for (const fw of fishData) {
+    if (!fishByTeam.has(fw.teamId)) fishByTeam.set(fw.teamId, []);
+    fishByTeam.get(fw.teamId)!.push(parseFloat(fw.weight));
+  }
+
+  const chugAverages = new Map<string, number>();
+  for (const ct of chugData) {
+    chugAverages.set(ct.teamId, parseFloat(ct.average));
+  }
+
+  const golfScoresMap = new Map<string, number>();
+  for (const gs of golfData) {
+    golfScoresMap.set(gs.teamId, gs.score);
+  }
+
+  // Only score teams that have all three competition results
+  const completeTeams = allTeams.filter(
+    t => chugAverages.has(t.id) && golfScoresMap.has(t.id)
+  );
+  if (completeTeams.length === 0) return;
+
+  const fishTotals = new Map(
+    completeTeams.map(t => [t.id, calculateTop3FishTotal(fishByTeam.get(t.id) ?? [])])
+  );
+
+  const fishPoints = rankFishTeams(fishTotals);
+  const chugPoints = rankChugTeams(new Map(completeTeams.map(t => [t.id, chugAverages.get(t.id)!])));
+  const golfPoints = rankGolfTeams(new Map(completeTeams.map(t => [t.id, golfScoresMap.get(t.id)!])));
+
+  // Sum totals
+  const totalPoints = new Map<string, number>();
+  for (const team of completeTeams) {
+    const fish = fishPoints.find(p => p.teamId === team.id)?.points ?? 0;
+    const chug = chugPoints.find(p => p.teamId === team.id)?.points ?? 0;
+    const golf = golfPoints.find(p => p.teamId === team.id)?.points ?? 0;
+    totalPoints.set(team.id, fish + chug + golf);
+  }
+
+  const maxPts = Math.max(...totalPoints.values());
+  const minPts = Math.min(...totalPoints.values());
+
+  const champKakIds: string[] = [];
+  const bootKakIds: string[] = [];
+
+  for (const team of completeTeams) {
+    const pts = totalPoints.get(team.id) ?? 0;
+    const kakIds = [team.kak1Id, team.kak2Id, team.kak3Id, team.kak4Id].filter(Boolean) as string[];
+    if (pts === maxPts) champKakIds.push(...kakIds);
+    if (pts === minPts) bootKakIds.push(...kakIds);
+  }
+
+  await storage.setChampsAndBoots(yearId, champKakIds, bootKakIds);
 }

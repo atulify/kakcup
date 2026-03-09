@@ -1,11 +1,105 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, X, Lock, Unlock, Plus } from "@/components/icons";
-import type { Team } from "@shared/schema";
+import type { Team, Kak } from "@shared/schema";
+
+// ---------------------------------------------------------------------------
+// KakCombobox — searchable dropdown that selects an active KAK
+// ---------------------------------------------------------------------------
+interface KakComboboxProps {
+  value: string;         // selected kak name (for display)
+  onChange: (id: string, name: string) => void;
+  kaks: Kak[];
+  placeholder?: string;
+  testId?: string;
+}
+
+function KakCombobox({ value, onChange, kaks, placeholder = "Search KAK…", testId }: KakComboboxProps) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Keep query in sync when value changes externally (e.g. modal reset)
+  useEffect(() => { setQuery(value); }, [value]);
+
+  const filtered = kaks.filter(k =>
+    k.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const handleSelect = (kak: Kak) => {
+    onChange(kak.id, kak.name);
+    setQuery(kak.name);
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    onChange("", "");
+    setQuery("");
+    setOpen(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        // Reset query to current value if user typed but didn't select
+        setQuery(value);
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [value]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="flex items-center">
+        <input
+          type="text"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          data-testid={testId}
+          autoComplete="off"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 text-muted-foreground hover:text-foreground"
+            tabIndex={-1}
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map(kak => (
+            <li
+              key={kak.id}
+              onMouseDown={() => handleSelect(kak)}
+              className="px-3 py-2 text-sm cursor-pointer hover:bg-accent text-foreground"
+            >
+              {kak.name}
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && query.length > 0 && filtered.length === 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-sm text-muted-foreground">
+          No KAKs found
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface TeamsTabProps {
   yearId: string;
@@ -24,10 +118,16 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [modalForm, setModalForm] = useState({
     name: "",
-    kak1: "",
-    kak2: "",
-    kak3: "",
-    kak4: ""
+    kak1Id: "", kak1Name: "",
+    kak2Id: "", kak2Name: "",
+    kak3Id: "", kak3Name: "",
+    kak4Id: "", kak4Name: "",
+  });
+
+  const { data: activeKaks = [] } = useQuery<Kak[]>({
+    queryKey: ["/api/kaks", "active"],
+    queryFn: async () => apiRequest("/api/kaks?status=active"),
+    staleTime: 60_000,
   });
 
   const { data: teams, isLoading } = useQuery<Team[]>({
@@ -124,22 +224,31 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
   const resetModalForm = () => {
     setModalForm({
       name: "",
-      kak1: "",
-      kak2: "",
-      kak3: "",
-      kak4: ""
+      kak1Id: "", kak1Name: "",
+      kak2Id: "", kak2Name: "",
+      kak3Id: "", kak3Name: "",
+      kak4Id: "", kak4Name: "",
     });
   };
 
   const openEditModal = (team: Team) => {
-    if (team.locked) return; // Prevent editing locked teams
+    if (team.locked) return;
     setSelectedTeam(team);
+    // Resolve names from active kaks list when FK ids are present; fall back to legacy text
+    const nameFor = (id: string | null | undefined, legacy: string | null | undefined) => {
+      if (id) return activeKaks.find(k => k.id === id)?.name ?? legacy ?? "";
+      return legacy ?? "";
+    };
     setModalForm({
       name: team.name,
-      kak1: team.kak1 || "",
-      kak2: team.kak2 || "",
-      kak3: team.kak3 || "",
-      kak4: team.kak4 || ""
+      kak1Id: (team as any).kak1Id ?? "",
+      kak1Name: nameFor((team as any).kak1Id, team.kak1),
+      kak2Id: (team as any).kak2Id ?? "",
+      kak2Name: nameFor((team as any).kak2Id, team.kak2),
+      kak3Id: (team as any).kak3Id ?? "",
+      kak3Name: nameFor((team as any).kak3Id, team.kak3),
+      kak4Id: (team as any).kak4Id ?? "",
+      kak4Name: nameFor((team as any).kak4Id, team.kak4),
     });
     setShowEditModal(true);
   };
@@ -152,7 +261,10 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
   };
 
   const isTeamFilled = (team: Team) => {
-    return team.kak1 && team.kak2 && team.kak3 && team.kak4;
+    // Accept either legacy text columns or the new FK columns being populated
+    const hasText = team.kak1 && team.kak2 && team.kak3 && team.kak4;
+    const hasFk = (team as any).kak1Id && (team as any).kak2Id && (team as any).kak3Id && (team as any).kak4Id;
+    return hasText || hasFk;
   };
 
   const createTeamMutation = useMutation({
@@ -205,53 +317,52 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
 
   const handleCreateTeam = () => {
     if (!validateForm()) return;
-    
-    // Find the next available position
+
     const existingPositions = teams?.map(t => t.position) || [];
     let nextPosition = 1;
     while (existingPositions.includes(nextPosition) && nextPosition <= 7) {
       nextPosition++;
     }
-    
     if (nextPosition > 7) {
       console.error("Cannot create more than 7 teams");
       return;
     }
-    
+
     createTeamMutation.mutate({
       yearId,
       name: modalForm.name.trim(),
       position: nextPosition,
-      kak1: modalForm.kak1.trim(),
-      kak2: modalForm.kak2.trim(),
-      kak3: modalForm.kak3.trim(),
-      kak4: modalForm.kak4.trim(),
-      locked: false
+      // Populate both legacy text columns and FK columns
+      kak1: modalForm.kak1Name, kak1Id: modalForm.kak1Id || undefined,
+      kak2: modalForm.kak2Name, kak2Id: modalForm.kak2Id || undefined,
+      kak3: modalForm.kak3Name, kak3Id: modalForm.kak3Id || undefined,
+      kak4: modalForm.kak4Name, kak4Id: modalForm.kak4Id || undefined,
+      locked: false,
     });
   };
 
   const validateForm = () => {
-    return modalForm.name.trim() !== "" && 
-           modalForm.kak1.trim() !== "" && 
-           modalForm.kak2.trim() !== "" && 
-           modalForm.kak3.trim() !== "" && 
-           modalForm.kak4.trim() !== "";
+    return (
+      modalForm.name.trim() !== "" &&
+      modalForm.kak1Name.trim() !== "" &&
+      modalForm.kak2Name.trim() !== "" &&
+      modalForm.kak3Name.trim() !== "" &&
+      modalForm.kak4Name.trim() !== ""
+    );
   };
-
-
 
   const handleUpdateTeam = () => {
     if (!validateForm() || !selectedTeam) return;
-    
+
     updateTeamMutation.mutate({
       teamId: selectedTeam.id,
       data: {
         name: modalForm.name.trim(),
-        kak1: modalForm.kak1.trim(),
-        kak2: modalForm.kak2.trim(),
-        kak3: modalForm.kak3.trim(),
-        kak4: modalForm.kak4.trim()
-      }
+        kak1: modalForm.kak1Name, kak1Id: modalForm.kak1Id || undefined,
+        kak2: modalForm.kak2Name, kak2Id: modalForm.kak2Id || undefined,
+        kak3: modalForm.kak3Name, kak3Id: modalForm.kak3Id || undefined,
+        kak4: modalForm.kak4Name, kak4Id: modalForm.kak4Id || undefined,
+      },
     });
   };
 
@@ -621,53 +732,18 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 1</label>
-                <input
-                  type="text"
-                  value={modalForm.kak1}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak1: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-edit-kak1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 2</label>
-                <input
-                  type="text"
-                  value={modalForm.kak2}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak2: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-edit-kak2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 3</label>
-                <input
-                  type="text"
-                  value={modalForm.kak3}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak3: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-edit-kak3"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 4</label>
-                <input
-                  type="text"
-                  value={modalForm.kak4}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak4: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-edit-kak4"
-                />
-              </div>
+              {([1, 2, 3, 4] as const).map(n => (
+                <div key={n}>
+                  <label className="block text-sm font-medium text-foreground mb-1">KAK {n}</label>
+                  <KakCombobox
+                    value={modalForm[`kak${n}Name`]}
+                    kaks={activeKaks}
+                    onChange={(id, name) => setModalForm(prev => ({ ...prev, [`kak${n}Id`]: id, [`kak${n}Name`]: name }))}
+                    placeholder="Search KAK…"
+                    testId={`input-edit-kak${n}`}
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -719,53 +795,18 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 1</label>
-                <input
-                  type="text"
-                  value={modalForm.kak1}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak1: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-add-kak1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 2</label>
-                <input
-                  type="text"
-                  value={modalForm.kak2}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak2: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-add-kak2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 3</label>
-                <input
-                  type="text"
-                  value={modalForm.kak3}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak3: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-add-kak3"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">KAK 4</label>
-                <input
-                  type="text"
-                  value={modalForm.kak4}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, kak4: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter member name"
-                  data-testid="input-add-kak4"
-                />
-              </div>
+              {([1, 2, 3, 4] as const).map(n => (
+                <div key={n}>
+                  <label className="block text-sm font-medium text-foreground mb-1">KAK {n}</label>
+                  <KakCombobox
+                    value={modalForm[`kak${n}Name`]}
+                    kaks={activeKaks}
+                    onChange={(id, name) => setModalForm(prev => ({ ...prev, [`kak${n}Id`]: id, [`kak${n}Name`]: name }))}
+                    placeholder="Search KAK…"
+                    testId={`input-add-kak${n}`}
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="flex gap-3 mt-6">

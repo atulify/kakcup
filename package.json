@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "tsx server/migrate.ts",
     "db:init-vercel": "tsx scripts/init-vercel-db.ts",
+    "db:seed-kaks": "tsx server/seedKaks.ts",
     "vercel-build": "node scripts/inject-sw-version.js && vite build",
     "test": "vitest run",
     "test:watch": "vitest",

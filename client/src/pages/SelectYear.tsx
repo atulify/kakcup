@@ -57,6 +57,15 @@ export default function SelectYear() {
           </div>
           
           <div className="flex items-center gap-4 ml-auto">
+            <Button
+              onClick={() => setLocation('/kak-stats')}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Trophy size={16} />
+              <span className="hidden sm:inline">KAK Stats</span>
+            </Button>
             {isAuthenticated ? (
               <>
                 <span className="text-muted-foreground">

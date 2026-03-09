@@ -10,6 +10,55 @@ KakCup is a web application for tracking competition data (fish weights, chug ti
 
 ---
 
+## KAKs Feature (added Feb–Mar 2026)
+
+### What it is
+A KAK is a registered participant. The system tracks all KAKs across years, records which ones won (Champs) or lost (Boot) each year, and surfaces lifetime stats.
+
+### Data model
+- **`kaks` table** — `id`, `name` (unique), `status` (`active` | `inactive` | `retired` | `in-memoriam`)
+- **`teams.kak_1..kak_4`** — UUID FK columns referencing `kaks.id` (alongside legacy text columns `kak1..kak4`)
+- **`champs` table** — `year_id` + `kak_id`; unique per pair; auto-populated when a year is marked completed
+- **`boots` table** — same structure as `champs`
+
+### API endpoints
+- `GET /api/kaks` — list all KAKs, optional `?status=` filter (public, cached)
+- `POST /api/kaks` — create KAK (admin); returns 400 if name missing, 409 on name collision
+- `PATCH /api/kaks/:kakId` — update name/status (admin); 404 if not found, 409 on name collision
+- `GET /api/kak-stats` — lifetime champ/boot counts per KAK, sorted descending (public, cached)
+
+### Year completion logic (`PATCH /api/years/:yearId` with `status=completed`)
+- Hard fails (400) if any of `fishing_locked`, `chug_locked`, `golf_locked` are false on the year
+- Runs `calculateAndStoreChampsBoots(yearId)` using shared scoring functions from `shared/scoring.ts`
+- Winner = team(s) with highest total points; Boot = team(s) with lowest total points
+- Persists all kak_1..4 IDs from winning/losing teams into `champs`/`boots`
+- Invalidates `kak-stats` cache key after storing
+
+### Seeding
+- `server/seedKaks.ts` — inserts all 28 KAK 2025 names (idempotent via `onConflictDoNothing`); backfills `kak_1..4` FK columns on 2025 teams
+- `npm run db:seed-kaks` to run
+
+### Frontend
+- **`TeamsTab`** — replaced 4 free-text member inputs with `KakCombobox` (searchable dropdown of active KAKs); sends both legacy text and FK id fields
+- **`KakStatsPage`** (`/kak-stats`) — two tables: Champ counts and Boot counts with tied-rank display; linked from Home and YearPage headers
+- **`KakManagement`** component (Settings → KAKs nav) — inline-edit table for active KAKs; collapsed sections for inactive/retired/in-memoriam; add-new form with client-side + server-side name collision guard
+
+### Settings page redesign
+Settings was refactored to a **two-panel layout** with a side nav:
+- 📅 **Years** — Year Status, Create Next Year, Clear Scores (existing functionality)
+- 👥 **KAKs** — KAK Roster management (new)
+
+### Cache keys added
+`cacheKeys.kaks` (`"kaks"`) and `cacheKeys.kakStats` (`"kak-stats"`)
+
+### New test files
+- `tests/kaks.test.ts` — schema-level tests for kaks/champs/boots tables (35 tests)
+- `tests/kaks-storage.test.ts` — storage method tests (18 tests)
+- `tests/seedKaks.test.ts` — seed script integrity and backfill tests (23 tests)
+- `tests/api.test.ts` — extended with kaks CRUD, kak-stats, year completion validation, name collision (409) tests
+
+---
+
 ## Architecture
 
 ### Deployment Architecture
@@ -148,7 +197,7 @@ kakcup/
 ### Schema Management
 - **Two Schema Files**: Separate schemas for PostgreSQL and SQLite to handle dialect differences
 - **Automatic Selection**: `shared/schema.ts` exports the correct schema based on `DATABASE_URL`
-- **Tables**: users, years, teams, fishWeights, chugTimes, golfScores
+- **Tables**: users, years, teams, fishWeights, chugTimes, golfScores, kaks, champs, boots
 
 ### Database Selection Logic
 ```javascript

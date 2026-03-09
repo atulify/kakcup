@@ -25,6 +25,9 @@ describe('Schema Switching Logic', () => {
     expect(schema.users).toBeDefined();
     expect(schema.years).toBeDefined();
     expect(schema.teams).toBeDefined();
+    expect(schema.kaks).toBeDefined();
+    expect(schema.champs).toBeDefined();
+    expect(schema.boots).toBeDefined();
     expect(schema.fishWeights).toBeDefined();
     expect(schema.chugTimes).toBeDefined();
     expect(schema.golfScores).toBeDefined();
@@ -37,6 +40,9 @@ describe('Schema Switching Logic', () => {
     expect(schema.registerUserSchema).toBeDefined();
     expect(schema.insertYearSchema).toBeDefined();
     expect(schema.insertTeamSchema).toBeDefined();
+    expect(schema.insertKakSchema).toBeDefined();
+    expect(schema.insertChampSchema).toBeDefined();
+    expect(schema.insertBootSchema).toBeDefined();
     expect(schema.insertFishWeightSchema).toBeDefined();
     expect(schema.insertChugTimeSchema).toBeDefined();
     expect(schema.insertGolfScoreSchema).toBeDefined();
@@ -45,8 +51,11 @@ describe('Schema Switching Logic', () => {
   it('should export all required relations', async () => {
     const schema = await import('../shared/schema.js');
 
+    expect(schema.kaksRelations).toBeDefined();
     expect(schema.yearsRelations).toBeDefined();
     expect(schema.teamsRelations).toBeDefined();
+    expect(schema.champsRelations).toBeDefined();
+    expect(schema.bootsRelations).toBeDefined();
     expect(schema.fishWeightsRelations).toBeDefined();
     expect(schema.chugTimesRelations).toBeDefined();
     expect(schema.golfScoresRelations).toBeDefined();

@@ -1,6 +1,12 @@
-import { users, years, teams, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
+import { users, years, teams, kaks, champs, boots, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
 import { db } from "./db.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
+
+export interface KakStatRow {
+  kakId: string;
+  name: string;
+  total: number;
+}
 
 export interface IStorage {
   // User operations
@@ -18,6 +24,12 @@ export interface IStorage {
   getTeamsByYear(yearId: string): Promise<Team[]>;
   createTeam(team: InsertTeam): Promise<Team>;
   updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team>;
+  // KAK operations
+  getKaks(status?: string): Promise<Kak[]>;
+  createKak(kak: InsertKak): Promise<Kak>;
+  updateKak(id: string, kak: Partial<InsertKak>): Promise<Kak>;
+  getKakStats(): Promise<{ champs: KakStatRow[]; boots: KakStatRow[] }>;
+  setChampsAndBoots(yearId: string, champKakIds: string[], bootKakIds: string[]): Promise<void>;
   // Competition operations
   getFishWeightsByYear(yearId: string): Promise<any[]>;
   createFishWeight(fishWeight: any): Promise<any>;
@@ -116,6 +128,63 @@ export class DatabaseStorage implements IStorage {
       .where(eq(teams.id, id))
       .returning();
     return team;
+  }
+
+  async getKaks(status?: string): Promise<Kak[]> {
+    if (status) {
+      return await db.select().from(kaks).where(eq(kaks.status, status));
+    }
+    return await db.select().from(kaks);
+  }
+
+  async createKak(kakData: InsertKak): Promise<Kak> {
+    const [kak] = await db.insert(kaks).values(kakData).returning();
+    return kak;
+  }
+
+  async updateKak(id: string, kakData: Partial<InsertKak>): Promise<Kak> {
+    const [kak] = await db.update(kaks).set(kakData).where(eq(kaks.id, id)).returning();
+    return kak;
+  }
+
+  async getKakStats(): Promise<{ champs: KakStatRow[]; boots: KakStatRow[] }> {
+    const [champData, bootData] = await Promise.all([
+      db
+        .select({ kakId: champs.kakId, name: kaks.name, total: count() })
+        .from(champs)
+        .innerJoin(kaks, eq(kaks.id, champs.kakId))
+        .groupBy(champs.kakId, kaks.name),
+      db
+        .select({ kakId: boots.kakId, name: kaks.name, total: count() })
+        .from(boots)
+        .innerJoin(kaks, eq(kaks.id, boots.kakId))
+        .groupBy(boots.kakId, kaks.name),
+    ]);
+
+    return {
+      champs: champData.sort((a: KakStatRow, b: KakStatRow) => b.total - a.total),
+      boots: bootData.sort((a: KakStatRow, b: KakStatRow) => b.total - a.total),
+    };
+  }
+
+  async setChampsAndBoots(yearId: string, champKakIds: string[], bootKakIds: string[]): Promise<void> {
+    // Clear existing entries for the year (idempotent)
+    await Promise.all([
+      db.delete(champs).where(eq(champs.yearId, yearId)),
+      db.delete(boots).where(eq(boots.yearId, yearId)),
+    ]);
+
+    if (champKakIds.length > 0) {
+      await db.insert(champs).values(
+        champKakIds.map(kakId => ({ yearId, kakId }))
+      ).onConflictDoNothing();
+    }
+
+    if (bootKakIds.length > 0) {
+      await db.insert(boots).values(
+        bootKakIds.map(kakId => ({ yearId, kakId }))
+      ).onConflictDoNothing();
+    }
   }
 
   async getFishWeightsByYear(yearId: string): Promise<any[]> {

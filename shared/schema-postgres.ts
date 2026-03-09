@@ -31,6 +31,12 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const kaks = pgTable("kaks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  status: text("status").notNull().default("active"), // active, inactive, retired, in-memoriam
+});
+
 export const years = pgTable("years", {
   id: uuid("id").primaryKey().defaultRandom(),
   year: integer("year").notNull().unique(),
@@ -46,13 +52,33 @@ export const teams = pgTable("teams", {
   yearId: uuid("year_id").notNull(),
   name: text("name").notNull(),
   position: integer("position").notNull(), // 1-7 for team ordering
-  kak1: text("kak1"), // member 1 name
-  kak2: text("kak2"), // member 2 name
-  kak3: text("kak3"), // member 3 name
-  kak4: text("kak4"), // member 4 name
+  kak1: text("kak1"), // member 1 name (legacy text, kept until FK backfill complete)
+  kak2: text("kak2"), // member 2 name (legacy text, kept until FK backfill complete)
+  kak3: text("kak3"), // member 3 name (legacy text, kept until FK backfill complete)
+  kak4: text("kak4"), // member 4 name (legacy text, kept until FK backfill complete)
+  kak1Id: uuid("kak_1").references(() => kaks.id), // FK to kaks
+  kak2Id: uuid("kak_2").references(() => kaks.id), // FK to kaks
+  kak3Id: uuid("kak_3").references(() => kaks.id), // FK to kaks
+  kak4Id: uuid("kak_4").references(() => kaks.id), // FK to kaks
   locked: boolean("locked").notNull().default(false), // team lock status
 }, (table) => ({
   yearIdIdx: index("teams_year_id_idx").on(table.yearId),
+}));
+
+export const champs = pgTable("champs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  yearId: uuid("year_id").notNull().references(() => years.id),
+  kakId: uuid("kak_id").notNull().references(() => kaks.id),
+}, (table) => ({
+  uniqueYearKak: uniqueIndex("unique_champs_year_kak").on(table.yearId, table.kakId),
+}));
+
+export const boots = pgTable("boots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  yearId: uuid("year_id").notNull().references(() => years.id),
+  kakId: uuid("kak_id").notNull().references(() => kaks.id),
+}, (table) => ({
+  uniqueYearKak: uniqueIndex("unique_boots_year_kak").on(table.yearId, table.kakId),
 }));
 
 export const fishWeights = pgTable("fish_weights", {
@@ -88,11 +114,18 @@ export const golfScores = pgTable("golf_scores", {
 }));
 
 // Relations
+export const kaksRelations = relations(kaks, ({ many }) => ({
+  champs: many(champs),
+  boots: many(boots),
+}));
+
 export const yearsRelations = relations(years, ({ many }) => ({
   teams: many(teams),
   fishWeights: many(fishWeights),
   chugTimes: many(chugTimes),
   golfScores: many(golfScores),
+  champs: many(champs),
+  boots: many(boots),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -100,9 +133,23 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
     fields: [teams.yearId],
     references: [years.id],
   }),
+  kakMember1: one(kaks, { fields: [teams.kak1Id], references: [kaks.id], relationName: "teamKak1" }),
+  kakMember2: one(kaks, { fields: [teams.kak2Id], references: [kaks.id], relationName: "teamKak2" }),
+  kakMember3: one(kaks, { fields: [teams.kak3Id], references: [kaks.id], relationName: "teamKak3" }),
+  kakMember4: one(kaks, { fields: [teams.kak4Id], references: [kaks.id], relationName: "teamKak4" }),
   fishWeights: many(fishWeights),
   chugTimes: many(chugTimes),
   golfScores: many(golfScores),
+}));
+
+export const champsRelations = relations(champs, ({ one }) => ({
+  year: one(years, { fields: [champs.yearId], references: [years.id] }),
+  kak: one(kaks, { fields: [champs.kakId], references: [kaks.id] }),
+}));
+
+export const bootsRelations = relations(boots, ({ one }) => ({
+  year: one(years, { fields: [boots.yearId], references: [years.id] }),
+  kak: one(kaks, { fields: [boots.kakId], references: [kaks.id] }),
 }));
 
 export const fishWeightsRelations = relations(fishWeights, ({ one }) => ({
@@ -164,7 +211,26 @@ export const insertTeamSchema = createInsertSchema(teams).pick({
   kak2: true,
   kak3: true,
   kak4: true,
+  kak1Id: true,
+  kak2Id: true,
+  kak3Id: true,
+  kak4Id: true,
   locked: true,
+});
+
+export const insertKakSchema = createInsertSchema(kaks).pick({
+  name: true,
+  status: true,
+});
+
+export const insertChampSchema = createInsertSchema(champs).pick({
+  yearId: true,
+  kakId: true,
+});
+
+export const insertBootSchema = createInsertSchema(boots).pick({
+  yearId: true,
+  kakId: true,
 });
 
 export type RegisterUser = z.infer<typeof registerUserSchema>;
@@ -173,6 +239,12 @@ export type InsertYear = z.infer<typeof insertYearSchema>;
 export type Year = typeof years.$inferSelect;
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
 export type Team = typeof teams.$inferSelect;
+export type InsertKak = z.infer<typeof insertKakSchema>;
+export type Kak = typeof kaks.$inferSelect;
+export type InsertChamp = z.infer<typeof insertChampSchema>;
+export type Champ = typeof champs.$inferSelect;
+export type InsertBoot = z.infer<typeof insertBootSchema>;
+export type Boot = typeof boots.$inferSelect;
 
 export const insertFishWeightSchema = createInsertSchema(fishWeights).pick({
   yearId: true,

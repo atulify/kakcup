@@ -23,6 +23,7 @@ const SelectYear = lazyWithRetry(() => import("@/pages/SelectYear"));
 const YearPage = lazyWithRetry(() => import("@/pages/YearPage"));
 const Login = lazyWithRetry(() => import("@/pages/Login"));
 const Settings = lazyWithRetry(() => import("@/pages/Settings"));
+const KakStatsPage = lazyWithRetry(() => import("@/pages/KakStatsPage"));
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
         <Route path="/year/:year" component={YearPage} />
         <Route path="/login" component={Login} />
         <Route path="/settings" component={Settings} />
+        <Route path="/kak-stats" component={KakStatsPage} />
         {/* Fallback to Select Year page for any unknown routes */}
         <Route component={SelectYear} />
       </Switch>

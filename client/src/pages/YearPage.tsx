@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
-import { Home, LogOut, LogIn, Settings, Github } from "@/components/icons";
+import { Home, LogOut, LogIn, Settings, Github, Trophy } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -98,6 +98,14 @@ export default function YearPage() {
               >
                 <Home size={18} />
                 <span className="text-sm font-medium hidden sm:inline">Home</span>
+              </Link>
+              <Link
+                href="/kak-stats"
+                className="btn-ghost flex items-center gap-1 px-2 py-1"
+                data-testid="link-kak-stats"
+              >
+                <Trophy size={18} />
+                <span className="text-sm font-medium hidden sm:inline">KAK Stats</span>
               </Link>
               
               {isAuthenticated ? (

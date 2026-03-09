@@ -432,6 +432,19 @@ describe('2025 KAK Cup — Full Lifecycle', () => {
     }
   });
 
+  it('locks all events before completing', async () => {
+    const res = await adminReq(`/api/years/${yearId}`, 'PATCH', {
+      fishing_locked: true,
+      chug_locked: true,
+      golf_locked: true,
+    });
+    expect(res.status).toBe(200);
+    const year = await res.json();
+    expect(year.fishing_locked).toBe(true);
+    expect(year.chug_locked).toBe(true);
+    expect(year.golf_locked).toBe(true);
+  });
+
   it('marks the year as completed', async () => {
     const res = await adminReq(`/api/years/${yearId}`, 'PATCH', { status: 'completed' });
     expect(res.status).toBe(200);
