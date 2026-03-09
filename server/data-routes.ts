@@ -373,6 +373,15 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       return c.json({ error: "Failed to fetch KAK stats" }, 500);
     }
   });
+
+  app.get("/api/kak-results", async (c) => {
+    try {
+      const results = await cached(cacheKeys.kakResults, () => storage.getYearResults(), cacheTTL.kakResults);
+      return jsonWithEtag(c, results);
+    } catch {
+      return c.json({ error: "Failed to fetch KAK results" }, 500);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

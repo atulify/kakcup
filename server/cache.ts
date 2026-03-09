@@ -14,12 +14,14 @@ const TTL_SHORT = 300; // 5-minute TTL for data that can be updated outside the 
 
 export const cacheTTL = {
   kakStats: TTL_SHORT,
+  kakResults: TTL_SHORT,
 };
 
 export const cacheKeys = {
   years: "years",
   kaks: "kaks",
   kakStats: "kak-stats",
+  kakResults: "kak-results",
   teams: (yearId: string) => `teams:${yearId}`,
   fishWeights: (yearId: string) => `fw:${yearId}`,
   chugTimes: (yearId: string) => `ct:${yearId}`,

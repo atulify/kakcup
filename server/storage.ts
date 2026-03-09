@@ -1,11 +1,17 @@
 import { users, years, teams, kaks, champs, boots, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
 import { db } from "./db.js";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, desc } from "drizzle-orm";
 
 export interface KakStatRow {
   kakId: string;
   name: string;
   total: number;
+}
+
+export interface YearResult {
+  year: number;
+  champs: string[];
+  boots: string[];
 }
 
 export interface IStorage {
@@ -29,6 +35,7 @@ export interface IStorage {
   createKak(kak: InsertKak): Promise<Kak>;
   updateKak(id: string, kak: Partial<InsertKak>): Promise<Kak>;
   getKakStats(): Promise<{ champs: KakStatRow[]; boots: KakStatRow[] }>;
+  getYearResults(): Promise<YearResult[]>;
   setChampsAndBoots(yearId: string, champKakIds: string[], bootKakIds: string[]): Promise<void>;
   // Competition operations
   getFishWeightsByYear(yearId: string): Promise<any[]>;
@@ -165,6 +172,37 @@ export class DatabaseStorage implements IStorage {
       champs: champData.sort((a: KakStatRow, b: KakStatRow) => b.total - a.total),
       boots: bootData.sort((a: KakStatRow, b: KakStatRow) => b.total - a.total),
     };
+  }
+
+  async getYearResults(): Promise<YearResult[]> {
+    const [champRows, bootRows] = await Promise.all([
+      db.select({ year: years.year, name: kaks.name })
+        .from(champs)
+        .innerJoin(years, eq(years.id, champs.yearId))
+        .innerJoin(kaks, eq(kaks.id, champs.kakId)),
+      db.select({ year: years.year, name: kaks.name })
+        .from(boots)
+        .innerJoin(years, eq(years.id, boots.yearId))
+        .innerJoin(kaks, eq(kaks.id, boots.kakId)),
+    ]);
+
+    const yearMap = new Map<number, { champs: string[]; boots: string[] }>();
+    for (const r of champRows) {
+      if (!yearMap.has(r.year)) yearMap.set(r.year, { champs: [], boots: [] });
+      yearMap.get(r.year)!.champs.push(r.name);
+    }
+    for (const r of bootRows) {
+      if (!yearMap.has(r.year)) yearMap.set(r.year, { champs: [], boots: [] });
+      yearMap.get(r.year)!.boots.push(r.name);
+    }
+
+    return Array.from(yearMap.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([year, data]) => ({
+        year,
+        champs: data.champs.sort(),
+        boots: data.boots.sort(),
+      }));
   }
 
   async setChampsAndBoots(yearId: string, champKakIds: string[], bootKakIds: string[]): Promise<void> {

@@ -7,6 +7,7 @@ import { kaks, teams, years } from '../shared/schema-sqlite.js';
 import {
   KAK_2025_NAMES,
   TEAM_2025_MEMBERS,
+  HISTORICAL_KAKS,
   insertKaks,
   backfill2025Teams,
 } from '../server/seedKaks.js';
@@ -114,6 +115,8 @@ describe('TEAM_2025_MEMBERS — source data', () => {
 // insertKaks
 // ---------------------------------------------------------------------------
 
+const TOTAL_KAKS = KAK_2025_NAMES.length + HISTORICAL_KAKS.length; // 28 + 8 = 36
+
 describe('insertKaks', () => {
   let sqlite: Database.Database;
   let db: ReturnType<typeof drizzle>;
@@ -124,41 +127,68 @@ describe('insertKaks', () => {
 
   afterEach(() => { sqlite.close(); });
 
-  it('inserts all 28 KAKs', async () => {
+  it(`inserts all ${TOTAL_KAKS} KAKs (28 active + 8 historical)`, async () => {
     await insertKaks(db as any);
-
     const rows = await db.select().from(kaks);
-    expect(rows).toHaveLength(28);
+    expect(rows).toHaveLength(TOTAL_KAKS);
   });
 
-  it('all inserted KAKs have status active', async () => {
+  it('all KAK_2025_NAMES are inserted with status active', async () => {
     await insertKaks(db as any);
-
     const rows = await db.select().from(kaks);
-    expect(rows.every(k => k.status === 'active')).toBe(true);
-  });
-
-  it('all KAK_2025_NAMES are present after insert', async () => {
-    await insertKaks(db as any);
-
-    const rows = await db.select().from(kaks);
-    const names = new Set(rows.map(k => k.name));
+    const byName = new Map(rows.map(k => [k.name, k]));
     for (const name of KAK_2025_NAMES) {
-      expect(names.has(name), `"${name}" not found in kaks table`).toBe(true);
+      const kak = byName.get(name);
+      expect(kak, `"${name}" not found`).toBeTruthy();
+      expect(kak!.status).toBe('active');
     }
+  });
+
+  it('historical KAKs are inserted with correct statuses', async () => {
+    await insertKaks(db as any);
+    const rows = await db.select().from(kaks);
+    const byName = new Map(rows.map(k => [k.name, k]));
+    for (const { name, status } of HISTORICAL_KAKS) {
+      const kak = byName.get(name);
+      expect(kak, `"${name}" not found`).toBeTruthy();
+      expect(kak!.status).toBe(status);
+    }
+  });
+
+  it('Draper is in-memoriam', async () => {
+    await insertKaks(db as any);
+    const [draper] = await db.select().from(kaks).where(eq(kaks.name, 'Draper'));
+    expect(draper.status).toBe('in-memoriam');
+  });
+
+  it('retired historical KAKs all have status retired', async () => {
+    await insertKaks(db as any);
+    const rows = await db.select().from(kaks);
+    const byName = new Map(rows.map(k => [k.name, k]));
+    const retiredNames = HISTORICAL_KAKS.filter(h => h.status === 'retired').map(h => h.name);
+    for (const name of retiredNames) {
+      expect(byName.get(name)!.status).toBe('retired');
+    }
+  });
+
+  it('KAK_2025_NAMES includes Colster (not Colin) and Murray (not Murr)', () => {
+    const names = new Set(KAK_2025_NAMES);
+    expect(names.has('Colster')).toBe(true);
+    expect(names.has('Murray')).toBe(true);
+    expect(names.has('Colin')).toBe(false);
+    expect(names.has('Murr')).toBe(false);
   });
 
   it('is idempotent — running twice does not throw or duplicate rows', async () => {
     await insertKaks(db as any);
     await expect(insertKaks(db as any)).resolves.not.toThrow();
-
     const rows = await db.select().from(kaks);
-    expect(rows).toHaveLength(28);
+    expect(rows).toHaveLength(TOTAL_KAKS);
   });
 
   it('returns the full kaks list', async () => {
     const result = await insertKaks(db as any);
-    expect(result).toHaveLength(28);
+    expect(result).toHaveLength(TOTAL_KAKS);
     expect(result[0]).toHaveProperty('id');
     expect(result[0]).toHaveProperty('name');
     expect(result[0]).toHaveProperty('status');
@@ -173,9 +203,8 @@ describe('insertKaks', () => {
     const [pope] = await db.select().from(kaks).where(eq(kaks.name, 'Pope'));
     // onConflictDoNothing means Pope stays retired, not overwritten to active
     expect(pope.status).toBe('retired');
-    // Total count: 28 (Pope already existed, 27 new ones inserted)
     const all = await db.select().from(kaks);
-    expect(all).toHaveLength(28);
+    expect(all).toHaveLength(TOTAL_KAKS);
   });
 });
 

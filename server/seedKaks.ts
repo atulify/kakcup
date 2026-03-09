@@ -9,9 +9,9 @@ import { eq, and } from "drizzle-orm";
 
 export const KAK_2025_NAMES = [
   'Pope', 'Dump Bear', 'Dyer', 'Bopper',
-  'Nych', 'Colin', 'Norton', 'Booya',
+  'Nych', 'Colster', 'Norton', 'Booya',
   'Body', 'Boxy', 'Tank', 'Muldoon',
-  'Murr', 'Sewter', 'Burnie', 'Newt',
+  'Murray', 'Sewter', 'Burnie', 'Newt',
   'Stubby', 'Pete', 'No Show', 'Mckay',
   'Hooper', 'Burns', 'Jocquo', 'Fatty',
   'TBone', 'Sub', 'Dano', 'Morash',
@@ -20,13 +20,25 @@ export const KAK_2025_NAMES = [
 // Maps team name → [kak1, kak2, kak3, kak4] for the 2025 year
 export const TEAM_2025_MEMBERS: Record<string, [string, string, string, string]> = {
   'Champs': ['Pope', 'Dump Bear', 'Dyer', 'Bopper'],
-  'Team 1': ['Nych', 'Colin', 'Norton', 'Booya'],
+  'Team 1': ['Nych', 'Colster', 'Norton', 'Booya'],
   'Team 2': ['Body', 'Boxy', 'Tank', 'Muldoon'],
-  'Team 3': ['Murr', 'Sewter', 'Burnie', 'Newt'],
+  'Team 3': ['Murray', 'Sewter', 'Burnie', 'Newt'],
   'Team 4': ['Stubby', 'Pete', 'No Show', 'Mckay'],
   'Team 5': ['Hooper', 'Burns', 'Jocquo', 'Fatty'],
   'Team 6': ['TBone', 'Sub', 'Dano', 'Morash'],
 };
+
+// Historical KAKs who no longer appear in the active 2025 roster
+export const HISTORICAL_KAKS: { name: string; status: 'retired' | 'in-memoriam' }[] = [
+  { name: 'Draper',          status: 'in-memoriam' },
+  { name: 'Nate',            status: 'retired' },
+  { name: 'Needham',         status: 'retired' },
+  { name: 'Murray Kightly',  status: 'retired' },
+  { name: 'Snake',           status: 'retired' },
+  { name: 'Chateauvert',     status: 'retired' },
+  { name: 'Dave Draper',     status: 'retired' },
+  { name: 'Kittner',         status: 'retired' },
+];
 
 // ---------------------------------------------------------------------------
 // Exported functions (accept a db instance so they can be unit-tested)
@@ -38,9 +50,12 @@ export const TEAM_2025_MEMBERS: Record<string, [string, string, string, string]>
  * Returns the full kaks list after insertion.
  */
 export async function insertKaks(dbInstance: typeof defaultDb): Promise<typeof kaks.$inferSelect[]> {
+  const active = KAK_2025_NAMES.map(name => ({ name, status: 'active' as const }));
+  const historical = HISTORICAL_KAKS.map(({ name, status }) => ({ name, status }));
+
   await dbInstance
     .insert(kaks)
-    .values(KAK_2025_NAMES.map(name => ({ name, status: 'active' as const })))
+    .values([...active, ...historical])
     .onConflictDoNothing();
 
   return dbInstance.select().from(kaks);
