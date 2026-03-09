@@ -18,15 +18,15 @@ const StandingsTab = lazy(() => import("@/components/StandingsTab"));
 type Tab = {
   id: string;
   name: string;
-  emoji: string;
+  icon: string;
 };
 
 const tabs: Tab[] = [
-  { id: "teams", name: "Teams", emoji: "👥" },
-  { id: "fish", name: "Fish", emoji: "🎣" },
-  { id: "chug", name: "Chug", emoji: "🍺" },
-  { id: "golf", name: "Golf", emoji: "⛳" },
-  { id: "standings", name: "Standings", emoji: "🏆" },
+  { id: "teams",    name: "Teams",     icon: "👥" },
+  { id: "fish",     name: "Fish",      icon: "🎣" },
+  { id: "chug",     name: "Chug",      icon: "🍺" },
+  { id: "golf",     name: "Golf",      icon: "⛳" },
+  { id: "standings",name: "Standings", icon: "🏆" },
 ];
 
 export default function YearPage() {
@@ -60,10 +60,12 @@ export default function YearPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading KAK Cup {year}...</p>
+          <div style={{ width: "40px", height: "40px", border: "2px solid var(--border-hi)", borderTop: "2px solid var(--orange)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+          <p style={{ marginTop: "1rem", fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-dim)" }}>
+            LOADING KAK CUP {year}...
+          </p>
         </div>
       </div>
     );
@@ -71,10 +73,14 @@ export default function YearPage() {
 
   if (!yearData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-800 mb-4">Year Not Found</h1>
-          <p className="text-slate-600">KAK Cup {year} is not available.</p>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", color: "var(--orange)", marginBottom: "0.5rem" }}>
+            YEAR NOT FOUND
+          </h1>
+          <p style={{ fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>
+            KAK Cup {year} is not available.
+          </p>
         </div>
       </div>
     );
@@ -83,72 +89,52 @@ export default function YearPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border py-3">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-primary" data-testid="title-year">
-              KAK Cup {yearData.year}
+            <h1
+              style={{ fontFamily: "var(--font-display)", color: "var(--orange)", fontSize: "0.95rem", letterSpacing: "0.1em", textTransform: "uppercase", textShadow: "0 0 12px rgba(255,90,0,0.4)" }}
+              data-testid="title-year"
+            >
+              KAK CUP <span style={{ color: "var(--ice)", textShadow: "0 0 12px rgba(136,204,255,0.4)" }}>{yearData.year}</span>
             </h1>
-            
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Link
-                href="/"
-                className="btn-ghost flex items-center gap-1 px-2 py-1"
-                data-testid="link-home"
-              >
-                <Home size={18} />
-                <span className="text-sm font-medium hidden sm:inline">Home</span>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link href="/" className="btn-ghost flex items-center gap-1 text-xs" data-testid="link-home">
+                <Home size={14} />
+                <span className="hidden sm:inline">Home</span>
               </Link>
-              <Link
-                href="/kak-stats"
-                className="btn-ghost flex items-center gap-1 px-2 py-1"
-                data-testid="link-kak-stats"
-              >
-                <Trophy size={18} />
-                <span className="text-sm font-medium hidden sm:inline">KAK Stats</span>
+              <Link href="/kak-stats" className="btn-ghost flex items-center gap-1 text-xs" data-testid="link-kak-stats">
+                <Trophy size={14} />
+                <span className="hidden sm:inline">KAK Stats</span>
               </Link>
-              
+
               {isAuthenticated ? (
                 <>
-                  <span className="text-xs sm:text-sm text-muted-foreground">
-                    <span className="hidden sm:inline text-foreground">{user?.firstName || user?.username}</span>
-                    <span className="sm:hidden text-foreground">{user?.username}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)" }}>
+                    <span className="hidden sm:inline">{user?.firstName || user?.username}</span>
+                    <span className="sm:hidden">{user?.username}</span>
                     {user?.role === 'admin' && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
-                        Admin
+                      <span style={{ marginLeft: "0.4rem", padding: "0.1rem 0.4rem", background: "rgba(255,90,0,0.15)", color: "var(--orange)", fontSize: "0.6rem", fontFamily: "var(--font-display)", letterSpacing: "0.08em" }}>
+                        ADMIN
                       </span>
                     )}
                   </span>
                   {user?.role === 'admin' && (
-                    <Button
-                      onClick={() => setLocation('/settings')}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1 px-2 py-1"
-                    >
-                      <Settings size={14} />
-                    </Button>
+                    <button onClick={() => setLocation('/settings')} className="btn-ghost p-1.5">
+                      <Settings size={14} style={{ color: "var(--ice)" }} />
+                    </button>
                   )}
-                  <Button
-                    onClick={handleLogout}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm"
-                  >
+                  <button onClick={handleLogout} className="btn-ghost flex items-center gap-1 text-xs">
                     <LogOut size={14} />
                     <span className="hidden sm:inline">Logout</span>
-                  </Button>
+                  </button>
                 </>
               ) : (
-                <Button
-                  onClick={() => setLocation('/login')}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm"
-                >
+                <button onClick={() => setLocation('/login')} className="btn-ghost flex items-center gap-1 text-xs">
                   <LogIn size={14} />
                   <span className="hidden sm:inline">Login</span>
-                </Button>
+                </button>
               )}
             </div>
           </div>
@@ -160,15 +146,15 @@ export default function YearPage() {
         <Suspense fallback={
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-3 text-sm text-muted-foreground">Loading...</p>
+              <div style={{ width: "32px", height: "32px", border: "2px solid var(--border-hi)", borderTop: "2px solid var(--orange)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+              <p style={{ marginTop: "0.75rem", fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)" }}>LOADING...</p>
             </div>
           </div>
         }>
-          {activeTab === "teams" && <TeamsTab yearId={yearData.id} />}
-          {activeTab === "fish" && <FishTab yearId={yearData.id} yearData={yearData} />}
-          {activeTab === "chug" && <ChugTab yearId={yearData.id} yearData={yearData} />}
-          {activeTab === "golf" && <GolfTab yearId={yearData.id} yearData={yearData} />}
+          {activeTab === "teams"     && <TeamsTab yearId={yearData.id} />}
+          {activeTab === "fish"      && <FishTab yearId={yearData.id} yearData={yearData} />}
+          {activeTab === "chug"      && <ChugTab yearId={yearData.id} yearData={yearData} />}
+          {activeTab === "golf"      && <GolfTab yearId={yearData.id} yearData={yearData} />}
           {activeTab === "standings" && <StandingsTab yearId={yearData.id} />}
         </Suspense>
 
@@ -178,37 +164,57 @@ export default function YearPage() {
             href="https://github.com/atulify/kakcup/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            className="inline-flex items-center gap-1.5"
+            style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.65rem", transition: "color 0.2s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ice)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
           >
-            <Github size={14} />
-            <span>atulify/kakcup</span>
-            <span>{__COMMIT_HASH__}</span>
+            <Github size={12} />
+            <span>atulify/kakcup · {__COMMIT_HASH__}</span>
           </a>
         </footer>
       </main>
 
-      {/* Bottom Tabs - Fixed to bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-area-pb z-10">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-5 gap-0">
-            {tabs.map((tab) => (
+      {/* Bottom Tab Bar — fixed */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--card)", borderTop: "1px solid var(--border-hi)", zIndex: 10 }} className="safe-area-pb">
+        <div className="max-w-7xl mx-auto grid grid-cols-5">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center justify-center py-2 px-1 transition-colors duration-200 border-r border-border last:border-r-0 ${
-                  activeTab === tab.id
-                    ? "text-primary bg-primary/10 border-t-2 border-t-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                }`}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0.5rem 0.25rem",
+                  transition: "all 0.15s",
+                  borderTop: isActive ? "2px solid var(--orange)" : "2px solid transparent",
+                  background: isActive ? "rgba(255,90,0,0.07)" : "transparent",
+                  color: isActive ? "var(--orange)" : "var(--text-dim)",
+                  borderRight: "1px solid var(--border)",
+                }}
+                className="last:border-r-0"
                 data-testid={`tab-${tab.id}`}
               >
-                <span className="text-xl mb-0.5 leading-none">{tab.emoji}</span>
-                <span className="text-xs font-medium">{tab.name}</span>
+                <span style={{ fontSize: "1.1rem", lineHeight: 1, marginBottom: "0.2rem" }}>{tab.icon}</span>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  {tab.name}
+                </span>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -266,8 +266,8 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-slate-600">Loading golf scores...</p>
+          <div style={{ width: "32px", height: "32px", border: "2px solid var(--border-hi)", borderTop: "2px solid var(--orange)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" }} /><style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          
         </div>
       </div>
     );
@@ -370,7 +370,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                               {teamStat.members.map((member, index) => (
-                                <div key={index} className="text-xs text-muted-foreground truncate">
+                                <div key={index} className="text-xs truncate" style={{ color: "var(--orange-hi)" }}>
                                   {member}
                                 </div>
                               ))}
@@ -429,8 +429,8 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                         {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
                         {teamStat.isLowestScore && <span className="text-amber-600 text-lg">💩</span>}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {teamStat.members.join(' • ')}
+                      <div className="text-xs" style={{ color: "var(--orange-hi)" }}>
+                        {teamStat.members.join(' · ')}
                       </div>
                     </div>
                     <div className="text-right">

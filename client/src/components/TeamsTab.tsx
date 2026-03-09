@@ -64,7 +64,7 @@ function KakCombobox({ value, onChange, kaks, placeholder = "Search KAK…", tes
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          className="input w-full"
           data-testid={testId}
           autoComplete="off"
         />
@@ -72,7 +72,7 @@ function KakCombobox({ value, onChange, kaks, placeholder = "Search KAK…", tes
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 text-muted-foreground hover:text-foreground"
+            style={{ position: "absolute", right: "0.5rem", background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", padding: "0.25rem" }}
             tabIndex={-1}
           >
             <X size={14} />
@@ -80,12 +80,14 @@ function KakCombobox({ value, onChange, kaks, placeholder = "Search KAK…", tes
         )}
       </div>
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <ul style={{ position: "absolute", zIndex: 50, width: "100%", marginTop: "2px", background: "var(--card)", border: "1px solid var(--border-hi)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", maxHeight: "192px", overflowY: "auto", listStyle: "none", padding: 0, margin: "2px 0 0 0" }}>
           {filtered.map(kak => (
             <li
               key={kak.id}
               onMouseDown={() => handleSelect(kak)}
-              className="px-3 py-2 text-sm cursor-pointer hover:bg-accent text-foreground"
+              style={{ padding: "0.5rem 0.75rem", fontSize: "0.85rem", cursor: "pointer", fontFamily: "var(--font-mono)", color: "var(--foreground)", transition: "background 0.1s" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,90,0,0.08)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
               {kak.name}
             </li>
@@ -93,7 +95,7 @@ function KakCombobox({ value, onChange, kaks, placeholder = "Search KAK…", tes
         </ul>
       )}
       {open && query.length > 0 && filtered.length === 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg px-3 py-2 text-sm text-muted-foreground">
+        <div style={{ position: "absolute", zIndex: 50, width: "100%", marginTop: "2px", background: "var(--card)", border: "1px solid var(--border-hi)", padding: "0.5rem 0.75rem", fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--text-dim)" }}>
           No KAKs found
         </div>
       )}
@@ -368,11 +370,12 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-slate-600">Loading teams...</p>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "2rem" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: "32px", height: "32px", border: "2px solid var(--border-hi)", borderTop: "2px solid var(--orange)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+          <p style={{ marginTop: "0.75rem", fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)" }}>LOADING TEAMS...</p>
         </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -380,325 +383,145 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
   const sortedTeams = teams?.sort((a: Team, b: Team) => a.position - b.position) || [];
 
   return (
-    <div className="p-4 bg-background">
+    <div style={{ padding: "1rem", background: "var(--background)" }}>
       {/* Add Team Button */}
-      <div className="mb-4 flex justify-end">
+      <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "flex-end" }}>
         {isAdmin && (
           <button
             onClick={openAddModal}
             disabled={(teams?.length || 0) >= 7}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+            className="btn-primary flex items-center gap-2"
             data-testid="button-add-team"
           >
-            <Plus size={20} />
+            <Plus size={16} />
             Add Team
           </button>
         )}
       </div>
 
-      <div className="w-full">
-        <h2 className="text-xl font-semibold text-foreground mb-4 text-center">Teams</h2>
+      <div style={{ width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--orange)", textShadow: "0 0 12px rgba(255,90,0,0.4)" }}>
+            Teams
+          </h2>
+        </div>
         {sortedTeams.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border rounded-lg mx-4">
-            <div className="text-muted-foreground">
-              <p className="text-lg font-medium">No teams yet</p>
-              <p className="mt-2">Click "Add Team" to create your first team</p>
-            </div>
+          <div style={{ textAlign: "center", padding: "3rem", background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-md)", margin: "0 1rem" }}>
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.1em", color: "var(--text-dim)" }}>NO TEAMS YET</p>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-dim)", marginTop: "0.5rem" }}>Click "Add Team" to create the first team</p>
           </div>
         ) : (
           <>
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
-              <div className="overflow-x-auto">
-                <table className="border-collapse border border-border text-sm bg-card" style={{width: 'auto'}}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", background: "var(--card)", border: "1px solid var(--border-hi)", fontSize: "0.85rem", width: "auto", fontFamily: "var(--font-mono)" }}>
                   <thead>
-                    <tr className="table-header">
-                      <th className="border border-border px-2 py-2 text-left font-medium text-foreground" style={{minWidth: '150px', maxWidth: '220px'}}>
-                        Team Name
-                      </th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '100px'}}>
-                        KAK 1
-                      </th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '100px'}}>
-                        KAK 2
-                      </th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '100px'}}>
-                        KAK 3
-                      </th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '100px'}}>
-                        KAK 4
-                      </th>
+                    <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
+                      <th style={{ padding: "0.5rem 0.75rem", textAlign: "left", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", fontWeight: 600, borderRight: "1px solid var(--border)", minWidth: "150px", maxWidth: "220px" }}>TEAM</th>
+                      {["KAK 1","KAK 2","KAK 3","KAK 4"].map(h => (
+                        <th key={h} style={{ padding: "0.5rem 0.75rem", textAlign: "center", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", fontWeight: 600, borderRight: "1px solid var(--border)", width: "100px" }}>{h}</th>
+                      ))}
                       {isAdmin && (
-                        <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '100px'}}>
-                          Actions
-                        </th>
+                        <th style={{ padding: "0.5rem 0.75rem", textAlign: "center", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", fontWeight: 600, width: "90px" }}>ACTIONS</th>
                       )}
                     </tr>
                   </thead>
-            <tbody>
-              {sortedTeams.map((team: Team) => (
-              <tr key={team.id} className="hover:bg-accent/50">
-                {/* Team Name */}
-                <td className="border border-border px-2 py-2" style={{minWidth: '150px', maxWidth: '220px'}}>
-                  {editingTeam === team.id && editingField === "name" ? (
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      onBlur={handleSave}
-                      className="input w-full px-2 py-1"
-                      autoFocus
-                      data-testid={`input-team-name-${team.position}`}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleEdit(team.id, "name", team.name)}
-                      disabled={team.locked}
-                      className={`w-full text-left px-2 py-1 rounded transition-colors ${
-                        team.locked 
-                          ? "cursor-not-allowed text-foreground font-bold" 
-                          : "text-foreground hover:bg-accent"
-                      }`}
-                      data-testid={`team-name-${team.position}`}
-                    >
-                      {team.name}
-                    </button>
-                  )}
-                </td>
-                
-                {/* KAK 1 */}
-                <td className="border border-border px-2 py-2 text-center" style={{width: '100px'}}>
-                  {editingTeam === team.id && editingField === "kak1" ? (
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      onBlur={handleSave}
-                      className="input w-full px-1 py-1 text-center text-sm"
-                      autoFocus
-                      data-testid={`input-kak1-${team.position}`}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleEdit(team.id, "kak1", team.kak1 || "")}
-                      disabled={team.locked}
-                      className={`w-full px-1 py-1 rounded transition-colors text-sm ${
-                        team.locked 
-                          ? "cursor-not-allowed text-foreground font-bold" 
-                          : "text-muted-foreground hover:bg-accent"
-                      }`}
-                      data-testid={`kak1-${team.position}`}
-                    >
-                      {team.kak1 || "-"}
-                    </button>
-                  )}
-                </td>
-
-                {/* KAK 2 */}
-                <td className="border border-border px-2 py-2 text-center" style={{width: '100px'}}>
-                  {editingTeam === team.id && editingField === "kak2" ? (
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      onBlur={handleSave}
-                      className="input w-full px-1 py-1 text-center text-sm"
-                      autoFocus
-                      data-testid={`input-kak2-${team.position}`}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleEdit(team.id, "kak2", team.kak2 || "")}
-                      disabled={team.locked}
-                      className={`w-full px-1 py-1 rounded transition-colors text-sm ${
-                        team.locked 
-                          ? "cursor-not-allowed text-foreground font-bold" 
-                          : "text-muted-foreground hover:bg-accent"
-                      }`}
-                      data-testid={`kak2-${team.position}`}
-                    >
-                      {team.kak2 || "-"}
-                    </button>
-                  )}
-                </td>
-
-                {/* KAK 3 */}
-                <td className="border border-border px-2 py-2 text-center" style={{width: '100px'}}>
-                  {editingTeam === team.id && editingField === "kak3" ? (
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      onBlur={handleSave}
-                      className="input w-full px-1 py-1 text-center text-sm"
-                      autoFocus
-                      data-testid={`input-kak3-${team.position}`}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleEdit(team.id, "kak3", team.kak3 || "")}
-                      disabled={team.locked}
-                      className={`w-full px-1 py-1 rounded transition-colors text-sm ${
-                        team.locked 
-                          ? "cursor-not-allowed text-foreground font-bold" 
-                          : "text-muted-foreground hover:bg-accent"
-                      }`}
-                      data-testid={`kak3-${team.position}`}
-                    >
-                      {team.kak3 || "-"}
-                    </button>
-                  )}
-                </td>
-
-                {/* KAK 4 */}
-                <td className="border border-border px-2 py-2 text-center" style={{width: '100px'}}>
-                  {editingTeam === team.id && editingField === "kak4" ? (
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      onBlur={handleSave}
-                      className="input w-full px-1 py-1 text-center text-sm"
-                      autoFocus
-                      data-testid={`input-kak4-${team.position}`}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleEdit(team.id, "kak4", team.kak4 || "")}
-                      disabled={team.locked}
-                      className={`w-full px-1 py-1 rounded transition-colors text-sm ${
-                        team.locked 
-                          ? "cursor-not-allowed text-foreground font-bold" 
-                          : "text-muted-foreground hover:bg-accent"
-                      }`}
-                      data-testid={`kak4-${team.position}`}
-                    >
-                      {team.kak4 || "-"}
-                    </button>
-                  )}
-                </td>
-
-                {/* Actions */}
-                {isAdmin && (
-                  <td className="border border-border px-2 py-2 text-center" style={{width: '100px'}}>
-                    <div className="flex items-center justify-center gap-1">
-                      {/* Edit Button */}
-                      <button
-                        onClick={() => openEditModal(team)}
-                        disabled={team.locked}
-                        className={`p-2 rounded transition-colors ${
-                          team.locked 
-                            ? "text-muted-foreground cursor-not-allowed" 
-                            : "text-muted-foreground hover:text-primary hover:bg-accent"
-                        }`}
-                        data-testid={`button-edit-team-${team.position}`}
+                  <tbody>
+                    {sortedTeams.map((team: Team) => (
+                      <tr
+                        key={team.id}
+                        style={{ borderBottom: "1px solid var(--border)", transition: "background 0.15s" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.02)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                       >
-                        <Edit size={16} />
-                      </button>
+                        {/* Team Name */}
+                        <td style={{ padding: "0.5rem 0.75rem", borderRight: "1px solid var(--border)", minWidth: "150px", maxWidth: "220px" }}>
+                          {editingTeam === team.id && editingField === "name" ? (
+                            <input type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={handleKeyPress} onBlur={handleSave} className="input w-full" autoFocus data-testid={`input-team-name-${team.position}`} />
+                          ) : (
+                            <button onClick={() => handleEdit(team.id, "name", team.name)} disabled={team.locked} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0.125rem 0.25rem", cursor: team.locked ? "default" : "pointer", color: "var(--foreground)", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: "0.85rem" }} data-testid={`team-name-${team.position}`}>
+                              {team.name}
+                            </button>
+                          )}
+                        </td>
+                        {/* KAK 1-4 */}
+                        {(["kak1","kak2","kak3","kak4"] as const).map(field => (
+                          <td key={field} style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", width: "100px" }}>
+                            {editingTeam === team.id && editingField === field ? (
+                              <input type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)} onKeyDown={handleKeyPress} onBlur={handleSave} className="input w-full" autoFocus data-testid={`input-${field}-${team.position}`} />
+                            ) : (
+                              <button onClick={() => handleEdit(team.id, field, team[field] || "")} disabled={team.locked} style={{ display: "block", width: "100%", background: "none", border: "none", padding: "0.125rem", cursor: team.locked ? "default" : "pointer", color: team[field] ? "var(--foreground)" : "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }} data-testid={`${field}-${team.position}`}>
+                                {team[field] || "—"}
+                              </button>
+                            )}
+                          </td>
+                        ))}
+                        {/* Actions */}
+                        {isAdmin && (
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem" }}>
+                              <button onClick={() => openEditModal(team)} disabled={team.locked} style={{ padding: "0.375rem", background: "none", border: "none", cursor: team.locked ? "not-allowed" : "pointer", color: team.locked ? "var(--text-muted)" : "var(--ice)", transition: "color 0.15s, background 0.15s", borderRadius: "2px" }} data-testid={`button-edit-team-${team.position}`}
+                                onMouseEnter={(e) => { if (!team.locked) (e.currentTarget as HTMLElement).style.color = "var(--orange)"; }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = team.locked ? "var(--text-muted)" : "var(--ice)"; }}
+                              >
+                                <Edit size={15} />
+                              </button>
+                              {isTeamFilled(team) && (
+                                <button onClick={() => handleToggleLock(team)} style={{ padding: "0.375rem", background: "none", border: "none", cursor: "pointer", color: team.locked ? "var(--destructive)" : "var(--golf)", transition: "color 0.15s", borderRadius: "2px" }} data-testid={`button-${team.locked ? 'unlock' : 'lock'}-team-${team.position}`}>
+                                  {team.locked ? <Unlock size={15} /> : <Lock size={15} />}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                      {/* Lock/Unlock Button - only show if team is filled */}
-                      {isTeamFilled(team) && (
-                        <button
-                          onClick={() => handleToggleLock(team)}
-                          className={`p-2 rounded transition-colors ${
-                            team.locked
-                              ? "text-red-600 hover:text-red-700 hover:bg-red-50"
-                              : "text-green-600 hover:text-green-700 hover:bg-green-50"
-                          }`}
-                          data-testid={`button-${team.locked ? 'unlock' : 'lock'}-team-${team.position}`}
-                        >
-                          {team.locked ? <Unlock size={16} /> : <Lock size={16} />}
-                        </button>
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col gap-3 px-2">
+              {sortedTeams.map((team: Team) => (
+                <div key={team.id} style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-sm)", padding: "1rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                    <div>
+                      <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.05em", color: "var(--foreground)", fontWeight: 700 }}>
+                        {team.name}
+                      </h3>
+                      {team.locked && (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--destructive)" }}>⬡ LOCKED</span>
                       )}
                     </div>
-                  </td>
-                )}
-              </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-3 mx-4">
-            {sortedTeams.map((team: Team) => (
-              <div key={team.id} className="bg-card border border-border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className={`font-semibold ${team.locked ? 'text-foreground' : 'text-foreground'}`}>
-                      {team.name}
-                    </h3>
-                    {team.locked && (
-                      <span className="text-xs text-red-500">🔒 Locked</span>
+                    {isAdmin && (
+                      <div style={{ display: "flex", gap: "0.25rem" }}>
+                        <button onClick={() => openEditModal(team)} disabled={team.locked} style={{ padding: "0.375rem", background: "none", border: "none", cursor: team.locked ? "not-allowed" : "pointer", color: team.locked ? "var(--text-muted)" : "var(--ice)" }} data-testid={`button-edit-team-${team.position}`}>
+                          <Edit size={14} />
+                        </button>
+                        {isTeamFilled(team) && (
+                          <button onClick={() => handleToggleLock(team)} style={{ padding: "0.375rem", background: "none", border: "none", cursor: "pointer", color: team.locked ? "var(--destructive)" : "var(--golf)" }} data-testid={`button-${team.locked ? 'unlock' : 'lock'}-team-${team.position}`}>
+                            {team.locked ? <Unlock size={14} /> : <Lock size={14} />}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {isAdmin && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => openEditModal(team)}
-                        disabled={team.locked}
-                        className={`p-1.5 rounded transition-colors ${
-                          team.locked 
-                            ? "text-muted-foreground cursor-not-allowed" 
-                            : "text-muted-foreground hover:text-primary hover:bg-accent"
-                        }`}
-                        data-testid={`button-edit-team-${team.position}`}
-                      >
-                        <Edit size={14} />
-                      </button>
-                      {isTeamFilled(team) && (
-                        <button
-                          onClick={() => handleToggleLock(team)}
-                          className={`p-1.5 rounded transition-colors ${
-                            team.locked
-                              ? "text-red-600 hover:text-red-700"
-                              : "text-green-600 hover:text-green-700"
-                          }`}
-                          data-testid={`button-${team.locked ? 'unlock' : 'lock'}-team-${team.position}`}
-                        >
-                          {team.locked ? <Unlock size={14} /> : <Lock size={14} />}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-muted-foreground font-medium">KAK 1:</span>
-                    <div className={`${team.locked ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
-                      {team.kak1 || "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">KAK 2:</span>
-                    <div className={`${team.locked ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
-                      {team.kak2 || "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">KAK 3:</span>
-                    <div className={`${team.locked ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
-                      {team.kak3 || "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">KAK 4:</span>
-                    <div className={`${team.locked ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>
-                      {team.kak4 || "-"}
-                    </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                    {(["kak1","kak2","kak3","kak4"] as const).map((field, i) => (
+                      <div key={field}>
+                        <span style={{ fontFamily: "var(--font-display)", fontSize: "0.55rem", letterSpacing: "0.1em", color: "var(--text-dim)" }}>KAK {i+1}</span>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: team[field] ? "var(--foreground)" : "var(--text-muted)" }}>
+                          {team[field] || "—"}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -706,61 +529,30 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
 
       {/* Edit Team Modal */}
       {showEditModal && selectedTeam && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowEditModal(false)}>
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Edit Team</h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-muted-foreground hover:text-foreground"
-                data-testid="button-close-edit-modal"
-              >
-                <X size={20} />
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowEditModal(false)}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-lg)", padding: "1.5rem", width: "100%", maxWidth: "420px", margin: "0 1rem" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--orange)" }}>Edit Team</h3>
+              <button onClick={() => setShowEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", padding: "0.25rem" }} data-testid="button-close-edit-modal">
+                <X size={18} />
               </button>
             </div>
-
-            <div className="space-y-4">
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Team Name</label>
-                <input
-                  type="text"
-                  value={modalForm.name}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter team name"
-                  data-testid="input-edit-team-name"
-                />
+                <label style={{ display: "block", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--ice)", textTransform: "uppercase", marginBottom: "0.375rem" }}>Team Name</label>
+                <input type="text" value={modalForm.name} onChange={(e) => setModalForm(prev => ({ ...prev, name: e.target.value }))} className="input w-full" placeholder="Enter team name" data-testid="input-edit-team-name" />
               </div>
-
               {([1, 2, 3, 4] as const).map(n => (
                 <div key={n}>
-                  <label className="block text-sm font-medium text-foreground mb-1">KAK {n}</label>
-                  <KakCombobox
-                    value={modalForm[`kak${n}Name`]}
-                    kaks={activeKaks}
-                    onChange={(id, name) => setModalForm(prev => ({ ...prev, [`kak${n}Id`]: id, [`kak${n}Name`]: name }))}
-                    placeholder="Search KAK…"
-                    testId={`input-edit-kak${n}`}
-                  />
+                  <label style={{ display: "block", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--ice)", textTransform: "uppercase", marginBottom: "0.375rem" }}>KAK {n}</label>
+                  <KakCombobox value={modalForm[`kak${n}Name`]} kaks={activeKaks} onChange={(id, name) => setModalForm(prev => ({ ...prev, [`kak${n}Id`]: id, [`kak${n}Name`]: name }))} placeholder="Search KAK…" testId={`input-edit-kak${n}`} />
                 </div>
               ))}
             </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 px-4 py-2 border border-border text-muted-foreground rounded-lg hover:bg-accent transition-colors"
-                data-testid="button-cancel-edit"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateTeam}
-                disabled={!validateForm() || updateTeamMutation.isPending}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
-                data-testid="button-save-edit"
-              >
-                {updateTeamMutation.isPending ? "Updating..." : "Update Team"}
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+              <button onClick={() => setShowEditModal(false)} className="btn-secondary flex-1" data-testid="button-cancel-edit">Cancel</button>
+              <button onClick={handleUpdateTeam} disabled={!validateForm() || updateTeamMutation.isPending} className="btn-primary flex-1" data-testid="button-save-edit">
+                {updateTeamMutation.isPending ? "UPDATING..." : "UPDATE TEAM"}
               </button>
             </div>
           </div>
@@ -769,61 +561,30 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
 
       {/* Add Team Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Add New Team</h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-muted-foreground hover:text-foreground"
-                data-testid="button-close-add-modal"
-              >
-                <X size={20} />
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowAddModal(false)}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-lg)", padding: "1.5rem", width: "100%", maxWidth: "420px", margin: "0 1rem" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--orange)" }}>Add New Team</h3>
+              <button onClick={() => setShowAddModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", padding: "0.25rem" }} data-testid="button-close-add-modal">
+                <X size={18} />
               </button>
             </div>
-
-            <div className="space-y-4">
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Team Name</label>
-                <input
-                  type="text"
-                  value={modalForm.name}
-                  onChange={(e) => setModalForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter team name"
-                  data-testid="input-add-team-name"
-                />
+                <label style={{ display: "block", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--ice)", textTransform: "uppercase", marginBottom: "0.375rem" }}>Team Name</label>
+                <input type="text" value={modalForm.name} onChange={(e) => setModalForm(prev => ({ ...prev, name: e.target.value }))} className="input w-full" placeholder="Enter team name" data-testid="input-add-team-name" />
               </div>
-
               {([1, 2, 3, 4] as const).map(n => (
                 <div key={n}>
-                  <label className="block text-sm font-medium text-foreground mb-1">KAK {n}</label>
-                  <KakCombobox
-                    value={modalForm[`kak${n}Name`]}
-                    kaks={activeKaks}
-                    onChange={(id, name) => setModalForm(prev => ({ ...prev, [`kak${n}Id`]: id, [`kak${n}Name`]: name }))}
-                    placeholder="Search KAK…"
-                    testId={`input-add-kak${n}`}
-                  />
+                  <label style={{ display: "block", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--ice)", textTransform: "uppercase", marginBottom: "0.375rem" }}>KAK {n}</label>
+                  <KakCombobox value={modalForm[`kak${n}Name`]} kaks={activeKaks} onChange={(id, name) => setModalForm(prev => ({ ...prev, [`kak${n}Id`]: id, [`kak${n}Name`]: name }))} placeholder="Search KAK…" testId={`input-add-kak${n}`} />
                 </div>
               ))}
             </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 border border-border text-muted-foreground rounded-lg hover:bg-accent transition-colors"
-                data-testid="button-cancel-add"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateTeam}
-                disabled={!validateForm() || createTeamMutation.isPending}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
-                data-testid="button-save-add"
-              >
-                {createTeamMutation.isPending ? "Saving..." : "Save Team"}
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+              <button onClick={() => setShowAddModal(false)} className="btn-secondary flex-1" data-testid="button-cancel-add">Cancel</button>
+              <button onClick={handleCreateTeam} disabled={!validateForm() || createTeamMutation.isPending} className="btn-primary flex-1" data-testid="button-save-add">
+                {createTeamMutation.isPending ? "SAVING..." : "SAVE TEAM"}
               </button>
             </div>
           </div>
