@@ -83,7 +83,7 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
 // ResultCard — one card per champ or boot group in a year
 // ---------------------------------------------------------------------------
 function ResultCard({ label, emoji, names, highlight }: { label: string; emoji: string; names: string[]; highlight?: boolean }) {
-  const nameColor = highlight ? "text-green-400" : "text-foreground";
+  const nameColor = highlight ? "text-white" : "text-foreground";
   // Split into columns of 4 when there are more than 4 names
   const columns: string[][] = [];
   for (let i = 0; i < names.length; i += 4) {
@@ -92,7 +92,7 @@ function ResultCard({ label, emoji, names, highlight }: { label: string; emoji: 
 
   return (
     <div className={`rounded-lg border p-3 flex-shrink-0 ${highlight ? "bg-primary/20 border-primary/40" : "bg-card border-border"}`}>
-      <div className={`text-xs font-semibold mb-2 ${highlight ? "text-primary" : "text-muted-foreground"}`}>
+      <div className={`text-xs font-semibold mb-2 ${highlight ? "text-green-400" : "text-muted-foreground"}`}>
         {emoji} {label}
       </div>
       <div className="flex gap-4">
