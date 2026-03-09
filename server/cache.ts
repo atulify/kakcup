@@ -10,6 +10,11 @@ const redis = process.env.UPSTASH_REDIS_REST_URL
   : null;
 
 const TTL = 3600; // 1-hour safety TTL in case an invalidation is ever missed
+const TTL_SHORT = 300; // 5-minute TTL for data that can be updated outside the app (e.g. direct DB inserts)
+
+export const cacheTTL = {
+  kakStats: TTL_SHORT,
+};
 
 export const cacheKeys = {
   years: "years",
@@ -21,12 +26,12 @@ export const cacheKeys = {
   golfScores: (yearId: string) => `gs:${yearId}`,
 };
 
-export async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+export async function cached<T>(key: string, fn: () => Promise<T>, ttl = TTL): Promise<T> {
   if (!redis) return fn();
   const hit = await redis.get<T>(key);
   if (hit !== null) return hit;
   const value = await fn();
-  await redis.set(key, value, { ex: TTL });
+  await redis.set(key, value, { ex: ttl });
   return value;
 }
 

@@ -55,25 +55,27 @@ function StatsTable({
       {rows.length === 0 ? (
         <div className="px-4 py-8 text-center text-muted-foreground">{emptyMessage}</div>
       ) : (
-        <table className="w-full text-sm">
+        <table className="text-sm" style={{ width: "auto", minWidth: "100%" }}>
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="px-4 py-2 text-left font-medium text-foreground w-12">Rank</th>
-              <th className="px-4 py-2 text-left font-medium text-foreground">KAK</th>
+              <th className="px-4 py-2 text-left font-medium text-foreground whitespace-nowrap">KAK</th>
               <th className="px-4 py-2 text-right font-medium text-foreground w-24">Count</th>
             </tr>
           </thead>
           <tbody>
-            {ranked.map((row, i) => (
-              <tr key={row.kakId} className="border-b border-border last:border-0 hover:bg-accent/30">
-                <td className="px-4 py-2 text-muted-foreground font-medium">
-                  {row.rank}
-                  {i > 0 && ranked[i - 1].total === row.total ? "" : ""}
-                </td>
-                <td className="px-4 py-2 text-foreground font-medium">{row.name}</td>
-                <td className="px-4 py-2 text-right text-foreground">{row.total}</td>
-              </tr>
-            ))}
+            {ranked.map((row, i) => {
+              const isFirst = row.rank === 1;
+              return (
+                <tr key={row.kakId} className={`border-b border-border last:border-0 hover:bg-accent/30 ${isFirst ? "bg-primary/20" : ""}`}>
+                  <td className={`px-4 py-2 font-extrabold ${isFirst ? "text-white" : "text-foreground"}`}>
+                    {row.rank}
+                  </td>
+                  <td className={`px-4 py-2 font-medium whitespace-nowrap ${isFirst ? "text-white" : "text-foreground"}`}>{row.name}</td>
+                  <td className={`px-4 py-2 text-right font-medium ${isFirst ? "text-blue-200" : "text-foreground"}`}>{row.total}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

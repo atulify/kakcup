@@ -2,7 +2,7 @@
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import { storage } from "./storage.js";
 import { isAdmin, type AppEnv } from "./auth.js";
-import { cached, cacheKeys, invalidate } from "./cache.js";
+import { cached, cacheTTL, cacheKeys, invalidate } from "./cache.js";
 import {
   calculateTop3FishTotal,
   rankFishTeams,
@@ -367,7 +367,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
 
   app.get("/api/kak-stats", async (c) => {
     try {
-      const stats = await cached(cacheKeys.kakStats, () => storage.getKakStats());
+      const stats = await cached(cacheKeys.kakStats, () => storage.getKakStats(), cacheTTL.kakStats);
       return jsonWithEtag(c, stats);
     } catch {
       return c.json({ error: "Failed to fetch KAK stats" }, 500);
