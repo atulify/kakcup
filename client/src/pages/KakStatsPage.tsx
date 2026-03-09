@@ -47,12 +47,12 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
   }
 
   return (
-    <table className="text-sm" style={{ width: "auto", minWidth: "100%" }}>
+    <table className="text-sm" style={{ width: "auto" }}>
       <thead>
         <tr className="border-b border-border bg-muted/40">
           <th className="px-4 py-2 text-left font-medium text-foreground w-12">Rank</th>
           <th className="px-4 py-2 text-left font-medium text-foreground whitespace-nowrap">KAK</th>
-          <th className="px-4 py-2 text-right font-medium text-foreground w-24">Count</th>
+          <th className="px-4 py-2 text-right font-medium text-foreground w-20">Count</th>
         </tr>
       </thead>
       <tbody>
@@ -61,7 +61,7 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
           const isTied = ranked.filter(r => r.total === row.total).length > 1;
           const rankLabel = isTied ? `T-${row.rank}` : `${row.rank}`;
           return (
-            <tr key={row.kakId} className={`border-b border-border last:border-0 hover:bg-accent/30 ${isFirst ? "bg-primary/20" : ""}`}>
+            <tr key={row.kakId} className={`border-b border-border last:border-0 hover:bg-accent/30 ${isFirst ? "bg-primary/30" : ""}`}>
               <td className={`px-4 py-2 font-extrabold ${isFirst ? "text-white" : "text-foreground"}`}>
                 {rankLabel}
               </td>
