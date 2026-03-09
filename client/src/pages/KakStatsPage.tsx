@@ -27,18 +27,12 @@ type Section = "champs" | "boots" | "results";
 // StatsTable — used for both Champs and Boot sections
 // ---------------------------------------------------------------------------
 function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: string }) {
-  const ranked = rows.map((row, i, arr) => {
-    let rank = i === 0 ? 1 : arr[i - 1].total === row.total ? arr[i - 1].total : i + 1;
-    return { ...row, rank };
-  });
-  let lastRank = 1;
-  for (let i = 0; i < ranked.length; i++) {
-    if (i === 0) { lastRank = 1; continue; }
+  const ranked = rows.map((row, i) => ({ ...row, rank: i + 1, tied: false }));
+  for (let i = 1; i < ranked.length; i++) {
     if (ranked[i].total === ranked[i - 1].total) {
       ranked[i].rank = ranked[i - 1].rank;
-    } else {
-      lastRank = i + 1;
-      ranked[i].rank = lastRank;
+      ranked[i].tied = true;
+      ranked[i - 1].tied = true;
     }
   }
 
@@ -58,8 +52,7 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
       <tbody>
         {ranked.map((row) => {
           const isFirst = row.rank === 1;
-          const isTied = ranked.filter(r => r.total === row.total).length > 1;
-          const rankLabel = isTied ? `T-${row.rank}` : `${row.rank}`;
+          const rankLabel = row.tied ? `T-${row.rank}` : `${row.rank}`;
           return (
             <tr key={row.kakId} className={`border-b border-border last:border-0 hover:bg-accent/30 ${isFirst ? "bg-primary/30" : ""}`}>
               <td className={`px-4 py-2 font-extrabold ${isFirst ? "text-white" : "text-foreground"}`}>
