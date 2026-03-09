@@ -3,33 +3,89 @@
 @tailwind utilities;
 
 :root {
-  /* ChatGPT-inspired Dark Theme */
-  --background: hsl(217, 33%, 8%);
-  --foreground: hsl(213, 31%, 91%);
-  --card: hsl(218, 32%, 12%);
-  --card-foreground: hsl(213, 31%, 91%);
-  --popover: hsl(218, 32%, 12%);
-  --popover-foreground: hsl(213, 31%, 91%);
-  --primary: hsl(142, 76%, 36%);
-  --primary-foreground: hsl(355, 100%, 97%);
-  --secondary: hsl(215, 28%, 17%);
-  --secondary-foreground: hsl(213, 31%, 91%);
-  --muted: hsl(215, 28%, 17%);
-  --muted-foreground: hsl(215, 20%, 65%);
-  --accent: hsl(215, 28%, 17%);
-  --accent-foreground: hsl(213, 31%, 91%);
-  --destructive: hsl(0, 63%, 31%);
-  --destructive-foreground: hsl(210, 40%, 98%);
-  --border: hsl(215, 28%, 17%);
-  --input: hsl(215, 28%, 17%);
-  --ring: hsl(142, 76%, 36%);
-  --success: hsl(142, 76%, 36%);
-  --success-foreground: hsl(355, 100%, 97%);
-  --success-dark: hsl(142, 70%, 45%);
-  --font-sans: 'Inter', sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: 'Fira Code', monospace;
-  --radius: 0.5rem;
+  /* ═══════════════════════════════════════════
+     CONCEPT B3 · ARASAKA CORP
+     Corporate dark · Orange-red neon + cold blue
+     Angular geometry · Military precision
+  ═══════════════════════════════════════════ */
+  --background:              #040608;
+  --surface:                 #07090c;
+  --foreground:              #c8d8e8;
+  --card:                    #0b0d12;
+  --card-foreground:         #c8d8e8;
+  --popover:                 #0b0d12;
+  --popover-foreground:      #c8d8e8;
+
+  /* Primary = orange */
+  --primary:                 #ff5a00;
+  --primary-foreground:      #040608;
+
+  /* Secondary = cold blue */
+  --secondary:               #0f1520;
+  --secondary-foreground:    #88ccff;
+
+  --muted:                   #0f1520;
+  --muted-foreground:        #4a6070;
+  --accent:                  #0f1520;
+  --accent-foreground:       #c8d8e8;
+  --destructive:             #cc2200;
+  --destructive-foreground:  #c8d8e8;
+  --border:                  #1a2030;
+  --input:                   #0f1520;
+  --ring:                    #ff5a00;
+
+  /* B3 extended palette */
+  --orange:                  #ff5a00;
+  --orange-hi:               #ff7a30;
+  --orange-dim:              #6a2600;
+  --orange-glow:             rgba(255, 90, 0, 0.2);
+  --blue:                    #004499;
+  --blue-hi:                 #0066cc;
+  --blue-dim:                #002255;
+  --blue-glow:               rgba(0, 102, 204, 0.15);
+  --ice:                     #88ccff;
+  --ice-dim:                 #3a6080;
+  --text-dim:                #4a6070;
+  --text-muted:              #1e2830;
+  --border-hi:               #1a2030;
+
+  /* Event accent colors */
+  --fish:                    #ff6a20;
+  --chug:                    #ffaa00;
+  --golf:                    #00dd88;
+
+  /* Typography */
+  --font-display:            'Orbitron', sans-serif;
+  --font-sans:               'Rajdhani', sans-serif;
+  --font-mono:               'Share Tech Mono', monospace;
+  --font-serif:              Georgia, serif;
+
+  /* Geometry */
+  --radius:                  0px;
+  --clip-sm:  polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  --clip-md:  polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  --clip-lg:  polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
+}
+
+/* ── Global animations ── */
+@keyframes border-crawl {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes heat-flicker {
+  0%, 100% { opacity: 1; }
+  92%       { opacity: 1; }
+  93%       { opacity: 0.6; }
+  95%       { opacity: 1; }
+  97%       { opacity: 0.8; }
+}
+@keyframes danger-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 90, 0, 0.2); }
+  50%       { box-shadow: 0 0 20px rgba(255, 90, 0, 0.2), 0 0 40px rgba(255, 90, 0, 0.08); }
+}
+@keyframes scanline-roll {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
 }
 
 @layer base {
@@ -37,58 +93,225 @@
     @apply border-border;
   }
 
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
-  
-  /* ChatGPT-style button components */
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm;
-    @apply px-4 py-2;
-  }
-  
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border;
-    @apply px-4 py-2;
-  }
-  
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    @apply hover:bg-accent hover:text-accent-foreground;
-    @apply px-4 py-2;
-  }
-  
-  .btn-destructive {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    @apply bg-destructive text-destructive-foreground hover:bg-red-700;
-    @apply px-4 py-2;
-  }
-  
-  /* ChatGPT-style input */
-  .input {
-    @apply flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  
-  /* ChatGPT-style table */
-  .table-container {
-    @apply rounded-lg border border-border bg-card;
-  }
-  
-  .table-header {
-    @apply bg-muted;
-  }
-  
-  .table-cell {
-    @apply border-border;
+  html {
+    scroll-behavior: smooth;
   }
 
-  /* iOS safe area support for PWA bottom nav */
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+
+  /* Ambient glow corners */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 100% 0%, rgba(255, 90, 0, 0.05) 0%, transparent 45%),
+      radial-gradient(ellipse at 0% 100%, rgba(0, 68, 153, 0.06) 0%, transparent 50%);
+  }
+
+  /* Circuit grid traces */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 90, 0, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 68, 153, 0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  /* All content above background */
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Display headings use Orbitron */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: 0.05em;
+  }
+}
+
+@layer components {
+  /* ── Button system ── */
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .btn-primary {
+    @apply btn-base px-6 py-2.5;
+    background: var(--orange);
+    color: #040608;
+    clip-path: var(--clip-sm);
+    position: relative;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--orange-hi) 0%, var(--orange) 50%, var(--orange-dim) 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .btn-primary:hover::before {
+    opacity: 1;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 0 16px rgba(255, 90, 0, 0.5), 0 0 32px rgba(255, 90, 0, 0.2);
+  }
+
+  .btn-secondary {
+    @apply btn-base px-4 py-2;
+    background: transparent;
+    color: var(--ice);
+    border: 1px solid var(--border-hi);
+    clip-path: var(--clip-sm);
+  }
+  .btn-secondary:hover {
+    background: rgba(136, 204, 255, 0.08);
+    border-color: var(--ice-dim);
+    color: var(--foreground);
+  }
+
+  .btn-ghost {
+    @apply btn-base px-3 py-1.5;
+    background: transparent;
+    color: var(--muted-foreground);
+  }
+  .btn-ghost:hover {
+    color: var(--foreground);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .btn-destructive {
+    @apply btn-base px-4 py-2;
+    background: var(--destructive);
+    color: var(--foreground);
+    clip-path: var(--clip-sm);
+  }
+  .btn-destructive:hover {
+    background: #ff2200;
+    box-shadow: 0 0 12px rgba(204, 34, 0, 0.5);
+  }
+
+  /* ── Input ── */
+  .input {
+    display: flex;
+    height: 2.5rem;
+    width: 100%;
+    background: var(--input);
+    color: var(--foreground);
+    border: 1px solid var(--border-hi);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-family: var(--font-mono);
+    clip-path: var(--clip-sm);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--orange);
+    box-shadow: 0 0 0 1px var(--orange), 0 0 8px rgba(255, 90, 0, 0.2);
+  }
+  .input::placeholder {
+    color: var(--text-dim);
+  }
+
+  /* ── Table primitives ── */
+  .table-container {
+    border: 1px solid var(--border-hi);
+    background: var(--card);
+    clip-path: var(--clip-md);
+    overflow: hidden;
+  }
+  .table-header {
+    background: rgba(255, 90, 0, 0.06);
+    border-bottom: 1px solid rgba(255, 90, 0, 0.2);
+  }
+  .table-cell {
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Crawling gradient border wrapper ── */
+  .border-crawl {
+    position: relative;
+    padding: 1px;
+    background: linear-gradient(90deg,
+      var(--orange) 0%,
+      transparent 30%,
+      var(--blue-hi) 50%,
+      transparent 70%,
+      var(--orange) 100%
+    );
+    background-size: 200% 100%;
+    animation: border-crawl 4s linear infinite;
+    clip-path: var(--clip-md);
+  }
+  .border-crawl > * {
+    background: var(--card);
+    clip-path: var(--clip-md);
+  }
+
+  /* ── Neon title text ── */
+  .text-neon-orange {
+    color: var(--orange);
+    text-shadow: 0 0 8px rgba(255, 90, 0, 0.6), 0 0 20px rgba(255, 90, 0, 0.3);
+  }
+  .text-neon-ice {
+    color: var(--ice);
+    text-shadow: 0 0 8px rgba(136, 204, 255, 0.5), 0 0 20px rgba(136, 204, 255, 0.2);
+  }
+
+  /* ── B3 card ── */
+  .b3-card {
+    background: var(--card);
+    border: 1px solid var(--border-hi);
+    clip-path: var(--clip-md);
+  }
+
+  /* ── B3 section header ── */
+  .b3-section-header {
+    background: rgba(255, 90, 0, 0.06);
+    border-bottom: 1px solid rgba(255, 90, 0, 0.2);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--ice);
+  }
+
+  /* ── Nav item active ── */
+  .b3-nav-active {
+    background: rgba(255, 90, 0, 0.1);
+    color: var(--orange);
+    border-left: 2px solid var(--orange);
+  }
+
+  /* ── iOS safe area support ── */
   .safe-area-pb {
     padding-bottom: env(safe-area-inset-bottom);
   }
-
   .pb-nav-safe {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom));
   }

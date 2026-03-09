@@ -24,7 +24,6 @@ export default function SelectYear() {
     return () => clearTimeout(id);
   }, []);
 
-  // Fetch available years from database
   const { data: years, isLoading: yearsLoading } = useQuery({
     queryKey: ["/api/years"],
     queryFn: async () => {
@@ -35,106 +34,121 @@ export default function SelectYear() {
 
   const handleYearSelection = async () => {
     if (!selectedYear) return;
-    
     const year = parseInt(selectedYear);
-    
-    // Find the year record in our available years
     const yearRecord = years?.find((y: Year) => y.year === year);
     if (yearRecord) {
-      // Navigate to the year page using the year number, not the UUID
       setLocation(`/year/${year}`);
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header with user info */}
-      <header className="bg-card border-b border-border p-4">
+      {/* Header */}
+      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3 px-4">
         <div className="max-w-7xl mx-auto flex items-center">
           <div className="flex items-center gap-2">
-            <Trophy className="text-primary" size={24} />
-            <span className="text-xl font-bold text-primary">KAK Cup</span>
+            <Trophy style={{ color: "var(--orange)" }} size={20} />
+            <span style={{ fontFamily: "var(--font-display)", color: "var(--orange)", fontSize: "1rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              KAK Cup
+            </span>
           </div>
-          
-          <div className="flex items-center gap-4 ml-auto">
-            <Button
+
+          <div className="flex items-center gap-3 ml-auto">
+            <button
               onClick={() => setLocation('/kak-stats')}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
+              className="btn-ghost flex items-center gap-1.5 text-xs"
             >
-              <Trophy size={16} />
+              <Trophy size={14} />
               <span className="hidden sm:inline">KAK Stats</span>
-            </Button>
+            </button>
+
             {isAuthenticated ? (
               <>
-                <span className="text-muted-foreground">
-                  Welcome, {user?.firstName || user?.username}
+                <span style={{ color: "var(--text-dim)", fontSize: "0.75rem", fontFamily: "var(--font-mono)" }}>
+                  {user?.firstName || user?.username}
                   {user?.role === 'admin' && (
-                    <span className="ml-2 px-2 py-1 text-xs bg-primary/20 text-primary rounded-full">
-                      Admin
+                    <span style={{ marginLeft: "0.5rem", padding: "0.1rem 0.4rem", background: "rgba(255,90,0,0.15)", color: "var(--orange)", fontSize: "0.65rem", fontFamily: "var(--font-display)", letterSpacing: "0.08em" }}>
+                      ADMIN
                     </span>
                   )}
                 </span>
                 {user?.role === 'admin' && (
-                  <Button
+                  <button
                     onClick={() => setLocation('/settings')}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
+                    className="btn-ghost p-1.5"
                   >
-                    <Settings size={16} />
-                  </Button>
+                    <Settings size={14} style={{ color: "var(--ice)" }} />
+                  </button>
                 )}
-                <Button
-                  onClick={handleLogout}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <LogOut size={16} />
-                  Logout
-                </Button>
+                <button onClick={handleLogout} className="btn-ghost flex items-center gap-1.5 text-xs">
+                  <LogOut size={14} />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
               </>
             ) : (
-              <Button
-                onClick={() => setLocation('/login')}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <LogIn size={16} />
-                Login
-              </Button>
+              <button onClick={() => setLocation('/login')} className="btn-ghost flex items-center gap-1.5 text-xs">
+                <LogIn size={14} />
+                <span>Login</span>
+              </button>
             )}
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-        <div className="max-w-lg w-full text-center">
-          
-          {/* Trophy Icon */}
-          <div className="mb-8 flex justify-center">
-            <div className="p-6 bg-primary/10 rounded-full shadow-lg">
-              <Trophy size={64} className="text-primary" />
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-lg text-center">
+
+          {/* Logo mark */}
+          <div className="mb-10 flex justify-center">
+            <div style={{
+              position: "relative",
+              width: "96px",
+              height: "96px",
+              clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+              background: "linear-gradient(135deg, rgba(255,90,0,0.15) 0%, rgba(255,90,0,0.05) 100%)",
+              border: "1px solid rgba(255,90,0,0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <Trophy size={40} style={{ color: "var(--orange)" }} />
             </div>
           </div>
 
-          {/* Brand Title */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-primary tracking-tight mb-4" data-testid="title-kak-cup">
-            KAK Cup
-          </h1>
-          
+          {/* Title */}
+          <div className="mb-2">
+            <h1
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(2.5rem, 8vw, 4.5rem)",
+                fontWeight: 900,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                lineHeight: 1,
+                WebkitTextStroke: "1px var(--orange)",
+                color: "var(--orange)",
+                textShadow: "0 0 20px rgba(255,90,0,0.4), 0 0 40px rgba(255,90,0,0.15)",
+              }}
+              data-testid="title-kak-cup"
+            >
+              KAK CUP
+            </h1>
+          </div>
+
           {/* Subtitle */}
-          <p className="text-xl sm:text-2xl text-muted-foreground mb-4 font-medium">
-            Select Tournament Year
-          </p>
+          <div className="mb-10" style={{ fontFamily: "var(--font-display)", fontSize: "0.65rem", letterSpacing: "0.25em", color: "var(--ice)", textTransform: "uppercase", opacity: 0.7 }}>
+            Annual Tournament Platform · Est. 1999
+          </div>
 
           {/* Poem */}
-          <div className="mb-12">
-            <div className="text-lg text-muted-foreground leading-relaxed space-y-1 italic">
+          <div className="mb-10 mx-auto max-w-sm" style={{
+            padding: "1.25rem 1.5rem",
+            border: "1px solid var(--border-hi)",
+            borderLeft: "3px solid var(--orange)",
+            background: "rgba(255,90,0,0.03)",
+          }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", lineHeight: 1.9, color: "var(--text-dim)" }}>
               <div>We get together but once a year,</div>
               <div>To fish, to golf, to chug some beer,</div>
               <div>So raise your glasses for a cheers,</div>
@@ -142,45 +156,57 @@ export default function SelectYear() {
             </div>
           </div>
 
-          {/* Year Selection */}
-          <div className="mb-8">
-            <select 
+          {/* Year selector */}
+          <div className="mb-6">
+            <select
               id="year-select"
-              value={selectedYear} 
+              value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-4 py-3 bg-card border border-border rounded-lg text-foreground text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              style={{
+                width: "100%",
+                padding: "0.75rem 1rem",
+                background: "var(--input)",
+                color: "var(--foreground)",
+                border: "1px solid var(--border-hi)",
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.9rem",
+                clipPath: "var(--clip-sm)",
+                outline: "none",
+                cursor: "pointer",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "var(--orange)";
+                e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "var(--border-hi)";
+                e.target.style.boxShadow = "none";
+              }}
               data-testid="select-year"
             >
-              <option value="">Choose a tournament year...</option>
+              <option value="">— SELECT TOURNAMENT YEAR —</option>
               {yearsLoading ? (
-                <option disabled>Loading years...</option>
+                <option disabled>LOADING...</option>
               ) : (
                 (() => {
                   const currentYear = new Date().getFullYear();
                   const sortedYears = [...(years || [])].sort((a: Year, b: Year) => {
-                    // Current year first
                     if (a.year === currentYear && b.year !== currentYear) return -1;
                     if (b.year === currentYear && a.year !== currentYear) return 1;
-                    // Past years (Done) come before future years (Upcoming)
                     const aIsPast = a.year < currentYear;
                     const bIsPast = b.year < currentYear;
                     if (aIsPast && !bIsPast) return -1;
                     if (bIsPast && !aIsPast) return 1;
-                    // Within same category, sort by year descending
                     return b.year - a.year;
                   });
 
                   return sortedYears.map((yearData: Year) => {
                     let statusText = "";
-                    if (yearData.year < currentYear) {
-                      statusText = " (Done)";
-                    } else if (yearData.year > currentYear) {
-                      statusText = " (Upcoming)";
-                    }
-
+                    if (yearData.year < currentYear) statusText = " [DONE]";
+                    else if (yearData.year > currentYear) statusText = " [UPCOMING]";
                     return (
                       <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
-                        {yearData.year} - {yearData.name}{statusText}
+                        {yearData.year} — {yearData.name}{statusText}
                       </option>
                     );
                   });
@@ -189,52 +215,61 @@ export default function SelectYear() {
             </select>
           </div>
 
-          {/* Continue Button */}
+          {/* Enter button */}
           <button
             onClick={handleYearSelection}
             disabled={!selectedYear}
-            className="btn-primary text-xl px-8 py-4 rounded-xl shadow-lg hover:shadow-xl disabled:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground transform hover:scale-105 disabled:hover:scale-100 transition-all duration-200 flex items-center gap-2 mx-auto"
+            className="btn-primary text-sm mx-auto flex items-center gap-3"
+            style={{ padding: "0.875rem 2.5rem", fontSize: "0.8rem" }}
             data-testid="button-continue"
           >
-            Enter Tournament
-            <ArrowRight size={24} />
+            <span>ENTER TOURNAMENT</span>
+            <ArrowRight size={16} />
           </button>
 
-          {/* Features */}
-          <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-            <div className="p-4">
-              <div className="text-2xl mb-2">🎣</div>
-              <h3 className="font-semibold text-foreground">Fish Competition</h3>
-              <p className="text-sm text-muted-foreground">Top-3 fish only</p>
-            </div>
-            <div className="p-4">
-              <div className="text-2xl mb-2">🍺</div>
-              <h3 className="font-semibold text-foreground">Beer Chug Relay</h3>
-              <p className="text-sm text-muted-foreground">4-man relay</p>
-            </div>
-            <div className="p-4">
-              <div className="text-2xl mb-2">⛳</div>
-              <h3 className="font-semibold text-foreground">Golf Tournament</h3>
-              <p className="text-sm text-muted-foreground">4-man scramble</p>
-            </div>
+          {/* Event icons */}
+          <div className="mt-16 grid grid-cols-3 gap-4">
+            {[
+              { emoji: "🎣", title: "FISHING", desc: "Top-3 fish by weight" },
+              { emoji: "🍺", title: "BEER CHUG", desc: "4-man relay race" },
+              { emoji: "⛳", title: "GOLF", desc: "4-man scramble" },
+            ].map((item) => (
+              <div key={item.title} style={{
+                padding: "1rem",
+                background: "var(--card)",
+                border: "1px solid var(--border-hi)",
+                clipPath: "var(--clip-sm)",
+              }}>
+                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{item.emoji}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--orange)", marginBottom: "0.25rem" }}>
+                  {item.title}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+                  {item.desc}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-muted-foreground text-sm space-y-1">
+      <footer className="py-6 text-center" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="flex items-center justify-center gap-2">
           <a
             href="https://github.com/atulify/kakcup/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5"
+            style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: "0.7rem", transition: "color 0.2s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ice)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim)")}
           >
-            <Github size={16} />
+            <Github size={12} />
             <span>atulify/kakcup</span>
           </a>
         </div>
-        <p className="text-xs text-muted-foreground/60">
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
           {__COMMIT_HASH__}
         </p>
       </footer>

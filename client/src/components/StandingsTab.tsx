@@ -165,92 +165,96 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-slate-600">Loading standings...</p>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "2rem" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: "32px", height: "32px", border: "2px solid var(--border-hi)", borderTop: "2px solid var(--orange)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+          <p style={{ marginTop: "0.75rem", fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)" }}>LOADING STANDINGS...</p>
         </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div className="p-4 bg-background">
-      <div className="w-full">
-        <h2 className="text-xl font-semibold text-foreground mb-2 text-center">Tournament Standings</h2>
-        <p className="text-sm text-muted-foreground mb-4 text-center">
-          Combined points from Fish, Chug, and Golf competitions
-        </p>
+    <div style={{ padding: "1rem", background: "var(--background)" }}>
+      <div style={{ width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--orange)", textShadow: "0 0 12px rgba(255,90,0,0.4)" }}>
+            Tournament Standings
+          </h2>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>
+            Combined points from Fish · Chug · Golf
+          </p>
+        </div>
 
         {sortedTeams.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border rounded-lg mx-4">
-            <div className="text-muted-foreground">
-              <p className="text-lg font-medium">No teams yet</p>
-              <p className="mt-2">Create teams to see standings</p>
-            </div>
+          <div style={{ textAlign: "center", padding: "3rem", background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-md)", margin: "0 1rem" }}>
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.1em", color: "var(--text-dim)" }}>NO TEAMS YET</p>
           </div>
         ) : (
           <>
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
-              <div className="overflow-x-auto">
-                <table className="border-collapse border border-border text-sm bg-card" style={{width: 'auto'}}>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", background: "var(--card)", border: "1px solid var(--border-hi)", fontSize: "0.85rem", width: "auto", fontFamily: "var(--font-mono)" }}>
                   <thead>
-                    <tr className="table-header">
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '60px'}}>Rank</th>
-                      <th className="border border-border px-2 py-2 text-left font-medium text-foreground" style={{minWidth: '240px', maxWidth: '360px'}}>Team & Members</th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '70px'}}>🎣 Pts</th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '70px'}}>🍺 Pts</th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '70px'}}>⛳ Pts</th>
-                      <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '80px'}}>Total</th>
+                    <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
+                      {[
+                        { label: "RANK",       style: { width: "60px",   textAlign: "center" as const } },
+                        { label: "TEAM",       style: { minWidth: "240px", maxWidth: "360px", textAlign: "left" as const } },
+                        { label: "🎣 PTS",    style: { width: "70px",   textAlign: "center" as const } },
+                        { label: "🍺 PTS",    style: { width: "70px",   textAlign: "center" as const } },
+                        { label: "⛳ PTS",    style: { width: "70px",   textAlign: "center" as const } },
+                        { label: "TOTAL",      style: { width: "80px",   textAlign: "center" as const } },
+                      ].map((h) => (
+                        <th key={h.label} style={{ padding: "0.5rem 0.75rem", ...h.style, fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", fontWeight: 600, borderRight: "1px solid var(--border)" }}>
+                          {h.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {standings.map((standing: any, index: number) => {
+                    {standings.map((standing: any) => {
                       const { isFirst, isLast, rankDisplay: displayRank } = standing;
+                      const rowBg = isFirst ? "rgba(255,90,0,0.1)" : "transparent";
 
                       return (
-                        <tr key={standing.team.id} className={`hover:bg-accent/50 ${isFirst ? 'bg-primary/20' : ''}`}>
-                          <td className="border border-border px-2 py-2 text-center">
-                            <span className={`text-lg font-bold ${isFirst ? 'text-white' : 'text-foreground'}`}>
-                              {displayRank}
-                            </span>
+                        <tr
+                          key={standing.team.id}
+                          style={{ background: rowBg, borderBottom: "1px solid var(--border)", transition: "background 0.15s" }}
+                          onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = rowBg; }}
+                        >
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", fontWeight: 700, color: isFirst ? "var(--orange)" : "var(--text-dim)", fontSize: "0.85rem" }}>
+                            {displayRank}
                           </td>
-                          <td className="border border-border px-2 py-2">
+                          <td style={{ padding: "0.5rem 0.75rem", borderRight: "1px solid var(--border)" }}>
                             <div>
-                              <div className={`font-bold mb-1 text-sm ${isFirst ? 'text-white' : 'text-foreground'}`}>
+                              <div style={{ fontWeight: 700, marginBottom: "0.25rem", fontSize: "0.85rem", color: isFirst ? "var(--foreground)" : "var(--foreground)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 {standing.team.name}
-                                {isFirst && standing.totalPoints > 0 && <span className="ml-2">🏆</span>}
-                                {isLast && <span className="ml-2">🥾</span>}
+                                {isFirst && standing.totalPoints > 0 && <span>🏆</span>}
+                                {isLast && <span>🥾</span>}
                               </div>
-                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 0.75rem" }}>
                                 {standing.members.map((member: string, i: number) => (
-                                  <div key={i} className={`text-xs truncate ${isFirst ? 'text-gray-200' : 'text-muted-foreground'}`}>
+                                  <div key={i} style={{ fontSize: "0.7rem", color: "var(--orange-hi)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {member}
                                   </div>
                                 ))}
                               </div>
                             </div>
                           </td>
-                          <td className="border border-border px-2 py-2 text-center">
-                            <span className={`text-sm font-medium ${isFirst ? 'text-orange-200' : 'text-orange-400'}`}>
-                              {standing.fishPoints || 0}
-                            </span>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--fish)", fontWeight: 600 }}>
+                            {standing.fishPoints || 0}
                           </td>
-                          <td className="border border-border px-2 py-2 text-center">
-                            <span className={`text-sm font-medium ${isFirst ? 'text-amber-200' : 'text-amber-400'}`}>
-                              {standing.chugPoints || 0}
-                            </span>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--chug)", fontWeight: 600 }}>
+                            {standing.chugPoints || 0}
                           </td>
-                          <td className="border border-border px-2 py-2 text-center">
-                            <span className={`text-sm font-medium ${isFirst ? 'text-green-300' : 'text-green-400'}`}>
-                              {standing.golfPoints || 0}
-                            </span>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--golf)", fontWeight: 600 }}>
+                            {standing.golfPoints || 0}
                           </td>
-                          <td className="border border-border px-2 py-2 text-center">
-                            <span className={`text-lg font-bold ${isFirst ? 'text-blue-200' : 'text-foreground'}`}>
-                              {standing.totalPoints || 0}
-                            </span>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", fontWeight: 700, fontSize: "1rem", color: isFirst ? "var(--ice)" : "var(--foreground)" }}>
+                            {standing.totalPoints || 0}
                           </td>
                         </tr>
                       );
@@ -261,54 +265,55 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-3 mx-4">
-              {standings.map((standing: any, index: number) => {
+            <div className="md:hidden flex flex-col gap-3 px-2">
+              {standings.map((standing: any) => {
                 const { isFirst, isLast, rankDisplay: displayRank } = standing;
 
                 return (
-                  <div key={standing.team.id} className={`bg-card border border-border rounded-lg p-4 ${isFirst ? 'bg-primary/20' : ''}`}>
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className={`font-bold ${isFirst ? 'text-white' : 'text-foreground'}`}>
+                  <div
+                    key={standing.team.id}
+                    style={{
+                      background: isFirst ? "rgba(255,90,0,0.08)" : "var(--card)",
+                      border: `1px solid ${isFirst ? "rgba(255,90,0,0.3)" : "var(--border-hi)"}`,
+                      clipPath: "var(--clip-sm)",
+                      padding: "1rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.05em", color: "var(--foreground)", fontWeight: 700 }}>
                             {standing.team.name}
                           </h3>
                           {isFirst && standing.totalPoints > 0 && <span>🏆</span>}
                           {isLast && <span>🥾</span>}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {standing.members.join(' • ')}
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--orange-hi)" }}>
+                          {standing.members.join(' · ')}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className={`text-sm font-bold ${isFirst ? 'text-white' : 'text-foreground'}`}>
-                          Rank: {displayRank}
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--text-dim)" }}>
+                          RANK: <span style={{ color: isFirst ? "var(--orange)" : "var(--foreground)", fontWeight: 700 }}>{displayRank}</span>
                         </div>
-                        <div className={`text-xl font-bold ${isFirst ? 'text-blue-200' : 'text-foreground'}`}>
-                          {standing.totalPoints || 0} pts
+                        <div style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: isFirst ? "var(--ice)" : "var(--foreground)", letterSpacing: "0.05em" }}>
+                          {standing.totalPoints || 0}
                         </div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--text-dim)" }}>pts</div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="text-center bg-background/60 border border-border/40 rounded-lg py-2 px-1">
-                        <span className="text-xs text-muted-foreground font-medium block">🎣 Fish</span>
-                        <div className={`text-lg font-bold ${isFirst ? 'text-orange-200' : 'text-orange-400'} mt-1`}>
-                          {standing.fishPoints || 0}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", fontFamily: "var(--font-mono)" }}>
+                      {[
+                        { icon: "🎣", label: "Fish",  pts: standing.fishPoints || 0,  color: "var(--fish)" },
+                        { icon: "🍺", label: "Chug",  pts: standing.chugPoints || 0,  color: "var(--chug)" },
+                        { icon: "⛳", label: "Golf",  pts: standing.golfPoints || 0,  color: "var(--golf)" },
+                      ].map((ev) => (
+                        <div key={ev.label} style={{ textAlign: "center", background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", padding: "0.4rem 0.25rem" }}>
+                          <span style={{ fontSize: "0.7rem", color: "var(--text-dim)", display: "block" }}>{ev.icon} {ev.label}</span>
+                          <div style={{ fontSize: "1rem", fontWeight: 700, color: ev.color, marginTop: "0.2rem" }}>{ev.pts}</div>
                         </div>
-                      </div>
-                      <div className="text-center bg-background/60 border border-border/40 rounded-lg py-2 px-1">
-                        <span className="text-xs text-muted-foreground font-medium block">🍺 Chug</span>
-                        <div className={`text-lg font-bold ${isFirst ? 'text-amber-200' : 'text-amber-400'} mt-1`}>
-                          {standing.chugPoints || 0}
-                        </div>
-                      </div>
-                      <div className="text-center bg-background/60 border border-border/40 rounded-lg py-2 px-1">
-                        <span className="text-xs text-muted-foreground font-medium block">⛳ Golf</span>
-                        <div className={`text-lg font-bold ${isFirst ? 'text-green-300' : 'text-green-400'} mt-1`}>
-                          {standing.golfPoints || 0}
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 );
@@ -317,6 +322,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
           </>
         )}
       </div>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   );
 });

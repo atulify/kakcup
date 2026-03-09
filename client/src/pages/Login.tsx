@@ -2,11 +2,6 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trophy, LogIn, UserPlus } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,21 +9,10 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
 
-  // Login form state
-  const [loginData, setLoginData] = useState({
-    username: "",
-    password: "",
-  });
-
-  // Register form state
-  const [registerData, setRegisterData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    firstName: "",
-    lastName: "",
-  });
+  const [loginData, setLoginData] = useState({ username: "", password: "" });
+  const [registerData, setRegisterData] = useState({ username: "", email: "", password: "", firstName: "", lastName: "" });
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
@@ -36,18 +20,11 @@ export default function Login() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({
-        title: "Success",
-        description: "Logged in successfully!",
-      });
+      toast({ title: "Success", description: "Logged in successfully!" });
       setLocation("/");
     },
     onError: (error: any) => {
-      toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials",
-        variant: "destructive",
-      });
+      toast({ title: "Login Failed", description: error.message || "Invalid credentials", variant: "destructive" });
     },
   });
 
@@ -57,192 +34,183 @@ export default function Login() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({
-        title: "Success",
-        description: "Account created successfully!",
-      });
+      toast({ title: "Success", description: "Account created successfully!" });
       setLocation("/");
     },
     onError: (error: any) => {
-      toast({
-        title: "Registration Failed",
-        description: error.message || "Failed to create account",
-        variant: "destructive",
-      });
+      toast({ title: "Registration Failed", description: error.message || "Failed to create account", variant: "destructive" });
     },
   });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginData.username && loginData.password) {
-      loginMutation.mutate(loginData);
-    }
+    if (loginData.username && loginData.password) loginMutation.mutate(loginData);
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (registerData.username && registerData.password) {
-      registerMutation.mutate(registerData);
-    }
+    if (registerData.username && registerData.password) registerMutation.mutate(registerData);
+  };
+
+  const inputStyle: React.CSSProperties = {
+    display: "flex",
+    width: "100%",
+    padding: "0.625rem 0.875rem",
+    background: "var(--input)",
+    color: "var(--foreground)",
+    border: "1px solid var(--border-hi)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "0.85rem",
+    clipPath: "var(--clip-sm)",
+    outline: "none",
+    transition: "border-color 0.2s, box-shadow 0.2s",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontFamily: "var(--font-display)",
+    fontSize: "0.6rem",
+    letterSpacing: "0.12em",
+    color: "var(--ice)",
+    textTransform: "uppercase",
+    marginBottom: "0.375rem",
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b border-border p-4">
+      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3 px-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Trophy className="text-primary" size={24} />
-            <span className="text-xl font-bold text-foreground">KAK Cup</span>
+            <Trophy style={{ color: "var(--orange)" }} size={18} />
+            <span style={{ fontFamily: "var(--font-display)", color: "var(--orange)", fontSize: "0.9rem", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              KAK Cup
+            </span>
           </div>
-          
-          <Button
+          <button
             onClick={() => setLocation("/")}
-            variant="outline"
-            size="sm"
+            className="btn-ghost text-xs"
           >
-            Back to Home
-          </Button>
+            ← Back to Home
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full">
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <LogIn size={20} />
-                    Login
-                  </CardTitle>
-                  <CardDescription>
-                    Sign in to access admin features
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-username">Username</Label>
-                      <Input
-                        id="login-username"
-                        type="text"
-                        value={loginData.username}
-                        onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
-                        required
-                        data-testid="input-login-username"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password">Password</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        value={loginData.password}
-                        onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
-                        required
-                        data-testid="input-login-password"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={loginMutation.isPending}
-                      data-testid="button-login"
-                    >
-                      {loginMutation.isPending ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="register">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserPlus size={20} />
-                    Register
-                  </CardTitle>
-                  <CardDescription>
-                    Create a new account
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleRegister} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="register-username">Username</Label>
-                      <Input
-                        id="register-username"
-                        type="text"
-                        value={registerData.username}
-                        onChange={(e) => setRegisterData(prev => ({ ...prev, username: e.target.value }))}
-                        required
-                        data-testid="input-register-username"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-email">Email (optional)</Label>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        value={registerData.email}
-                        onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
-                        data-testid="input-register-email"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="register-firstName">First Name</Label>
-                        <Input
-                          id="register-firstName"
-                          type="text"
-                          value={registerData.firstName}
-                          onChange={(e) => setRegisterData(prev => ({ ...prev, firstName: e.target.value }))}
-                          data-testid="input-register-firstName"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="register-lastName">Last Name</Label>
-                        <Input
-                          id="register-lastName"
-                          type="text"
-                          value={registerData.lastName}
-                          onChange={(e) => setRegisterData(prev => ({ ...prev, lastName: e.target.value }))}
-                          data-testid="input-register-lastName"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-password">Password</Label>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        value={registerData.password}
-                        onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
-                        required
-                        data-testid="input-register-password"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={registerMutation.isPending}
-                      data-testid="button-register"
-                    >
-                      {registerMutation.isPending ? "Creating account..." : "Create Account"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+      {/* Main */}
+      <main className="flex-1 flex items-center justify-center px-4 py-12">
+        <div style={{ width: "100%", maxWidth: "400px" }}>
+
+          {/* Tab toggle */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", marginBottom: "1px", background: "var(--border-hi)" }}>
+            {(["login", "register"] as const).map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: "0.75rem",
+                    fontFamily: "var(--font-display)",
+                    fontSize: "0.65rem",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    background: isActive ? "rgba(255,90,0,0.1)" : "var(--card)",
+                    color: isActive ? "var(--orange)" : "var(--text-dim)",
+                    borderBottom: isActive ? "2px solid var(--orange)" : "2px solid transparent",
+                    cursor: "pointer",
+                    outline: "none",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {tab === "login" ? "⬡ Login" : "⬡ Register"}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Form card */}
+          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderTop: "none", clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%)", padding: "1.75rem 1.5rem" }}>
+
+            {activeTab === "login" && (
+              <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                <div>
+                  <label htmlFor="login-username" style={labelStyle}>Username</label>
+                  <input
+                    id="login-username"
+                    type="text"
+                    value={loginData.username}
+                    onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
+                    required
+                    style={inputStyle}
+                    onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }}
+                    onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }}
+                    data-testid="input-login-username"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="login-password" style={labelStyle}>Password</label>
+                  <input
+                    id="login-password"
+                    type="password"
+                    value={loginData.password}
+                    onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                    required
+                    style={inputStyle}
+                    onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }}
+                    onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }}
+                    data-testid="input-login-password"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ width: "100%", justifyContent: "center", marginTop: "0.25rem" }}
+                  disabled={loginMutation.isPending}
+                  data-testid="button-login"
+                >
+                  <LogIn size={14} />
+                  {loginMutation.isPending ? "AUTHENTICATING..." : "SIGN IN"}
+                </button>
+              </form>
+            )}
+
+            {activeTab === "register" && (
+              <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                <div>
+                  <label htmlFor="register-username" style={labelStyle}>Username</label>
+                  <input id="register-username" type="text" value={registerData.username} onChange={(e) => setRegisterData(prev => ({ ...prev, username: e.target.value }))} required style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-username" />
+                </div>
+                <div>
+                  <label htmlFor="register-email" style={labelStyle}>Email (optional)</label>
+                  <input id="register-email" type="email" value={registerData.email} onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-email" />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div>
+                    <label htmlFor="register-firstName" style={labelStyle}>First Name</label>
+                    <input id="register-firstName" type="text" value={registerData.firstName} onChange={(e) => setRegisterData(prev => ({ ...prev, firstName: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-firstName" />
+                  </div>
+                  <div>
+                    <label htmlFor="register-lastName" style={labelStyle}>Last Name</label>
+                    <input id="register-lastName" type="text" value={registerData.lastName} onChange={(e) => setRegisterData(prev => ({ ...prev, lastName: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-lastName" />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="register-password" style={labelStyle}>Password</label>
+                  <input id="register-password" type="password" value={registerData.password} onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))} required style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-password" />
+                </div>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ width: "100%", justifyContent: "center", marginTop: "0.25rem" }}
+                  disabled={registerMutation.isPending}
+                  data-testid="button-register"
+                >
+                  <UserPlus size={14} />
+                  {registerMutation.isPending ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </main>
     </div>

@@ -6,9 +6,9 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "0px",
+        md: "0px",
+        sm: "0px",
       },
       colors: {
         background: "var(--background)",
@@ -22,9 +22,8 @@ export default {
           foreground: "var(--popover-foreground)",
         },
         primary: {
-          DEFAULT: "#1e40af",
+          DEFAULT: "var(--primary)",
           foreground: "var(--primary-foreground)",
-          dark: "#1e3a8a",
         },
         secondary: {
           DEFAULT: "var(--secondary)",
@@ -42,20 +41,18 @@ export default {
           DEFAULT: "var(--destructive)",
           foreground: "var(--destructive-foreground)",
         },
-        success: {
-          DEFAULT: "#10b981",
-          foreground: "var(--success-foreground)",
-          dark: "#059669",
-        },
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
+        // B3 named colors for use in utilities
+        orange: "var(--orange)",
+        ice: "var(--ice)",
       },
       fontFamily: {
-        sans: ["Inter", "var(--font-sans)"],
+        sans: ["Rajdhani", "var(--font-sans)", "sans-serif"],
+        display: ["Orbitron", "var(--font-display)", "sans-serif"],
+        mono: ["Share Tech Mono", "var(--font-mono)", "monospace"],
         serif: ["var(--font-serif)"],
-        mono: ["var(--font-mono)"],
-        inter: ["Inter", "sans-serif"],
       },
     },
   },
