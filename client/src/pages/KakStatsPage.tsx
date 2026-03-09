@@ -185,7 +185,7 @@ export default function KakStatsPage() {
           )}
 
           {!isLoading && section === "champs" && stats && (
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
+            <div className="bg-card border border-border rounded-lg overflow-hidden w-fit">
               <div className="px-4 py-3 border-b border-border">
                 <h2 className="text-lg font-semibold text-foreground">🏆 KAK Champs</h2>
               </div>
@@ -194,7 +194,7 @@ export default function KakStatsPage() {
           )}
 
           {!isLoading && section === "boots" && stats && (
-            <div className="bg-card border border-border rounded-lg overflow-hidden">
+            <div className="bg-card border border-border rounded-lg overflow-hidden w-fit">
               <div className="px-4 py-3 border-b border-border">
                 <h2 className="text-lg font-semibold text-foreground">🥾 KAK Boot</h2>
               </div>
