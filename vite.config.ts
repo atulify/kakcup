@@ -83,10 +83,14 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core framework dependencies
-          'framework': ['preact', 'preact/compat', 'wouter'],
-          'query-vendor': ['@tanstack/react-query'],
+        manualChunks(id) {
+          if (id.includes('node_modules/preact') || id.includes('node_modules/wouter')) {
+            return 'framework';
+          }
+          if (id.includes('node_modules/@tanstack')) {
+            return 'query-vendor';
+          }
+          // Don't create tiny chunks for small shared modules — let Rollup inline them
         },
       },
     },
