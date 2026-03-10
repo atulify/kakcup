@@ -1,5 +1,4 @@
-import * as React from "react"
-
+import type { JSX } from "preact"
 import { cn } from "@/lib/utils"
 
 const base =
@@ -21,23 +20,11 @@ const sizeClasses = {
   icon: "h-10 w-10",
 } as const
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variantClasses
   size?: keyof typeof sizeClasses
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", ...props }, ref) => {
-    return (
-      <button
-        className={cn(base, variantClasses[variant], sizeClasses[size], className)}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
-
-export { Button }
+export function Button({ className, variant = "default", size = "default", ...props }: ButtonProps) {
+  return <button className={cn(base, variantClasses[variant], sizeClasses[size], className)} {...props} />
+}
