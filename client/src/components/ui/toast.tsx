@@ -35,7 +35,7 @@ export function Toast({ open, onOpenChange, children, className }: ToastProps) {
   return (
     <div
       className={cn(
-        "pointer-events-auto flex items-center justify-center rounded-full p-2 shadow-lg bg-white dark:bg-gray-800 transition-all duration-200",
+        "pointer-events-auto flex items-center justify-center rounded-full p-2 shadow-lg bg-gray-800 transition-all duration-200",
         visible && open ? "opacity-100 scale-100" : "opacity-0 scale-95",
         className
       )}
