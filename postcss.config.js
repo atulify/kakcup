@@ -1,6 +1,6 @@
 export default {
   plugins: {
     tailwindcss: {},
-    cssnano: { preset: ['default', { discardComments: { removeAll: true } }] },
+    cssnano: { preset: ['advanced', { discardComments: { removeAll: true } }] },
   },
 }
