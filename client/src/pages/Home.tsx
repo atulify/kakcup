@@ -71,7 +71,7 @@ export default function Home() {
           {isAuthenticated ? (
             <Link
               href="/select-year"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
             >
               Enter Tournament
             </Link>

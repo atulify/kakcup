@@ -284,7 +284,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
             <button
               onClick={() => setShowAddModal(true)}
               disabled={sortedTeams.length === 0 || yearData?.chug_locked}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
                 yearData?.chug_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-primary'
@@ -299,7 +299,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
             <button
               onClick={() => lockChugMutation.mutate()}
               disabled={yearData?.chug_locked || lockChugMutation.isPending}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
                 yearData?.chug_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-destructive'
@@ -317,7 +317,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
         <h2 className="text-lg font-semibold text-foreground mb-4 text-center">Beer Chug Relay</h2>
         <p className="text-sm text-muted-foreground text-center mb-4">4-man relay</p>
         {sortedTeams.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border rounded-lg mx-4">
+          <div className="text-center py-12 bg-card border border-border mx-4">
             <div className="text-muted-foreground">
               <p className="text-lg font-medium">No teams yet</p>
               <p className="mt-2">Teams must be created before chug times can be recorded</p>
@@ -445,7 +445,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
               {sortedStats.map((teamStat: any) => (
-                <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
+                <div key={teamStat.team.id} className="bg-card border border-border p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -509,7 +509,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
       {/* Add Chug Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-card border border-border p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-foreground">Add Chug Times</h3>
 
             <div className="space-y-4">
@@ -521,7 +521,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                 <select
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="select-team"
                 >
                   <option value="">Choose a team...</option>
@@ -551,7 +551,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   value={time1}
                   onChange={(e) => setTime1(e.target.value)}
                   placeholder="Enter time in seconds..."
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="input-time1"
                 />
               </div>
@@ -568,7 +568,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   value={time2}
                   onChange={(e) => setTime2(e.target.value)}
                   placeholder="Enter time in seconds..."
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="input-time2"
                 />
               </div>
@@ -583,7 +583,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add notes about the chug..."
                   rows={3}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="input-notes"
                 />
               </div>
@@ -593,7 +593,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 text-muted-foreground border border-border rounded-lg hover:bg-accent transition-colors"
+                className="flex-1 px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
                 data-testid="button-cancel"
               >
                 Cancel
@@ -601,7 +601,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
               <button
                 onClick={handleAddChug}
                 disabled={!selectedTeamId || !time1 || !time2 || addChugMutation.isPending}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
                 data-testid="button-save-chug"
               >
                 {addChugMutation.isPending ? "Adding..." : "Add Times"}

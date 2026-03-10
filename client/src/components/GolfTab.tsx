@@ -281,7 +281,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <button
               onClick={() => setShowAddModal(true)}
               disabled={sortedTeams.length === 0 || yearData?.golf_locked}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
                 yearData?.golf_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-primary'
@@ -296,7 +296,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <button
               onClick={() => lockGolfMutation.mutate()}
               disabled={yearData?.golf_locked || lockGolfMutation.isPending}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
                 yearData?.golf_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-destructive'
@@ -313,7 +313,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       <div className="w-full">
         <h2 className="text-lg font-semibold text-foreground mb-4 text-center">Golf Scores</h2>
         {sortedTeams.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border rounded-lg mx-4">
+          <div className="text-center py-12 bg-card border border-border mx-4">
             <div className="text-muted-foreground">
               <p className="text-lg font-medium">No teams yet</p>
               <p className="mt-2">Teams must be created before golf scores can be recorded</p>
@@ -421,7 +421,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
               {sortedStats.map((teamStat) => (
-                <div key={teamStat.team.id} className="bg-card border border-border rounded-lg p-4">
+                <div key={teamStat.team.id} className="bg-card border border-border p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -476,7 +476,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       {/* Add Golf Score Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-card border border-border p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-foreground">Add Golf Score</h3>
 
             <div className="space-y-4">
@@ -488,7 +488,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                 <select
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="select-team"
                 >
                   <option value="">Choose a team...</option>
@@ -514,7 +514,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                 <select
                   value={score}
                   onChange={(e) => setScore(e.target.value)}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="select-score"
                 >
                   <option value="">Choose a score...</option>
@@ -536,7 +536,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add notes about the golf round..."
                   rows={3}
-                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="input-notes"
                 />
               </div>
@@ -546,7 +546,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 text-muted-foreground border border-border rounded-lg hover:bg-accent transition-colors"
+                className="flex-1 px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
                 data-testid="button-cancel"
               >
                 Cancel
@@ -554,7 +554,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
               <button
                 onClick={handleAddGolf}
                 disabled={!selectedTeamId || score === "" || addGolfMutation.isPending}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
                 data-testid="button-save-golf"
               >
                 {addGolfMutation.isPending ? "Adding..." : "Add Score"}
