@@ -4,11 +4,6 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
-      borderRadius: {
-        lg: "0px",
-        md: "0px",
-        sm: "0px",
-      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
