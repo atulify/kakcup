@@ -23,6 +23,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@shared': path.resolve(__dirname, './shared'),
+      // Tests run against SQLite — remap the production Postgres schema to SQLite
+      '../shared/schema.js': path.resolve(__dirname, './shared/schema-sqlite.ts'),
     },
   },
 });

@@ -1,16 +1,8 @@
-// Export the appropriate schema based on the database type
-// PostgreSQL is used when DATABASE_URL is set, otherwise SQLite is used
+// Production schema — always PostgreSQL.
+// Local dev uses schema-sqlite.ts directly (via server/index.ts dynamic import).
+// Tests import schema-sqlite.ts directly.
 
-// Import both schemas
-import * as sqliteSchema from "./schema-sqlite.js";
-import * as postgresSchema from "./schema-postgres.js";
-
-// Determine which schema to use
-const isPostgres = !!process.env.DATABASE_URL;
-const activeSchema = isPostgres ? postgresSchema : sqliteSchema;
-
-// Re-export all exports from the active schema
-export const {
+export {
   users,
   years,
   teams,
@@ -37,9 +29,8 @@ export const {
   insertFishWeightSchema,
   insertChugTimeSchema,
   insertGolfScoreSchema,
-} = activeSchema;
+} from "./schema-postgres.js";
 
-// Re-export types
 export type {
   RegisterUser,
   User,
@@ -59,4 +50,4 @@ export type {
   ChugTime,
   InsertGolfScore,
   GolfScore,
-} from "./schema-sqlite.js"; // Types are the same for both
+} from "./schema-postgres.js";

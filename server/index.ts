@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL) {
   const [{ drizzle }, { default: Database }, schema, { setDb }] = await Promise.all([
     import("drizzle-orm/better-sqlite3"),
     import("better-sqlite3"),
-    import("../shared/schema.js"),
+    import("../shared/schema-sqlite.js"),
     import("./db.js"),
   ]);
   const sqlite = new Database("./kakcup.db");
