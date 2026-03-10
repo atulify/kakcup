@@ -94,14 +94,14 @@ function KakRow({
               value={name}
               onChange={(e) => { setName(e.target.value); setNameError(null); }}
               onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }}
-              className="flex-1 min-w-[120px] px-2 py-1 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 min-w-[120px] px-2 py-1 text-sm bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               autoFocus
               data-testid={`input-kak-name-${kak.id}`}
             />
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as KakStatus)}
-              className="px-2 py-1 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="px-2 py-1 text-sm bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               data-testid={`select-kak-status-${kak.id}`}
             >
               {ALL_STATUSES.map((s) => (
@@ -145,7 +145,7 @@ function KakGroup({
   if (kaks.length === 0) return null;
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden" data-testid={`kak-group-${status}`}>
+    <div className="border border-border overflow-hidden" data-testid={`kak-group-${status}`}>
       <button
         className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 text-left"
         onClick={() => setOpen((o) => !o)}
@@ -230,7 +230,7 @@ export default function KakManagement() {
   const nonActiveStatuses = ALL_STATUSES.filter((s) => s !== "active");
 
   return (
-    <section className="bg-card border border-border rounded-lg p-6 space-y-5" data-testid="kak-management">
+    <section className="bg-card border border-border p-6 space-y-5" data-testid="kak-management">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">KAK Roster</h2>
         <span className="text-xs text-muted-foreground">{allKaks.length} total</span>
@@ -244,7 +244,7 @@ export default function KakManagement() {
             onChange={(e) => { setNewName(e.target.value); setNewNameError(null); }}
             onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
             placeholder="New KAK name..."
-            className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex-1 px-3 py-2 text-sm bg-background border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             data-testid="input-new-kak-name"
           />
           <Button
@@ -272,9 +272,9 @@ export default function KakManagement() {
         {isLoading ? (
           <div className="text-sm text-muted-foreground py-4 text-center">Loading…</div>
         ) : activeKaks.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-4 text-center border border-border rounded-lg">No active KAKs</div>
+          <div className="text-sm text-muted-foreground py-4 text-center border border-border">No active KAKs</div>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border overflow-hidden">
             <table className="w-full text-sm" data-testid="kak-table-active">
               <thead>
                 <tr className="border-b border-border bg-muted/40">

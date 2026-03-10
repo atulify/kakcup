@@ -44,7 +44,7 @@ export default function GenericLandingPage() {
           {/* Go Button */}
           <button
             onClick={handleGoClick}
-            className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 text-white text-xl font-semibold rounded-xl shadow-lg hover:bg-blue-700 hover:shadow-xl transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 text-white text-xl font-semibold shadow-lg hover:bg-blue-700 hover:shadow-xl transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300"
             data-testid="button-go"
           >
             Get Started

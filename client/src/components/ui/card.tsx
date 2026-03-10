@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 type DivProps = JSX.HTMLAttributes<HTMLDivElement>
 
 export function Card({ className, ...props }: DivProps) {
-  return <div className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  return <div className={cn("border bg-card text-card-foreground shadow-sm", className)} {...props} />
 }
 
 export function CardHeader({ className, ...props }: DivProps) {

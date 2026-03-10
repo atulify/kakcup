@@ -69,7 +69,7 @@ export default function LandingPage() {
           </div>
 
           {/* Year Selection Form */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
+          <div className="bg-white border border-slate-200 shadow-sm p-6 space-y-6">
               
             {/* Year Dropdown */}
             <div className="space-y-2">
@@ -80,7 +80,7 @@ export default function LandingPage() {
                 id="year-select"
                 value={selectedYear} 
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full px-4 py-3 text-base bg-white border border-slate-300 rounded-lg shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="w-full px-4 py-3 text-base bg-white border border-slate-300 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 data-testid="select-year"
               >
                 <option value="">Choose a year...</option>
@@ -101,7 +101,7 @@ export default function LandingPage() {
               <button
                 onClick={handleYearSelection}
                 disabled={!selectedYear || createYearMutation.isPending}
-                className="group w-full flex justify-center items-center px-6 py-4 text-base font-semibold text-white bg-green-600 rounded-lg shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transform transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="group w-full flex justify-center items-center px-6 py-4 text-base font-semibold text-white bg-green-600 shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transform transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 data-testid="button-go"
               >
                 {createYearMutation.isPending ? (
