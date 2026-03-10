@@ -1,5 +1,3 @@
-import { twMerge, type ClassNameValue } from "tailwind-merge"
-
-export function cn(...inputs: ClassNameValue[]) {
-  return twMerge(inputs)
+export function cn(...inputs: (string | undefined | null | false)[]) {
+  return inputs.filter(Boolean).join(" ")
 }
