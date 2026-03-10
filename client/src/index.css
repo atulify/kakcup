@@ -9,12 +9,10 @@
      Angular geometry · Military precision
   ═══════════════════════════════════════════ */
   --background:              #040608;
-  --surface:                 #07090c;
   --foreground:              #c8d8e8;
   --card:                    #0b0d12;
   --card-foreground:         #c8d8e8;
-  --popover:                 #0b0d12;
-  --popover-foreground:      #c8d8e8;
+
 
   /* Primary = orange */
   --primary:                 #ff5a00;
@@ -38,11 +36,7 @@
   --orange:                  #ff5a00;
   --orange-hi:               #ff7a30;
   --orange-dim:              #6a2600;
-  --orange-glow:             rgba(255, 90, 0, 0.2);
-  --blue:                    #004499;
   --blue-hi:                 #0066cc;
-  --blue-dim:                #002255;
-  --blue-glow:               rgba(0, 102, 204, 0.15);
   --ice:                     #88ccff;
   --ice-dim:                 #3a6080;
   --text-dim:                #4a6070;
@@ -67,26 +61,7 @@
   --clip-lg:  polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
 }
 
-/* ── Global animations ── */
-@keyframes border-crawl {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-@keyframes heat-flicker {
-  0%, 100% { opacity: 1; }
-  92%       { opacity: 1; }
-  93%       { opacity: 0.6; }
-  95%       { opacity: 1; }
-  97%       { opacity: 0.8; }
-}
-@keyframes danger-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 90, 0, 0.2); }
-  50%       { box-shadow: 0 0 20px rgba(255, 90, 0, 0.2), 0 0 40px rgba(255, 90, 0, 0.08); }
-}
-@keyframes scanline-roll {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
+
 
 @layer base {
   * {
@@ -248,74 +223,9 @@
   }
 
   /* ── Table primitives ── */
-  .table-container {
-    border: 1px solid var(--border-hi);
-    background: var(--card);
-    clip-path: var(--clip-md);
-    overflow: hidden;
-  }
   .table-header {
     background: rgba(255, 90, 0, 0.06);
     border-bottom: 1px solid rgba(255, 90, 0, 0.2);
-  }
-  .table-cell {
-    border-bottom: 1px solid var(--border);
-  }
-
-  /* ── Crawling gradient border wrapper ── */
-  .border-crawl {
-    position: relative;
-    padding: 1px;
-    background: linear-gradient(90deg,
-      var(--orange) 0%,
-      transparent 30%,
-      var(--blue-hi) 50%,
-      transparent 70%,
-      var(--orange) 100%
-    );
-    background-size: 200% 100%;
-    animation: border-crawl 4s linear infinite;
-    clip-path: var(--clip-md);
-  }
-  .border-crawl > * {
-    background: var(--card);
-    clip-path: var(--clip-md);
-  }
-
-  /* ── Neon title text ── */
-  .text-neon-orange {
-    color: var(--orange);
-    text-shadow: 0 0 8px rgba(255, 90, 0, 0.6), 0 0 20px rgba(255, 90, 0, 0.3);
-  }
-  .text-neon-ice {
-    color: var(--ice);
-    text-shadow: 0 0 8px rgba(136, 204, 255, 0.5), 0 0 20px rgba(136, 204, 255, 0.2);
-  }
-
-  /* ── B3 card ── */
-  .b3-card {
-    background: var(--card);
-    border: 1px solid var(--border-hi);
-    clip-path: var(--clip-md);
-  }
-
-  /* ── B3 section header ── */
-  .b3-section-header {
-    background: rgba(255, 90, 0, 0.06);
-    border-bottom: 1px solid rgba(255, 90, 0, 0.2);
-    padding: 0.75rem 1rem;
-    font-family: var(--font-display);
-    letter-spacing: 0.08em;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: var(--ice);
-  }
-
-  /* ── Nav item active ── */
-  .b3-nav-active {
-    background: rgba(255, 90, 0, 0.1);
-    color: var(--orange);
-    border-left: 2px solid var(--orange);
   }
 
   /* ── Footer link hover ── */
