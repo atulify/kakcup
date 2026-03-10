@@ -65,7 +65,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
 
   html {
@@ -125,16 +125,42 @@
 
 @layer components {
   /* ── Button system ── */
-  .btn-base {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  .btn-base,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-destructive {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-weight: 500;
+    transition: all 0.2s;
     font-family: var(--font-display);
     letter-spacing: 0.08em;
     font-size: 0.75rem;
     text-transform: uppercase;
   }
+  .btn-base:focus-visible,
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-ghost:focus-visible,
+  .btn-destructive:focus-visible {
+    outline: none;
+    box-shadow: var(--ring) 0 0 0 2px, var(--background) 0 0 0 4px;
+  }
+  .btn-base:disabled,
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled,
+  .btn-destructive:disabled {
+    pointer-events: none;
+    opacity: 0.5;
+  }
 
   .btn-primary {
-    @apply btn-base px-6 py-2.5;
+    padding: 0.625rem 1.5rem;
     background: var(--orange);
     color: #040608;
     clip-path: var(--clip-sm);
@@ -156,7 +182,7 @@
   }
 
   .btn-secondary {
-    @apply btn-base px-4 py-2;
+    padding: 0.5rem 1rem;
     background: transparent;
     color: var(--ice);
     border: 1px solid var(--border-hi);
@@ -169,7 +195,7 @@
   }
 
   .btn-ghost {
-    @apply btn-base px-3 py-1.5;
+    padding: 0.375rem 0.75rem;
     background: transparent;
     color: var(--muted-foreground);
   }
@@ -179,7 +205,7 @@
   }
 
   .btn-destructive {
-    @apply btn-base px-4 py-2;
+    padding: 0.5rem 1rem;
     background: var(--destructive);
     color: var(--foreground);
     clip-path: var(--clip-sm);
