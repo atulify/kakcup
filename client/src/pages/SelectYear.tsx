@@ -162,6 +162,7 @@ export default function SelectYear() {
               id="year-select"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
+              className="b3-focus"
               style={{
                 width: "100%",
                 padding: "0.75rem 1rem",
@@ -171,16 +172,7 @@ export default function SelectYear() {
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.9rem",
                 clipPath: "var(--clip-sm)",
-                outline: "none",
                 cursor: "pointer",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "var(--orange)";
-                e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "var(--border-hi)";
-                e.target.style.boxShadow = "none";
               }}
               data-testid="select-year"
             >
@@ -260,10 +252,8 @@ export default function SelectYear() {
             href="https://github.com/atulify/kakcup/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5"
-            style={{ color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: "0.7rem", transition: "color 0.2s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ice)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim)")}
+            className="footer-link flex items-center gap-1.5"
+            style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem" }}
           >
             <Github size={12} />
             <span>atulify/kakcup</span>

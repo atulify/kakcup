@@ -62,8 +62,6 @@ export default function Login() {
     fontFamily: "var(--font-mono)",
     fontSize: "0.85rem",
     clipPath: "var(--clip-sm)",
-    outline: "none",
-    transition: "border-color 0.2s, box-shadow 0.2s",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -141,9 +139,8 @@ export default function Login() {
                     value={loginData.username}
                     onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
                     required
+                    className="b3-focus"
                     style={inputStyle}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }}
                     data-testid="input-login-username"
                   />
                 </div>
@@ -155,9 +152,8 @@ export default function Login() {
                     value={loginData.password}
                     onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
                     required
+                    className="b3-focus"
                     style={inputStyle}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }}
                     data-testid="input-login-password"
                   />
                 </div>
@@ -178,25 +174,25 @@ export default function Login() {
               <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 <div>
                   <label htmlFor="register-username" style={labelStyle}>Username</label>
-                  <input id="register-username" type="text" value={registerData.username} onChange={(e) => setRegisterData(prev => ({ ...prev, username: e.target.value }))} required style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-username" />
+                  <input id="register-username" type="text" value={registerData.username} onChange={(e) => setRegisterData(prev => ({ ...prev, username: e.target.value }))} required className="b3-focus" style={inputStyle} data-testid="input-register-username" />
                 </div>
                 <div>
                   <label htmlFor="register-email" style={labelStyle}>Email (optional)</label>
-                  <input id="register-email" type="email" value={registerData.email} onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-email" />
+                  <input id="register-email" type="email" value={registerData.email} onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))} className="b3-focus" style={inputStyle} data-testid="input-register-email" />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                   <div>
                     <label htmlFor="register-firstName" style={labelStyle}>First Name</label>
-                    <input id="register-firstName" type="text" value={registerData.firstName} onChange={(e) => setRegisterData(prev => ({ ...prev, firstName: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-firstName" />
+                    <input id="register-firstName" type="text" value={registerData.firstName} onChange={(e) => setRegisterData(prev => ({ ...prev, firstName: e.target.value }))} className="b3-focus" style={inputStyle} data-testid="input-register-firstName" />
                   </div>
                   <div>
                     <label htmlFor="register-lastName" style={labelStyle}>Last Name</label>
-                    <input id="register-lastName" type="text" value={registerData.lastName} onChange={(e) => setRegisterData(prev => ({ ...prev, lastName: e.target.value }))} style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-lastName" />
+                    <input id="register-lastName" type="text" value={registerData.lastName} onChange={(e) => setRegisterData(prev => ({ ...prev, lastName: e.target.value }))} className="b3-focus" style={inputStyle} data-testid="input-register-lastName" />
                   </div>
                 </div>
                 <div>
                   <label htmlFor="register-password" style={labelStyle}>Password</label>
-                  <input id="register-password" type="password" value={registerData.password} onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))} required style={inputStyle} onFocus={(e) => { e.target.style.borderColor = "var(--orange)"; e.target.style.boxShadow = "0 0 0 1px var(--orange), 0 0 8px rgba(255,90,0,0.2)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border-hi)"; e.target.style.boxShadow = "none"; }} data-testid="input-register-password" />
+                  <input id="register-password" type="password" value={registerData.password} onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))} required className="b3-focus" style={inputStyle} data-testid="input-register-password" />
                 </div>
                 <button
                   type="submit"

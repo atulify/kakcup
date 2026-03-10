@@ -164,10 +164,8 @@ export default function YearPage() {
             href="https://github.com/atulify/kakcup/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5"
-            style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.65rem", transition: "color 0.2s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ice)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            className="footer-link inline-flex items-center gap-1.5"
+            style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem" }}
           >
             <Github size={12} />
             <span>atulify/kakcup · {__COMMIT_HASH__}</span>
