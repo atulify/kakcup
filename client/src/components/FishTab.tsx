@@ -520,7 +520,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                           }
                         }}
                         disabled={deleteTeamWeightsMutation.isPending}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-950 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Trash2 size={16} />
                         <span>Clear All Fish ({teamStat.weights.length})</span>
