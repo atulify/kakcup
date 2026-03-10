@@ -78,7 +78,7 @@ export default defineConfig({
     outDir,
     emptyOutDir: true,
     manifest: true,
-    target: 'es2020',
+    target: 'esnext',
     cssCodeSplit: true, // Enable CSS code splitting for lazy-loaded components
     minify: 'esbuild',
     rollupOptions: {
