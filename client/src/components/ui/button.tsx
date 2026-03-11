@@ -1,4 +1,4 @@
-import type { JSX } from "preact"
+import type { ButtonHTMLAttributes } from "react"
 import { cn } from "@/lib/utils"
 
 const base =
@@ -20,7 +20,7 @@ const sizeClasses = {
   icon: "h-10 w-10",
 } as const
 
-export interface ButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variantClasses
   size?: keyof typeof sizeClasses
 }

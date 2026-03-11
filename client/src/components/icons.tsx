@@ -1,26 +1,28 @@
 /**
  * Inline SVG icon components — zero runtime dependency on lucide-react.
- * Each icon is a simple Preact functional component returning an <svg>.
+ * Each icon is a simple component returning an <svg>.
  */
-import { h, type FunctionComponent } from "preact";
+import type { FunctionComponent, SVGProps } from "react";
 
-type IconProps = { className?: string; size?: number };
+type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
 function icon(paths: string): FunctionComponent<IconProps> {
-  return ({ className, size = 24 }: IconProps) =>
-    h("svg", {
-      xmlns: "http://www.w3.org/2000/svg",
-      width: size,
-      height: size,
-      viewBox: "0 0 24 24",
-      fill: "none",
-      stroke: "currentColor",
-      "stroke-width": 2,
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      className,
-      dangerouslySetInnerHTML: { __html: paths },
-    });
+  return ({ className, size = 24, ...rest }: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      dangerouslySetInnerHTML={{ __html: paths }}
+      {...rest}
+    />
+  );
 }
 
 export const ArrowRight = icon('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>');

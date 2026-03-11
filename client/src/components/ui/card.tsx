@@ -1,7 +1,7 @@
-import type { JSX } from "preact"
+import type { HTMLAttributes } from "react"
 import { cn } from "@/lib/utils"
 
-type DivProps = JSX.HTMLAttributes<HTMLDivElement>
+type DivProps = HTMLAttributes<HTMLDivElement>
 
 export function Card({ className, ...props }: DivProps) {
   return <div className={cn("border bg-card text-card-foreground shadow-sm", className)} {...props} />

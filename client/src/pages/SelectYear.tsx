@@ -192,7 +192,9 @@ export default function SelectYear() {
                     return b.year - a.year;
                   });
 
-                  return sortedYears.map((yearData: Year) => {
+                  const visibleYears = sortedYears.filter((yearData: Year) => yearData.status !== "archived");
+
+                  return visibleYears.map((yearData: Year) => {
                     let statusText = "";
                     if (yearData.year < currentYear) statusText = " [DONE]";
                     else if (yearData.year > currentYear) statusText = " [UPCOMING]";

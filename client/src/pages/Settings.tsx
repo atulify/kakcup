@@ -163,7 +163,7 @@ function YearsSection() {
 
   const sortedYears = [...(years || [])].sort((a, b) => b.year - a.year);
   const selectedStatusYear = sortedYears.find((y) => y.id === statusYearId);
-  const nonCompletedYears = sortedYears.filter((y) => y.status !== "completed");
+  const nonCompletedYears = sortedYears.filter((y) => y.status !== "completed" && y.status !== "archived");
   const tieBreakYear = sortedYears.find((y) => y.id === tieBreakYearId);
   const completedYears = sortedYears.filter((y) => y.status === "completed");
 
@@ -289,7 +289,7 @@ function YearsSection() {
               </span>
             </div>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              {(["upcoming", "active", "completed"] as const).map((s) => (
+              {(["upcoming", "active", "completed", "archived"] as const).map((s) => (
                 <Button
                   key={s}
                   size="sm"

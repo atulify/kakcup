@@ -1,5 +1,5 @@
 // Use fixed version for cache - update this when deploying
-const CACHE_VERSION = '45e669a';
+const CACHE_VERSION = '73f1b3c';
 const CACHE_NAME = `kak-cup-${CACHE_VERSION}`;
 const STATIC_CACHE = 'kak-cup-static';
 
