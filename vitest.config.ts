@@ -3,6 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   test: {
+    singleThread: true,
     globals: false,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
