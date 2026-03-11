@@ -268,13 +268,17 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
             <div className="md:hidden flex flex-col gap-3 px-2">
               {standings.map((standing: any) => {
                 const { isFirst, isLast, rankDisplay: displayRank } = standing;
+                const highlightBg = "rgba(255,90,0,0.1)";
+                const highlightBorder = "rgba(255,90,0,0.25)";
+                const highlightGlow = "0 0 22px rgba(255,90,0,0.25)";
 
                 return (
                   <div
                     key={standing.team.id}
                     style={{
-                      background: isFirst ? "rgba(255,90,0,0.08)" : "var(--card)",
-                      border: `1px solid ${isFirst ? "rgba(255,90,0,0.3)" : "var(--border-hi)"}`,
+                      background: isFirst ? highlightBg : "var(--card)",
+                      border: `1px solid ${isFirst ? highlightBorder : "var(--border-hi)"}`,
+                      boxShadow: isFirst ? highlightGlow : "none",
                       clipPath: "var(--clip-sm)",
                       padding: "1rem",
                     }}
