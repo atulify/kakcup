@@ -3,7 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    globals: true,
+    globals: false,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     setupFiles: ['./tests/setup.ts'],
