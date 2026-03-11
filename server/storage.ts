@@ -1,4 +1,4 @@
-import { users, years, teams, kaks, champs, boots, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
+import { users, years, teams, kaks, champs, boots, tieBreakAdjustments, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertTieBreakAdjustment, type TieBreakAdjustment, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
 import { db } from "./db.js";
 import { eq, and, count, desc } from "drizzle-orm";
 
@@ -37,6 +37,9 @@ export interface IStorage {
   getKakStats(): Promise<{ champs: KakStatRow[]; boots: KakStatRow[] }>;
   getYearResults(): Promise<YearResult[]>;
   setChampsAndBoots(yearId: string, champKakIds: string[], bootKakIds: string[]): Promise<void>;
+  getTieBreakAdjustmentsByYear(yearId: string): Promise<TieBreakAdjustment[]>;
+  createTieBreakAdjustment(adjustment: InsertTieBreakAdjustment): Promise<TieBreakAdjustment>;
+  deleteTieBreakAdjustmentsByYear(yearId: string): Promise<void>;
   // Competition operations
   getFishWeightsByYear(yearId: string): Promise<any[]>;
   createFishWeight(fishWeight: any): Promise<any>;
@@ -223,6 +226,25 @@ export class DatabaseStorage implements IStorage {
         bootKakIds.map(kakId => ({ yearId, kakId }))
       ).onConflictDoNothing();
     }
+  }
+
+  async getTieBreakAdjustmentsByYear(yearId: string): Promise<TieBreakAdjustment[]> {
+    return await db
+      .select()
+      .from(tieBreakAdjustments)
+      .where(eq(tieBreakAdjustments.yearId, yearId));
+  }
+
+  async createTieBreakAdjustment(adjustment: InsertTieBreakAdjustment): Promise<TieBreakAdjustment> {
+    const [row] = await db
+      .insert(tieBreakAdjustments)
+      .values(adjustment)
+      .returning();
+    return row;
+  }
+
+  async deleteTieBreakAdjustmentsByYear(yearId: string): Promise<void> {
+    await db.delete(tieBreakAdjustments).where(eq(tieBreakAdjustments.yearId, yearId));
   }
 
   async getFishWeightsByYear(yearId: string): Promise<any[]> {

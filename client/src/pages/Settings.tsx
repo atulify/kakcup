@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense, useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Settings as SettingsIcon, Home, Trash2, Plus } from "@/components/icons";
@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Year } from "@shared/schema";
+import { calculateTop3FishTotal, rankFishTeams, rankChugTeams, rankGolfTeams } from "@shared/scoring";
 
 const KakManagement = lazy(() => import("@/components/KakManagement"));
 
@@ -26,8 +27,61 @@ function YearsSection() {
   const [statusYearId, setStatusYearId] = useState("");
   const [clearYearId, setClearYearId] = useState("");
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [tieBreakYearId, setTieBreakYearId] = useState("");
+  const [tieBreakTeamId, setTieBreakTeamId] = useState("");
+  const [tieBreakReason, setTieBreakReason] = useState("");
 
   const { data: years } = useQuery<Year[]>({ queryKey: ["/api/years"] });
+
+  const { data: tieBreakTeams } = useQuery({
+    queryKey: ["/api/years", tieBreakYearId, "teams"],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${tieBreakYearId}/teams`);
+      return response.json();
+    },
+    enabled: !!tieBreakYearId,
+    staleTime: 2_000,
+  });
+
+  const { data: tieBreakFish } = useQuery({
+    queryKey: ["/api/years", tieBreakYearId, "fish-weights"],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${tieBreakYearId}/fish-weights`);
+      return response.json();
+    },
+    enabled: !!tieBreakYearId,
+    staleTime: 2_000,
+  });
+
+  const { data: tieBreakChug } = useQuery({
+    queryKey: ["/api/years", tieBreakYearId, "chug-times"],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${tieBreakYearId}/chug-times`);
+      return response.json();
+    },
+    enabled: !!tieBreakYearId,
+    staleTime: 2_000,
+  });
+
+  const { data: tieBreakGolf } = useQuery({
+    queryKey: ["/api/years", tieBreakYearId, "golf-scores"],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${tieBreakYearId}/golf-scores`);
+      return response.json();
+    },
+    enabled: !!tieBreakYearId,
+    staleTime: 2_000,
+  });
+
+  const { data: tieBreaks } = useQuery({
+    queryKey: ["/api/years", tieBreakYearId, "tie-breaks"],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${tieBreakYearId}/tie-breaks`);
+      return response.json();
+    },
+    enabled: !!tieBreakYearId,
+    staleTime: 2_000,
+  });
 
   const statusMutation = useMutation({
     mutationFn: ({ yearId, status }: { yearId: string; status: string }) =>
@@ -68,9 +122,120 @@ function YearsSection() {
     },
   });
 
+  const tieBreakMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/years/${tieBreakYearId}/tie-breaks`, "POST", {
+        teamId: tieBreakTeamId,
+        event: "golf",
+        deltaPoints: 0.5,
+        reason: tieBreakReason,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", tieBreakYearId, "tie-breaks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/years", tieBreakYearId, "teams"] });
+      queryClient.invalidateQueries();
+      setTieBreakReason("");
+      toast({ title: "Tie-break applied" });
+    },
+    onError: (err: any) => {
+      const body = err?.responseBody;
+      const msg = body?.error ?? "Failed to apply tie-break";
+      toast({ title: msg, variant: "destructive" });
+    },
+  });
+
+  const deleteTieBreakMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/years/${tieBreakYearId}/tie-breaks`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/years", tieBreakYearId, "tie-breaks"] });
+      queryClient.invalidateQueries();
+      toast({ title: "Tie-break removed" });
+    },
+    onError: (err: any) => {
+      const body = err?.responseBody;
+      const msg = body?.error ?? "Failed to remove tie-break";
+      toast({ title: msg, variant: "destructive" });
+    },
+  });
+
   const sortedYears = [...(years || [])].sort((a, b) => b.year - a.year);
   const selectedStatusYear = sortedYears.find((y) => y.id === statusYearId);
   const nonCompletedYears = sortedYears.filter((y) => y.status !== "completed");
+  const tieBreakYear = sortedYears.find((y) => y.id === tieBreakYearId);
+  const completedYears = sortedYears.filter((y) => y.status === "completed");
+
+  const tieBreakInfo = useMemo(() => {
+    if (!tieBreakYearId) return null;
+    if (!tieBreakTeams || !Array.isArray(tieBreakTeams)) return null;
+
+    const teams = tieBreakTeams as any[];
+    const fishWeights = Array.isArray(tieBreakFish) ? tieBreakFish : [];
+    const chugTimes = Array.isArray(tieBreakChug) ? tieBreakChug : [];
+    const golfScores = Array.isArray(tieBreakGolf) ? tieBreakGolf : [];
+
+    const fishByTeam = new Map<string, number[]>();
+    fishWeights.forEach((fw: any) => {
+      const weight = parseFloat(fw.weight?.toString() || "0");
+      if (weight > 0) {
+        if (!fishByTeam.has(fw.teamId)) fishByTeam.set(fw.teamId, []);
+        fishByTeam.get(fw.teamId)!.push(weight);
+      }
+    });
+
+    const chugAverages = new Map<string, number>();
+    chugTimes
+      .filter((ct: any) => ct.average && parseFloat(ct.average) > 0)
+      .forEach((ct: any) => {
+        chugAverages.set(ct.teamId, parseFloat(ct.average?.toString() || "999"));
+      });
+
+    const golfScoresMap = new Map<string, number>();
+    golfScores
+      .filter((gs: any) => gs.score !== null && gs.score !== undefined)
+      .forEach((gs: any) => {
+        golfScoresMap.set(gs.teamId, parseInt(gs.score?.toString() || "999"));
+      });
+
+    const completeTeams = teams.filter((t: any) => chugAverages.has(t.id) && golfScoresMap.has(t.id));
+    if (completeTeams.length === 0) return { tiedTeams: [], maxPoints: 0 };
+
+    const fishTotals = new Map(
+      completeTeams.map((t: any) => [t.id, calculateTop3FishTotal(fishByTeam.get(t.id) ?? [])])
+    );
+
+    const fishPoints = new Map(rankFishTeams(fishTotals).map((p) => [p.teamId, p.points]));
+    const chugPoints = new Map(
+      rankChugTeams(new Map(completeTeams.map((t: any) => [t.id, chugAverages.get(t.id)!]))).map((p) => [p.teamId, p.points])
+    );
+    const golfPoints = new Map(
+      rankGolfTeams(new Map(completeTeams.map((t: any) => [t.id, golfScoresMap.get(t.id)!]))).map((p) => [p.teamId, p.points])
+    );
+
+    const totals = new Map<string, number>();
+    completeTeams.forEach((t: any) => {
+      const total = (fishPoints.get(t.id) || 0) + (chugPoints.get(t.id) || 0) + (golfPoints.get(t.id) || 0);
+      totals.set(t.id, total);
+    });
+
+    const totalsArray = Array.from(totals.values());
+    const maxPoints = totalsArray.length > 0 ? Math.max(...totalsArray) : 0;
+    const tiedTeams = completeTeams.filter((t: any) => (totals.get(t.id) || 0) === maxPoints);
+
+    return { tiedTeams, maxPoints };
+  }, [tieBreakYearId, tieBreakTeams, tieBreakFish, tieBreakChug, tieBreakGolf]);
+
+  useEffect(() => {
+    if (!tieBreakInfo || tieBreakInfo.tiedTeams.length === 0) {
+      setTieBreakTeamId("");
+      return;
+    }
+    if (!tieBreakInfo.tiedTeams.some((t: any) => t.id === tieBreakTeamId)) {
+      setTieBreakTeamId(tieBreakInfo.tiedTeams[0].id);
+    }
+  }, [tieBreakInfo, tieBreakTeamId]);
 
   const sectionStyle: React.CSSProperties = {
     background: "var(--card)",
@@ -199,6 +364,83 @@ function YearsSection() {
                 Cancel
               </Button>
             </div>
+          </div>
+        )}
+      </section>
+
+      {/* Tie-break */}
+      <section style={sectionStyle}>
+        <h2 style={sectionTitleStyle}>⬡ Tie-Break</h2>
+        <select
+          value={tieBreakYearId}
+          onChange={(e) => { setTieBreakYearId(e.target.value); setTieBreakTeamId(""); }}
+          style={selectStyle}
+        >
+          <option value="">— Select a completed year —</option>
+          {completedYears.map((y) => (
+            <option key={y.id} value={y.id}>{y.year} — {y.name}</option>
+          ))}
+        </select>
+
+        {tieBreakYear && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-dim)" }}>
+              Status:{" "}
+              <span style={{ color: "var(--ice)", fontWeight: 600, textTransform: "uppercase" }}>
+                {tieBreakYear.status}
+              </span>
+            </div>
+
+            {tieBreaks && Array.isArray(tieBreaks) && tieBreaks.length > 0 ? (
+              <div style={{ padding: "0.75rem", background: "rgba(0,170,120,0.08)", border: "1px solid rgba(0,170,120,0.3)", clipPath: "var(--clip-sm)", fontFamily: "var(--font-mono)", fontSize: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div>Tie-break already applied for this year.</div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={deleteTieBreakMutation.isPending}
+                  onClick={() => deleteTieBreakMutation.mutate()}
+                >
+                  {deleteTieBreakMutation.isPending ? "Removing..." : "Remove Tie-break"}
+                </Button>
+              </div>
+            ) : (
+              <>
+                {tieBreakInfo && tieBreakInfo.tiedTeams.length > 1 ? (
+                  <>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-dim)" }}>
+                      Tie detected at {tieBreakInfo.maxPoints} points.
+                    </div>
+                    <select
+                      value={tieBreakTeamId}
+                      onChange={(e) => setTieBreakTeamId(e.target.value)}
+                      style={selectStyle}
+                    >
+                      {tieBreakInfo.tiedTeams.map((team: any) => (
+                        <option key={team.id} value={team.id}>{team.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={tieBreakReason}
+                      onChange={(e) => setTieBreakReason(e.target.value)}
+                      placeholder="Reason (optional)"
+                      style={{ ...selectStyle, marginBottom: 0, cursor: "text" }}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!tieBreakTeamId || tieBreakMutation.isPending || tieBreakYear.status !== "completed"}
+                      onClick={() => tieBreakMutation.mutate()}
+                    >
+                      {tieBreakMutation.isPending ? "Applying..." : "Apply +0.5 Golf Bonus"}
+                    </Button>
+                  </>
+                ) : (
+                  <div style={{ padding: "0.75rem", background: "rgba(255,90,0,0.08)", border: "1px solid rgba(255,90,0,0.2)", clipPath: "var(--clip-sm)", fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
+                    No tie for first place detected.
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </section>

@@ -16,6 +16,7 @@ describe('Schema Switching Logic', () => {
     expect(schema.fishWeights).toBeDefined();
     expect(schema.chugTimes).toBeDefined();
     expect(schema.golfScores).toBeDefined();
+    expect(schema.tieBreakAdjustments).toBeDefined();
   });
 
   it('should have all required table definitions', async () => {
@@ -28,6 +29,7 @@ describe('Schema Switching Logic', () => {
     expect(schema.kaks).toBeDefined();
     expect(schema.champs).toBeDefined();
     expect(schema.boots).toBeDefined();
+    expect(schema.tieBreakAdjustments).toBeDefined();
     expect(schema.fishWeights).toBeDefined();
     expect(schema.chugTimes).toBeDefined();
     expect(schema.golfScores).toBeDefined();
@@ -43,6 +45,7 @@ describe('Schema Switching Logic', () => {
     expect(schema.insertKakSchema).toBeDefined();
     expect(schema.insertChampSchema).toBeDefined();
     expect(schema.insertBootSchema).toBeDefined();
+    expect(schema.insertTieBreakAdjustmentSchema).toBeDefined();
     expect(schema.insertFishWeightSchema).toBeDefined();
     expect(schema.insertChugTimeSchema).toBeDefined();
     expect(schema.insertGolfScoreSchema).toBeDefined();
@@ -56,6 +59,7 @@ describe('Schema Switching Logic', () => {
     expect(schema.teamsRelations).toBeDefined();
     expect(schema.champsRelations).toBeDefined();
     expect(schema.bootsRelations).toBeDefined();
+    expect(schema.tieBreakAdjustmentsRelations).toBeDefined();
     expect(schema.fishWeightsRelations).toBeDefined();
     expect(schema.chugTimesRelations).toBeDefined();
     expect(schema.golfScoresRelations).toBeDefined();

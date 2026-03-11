@@ -81,6 +81,19 @@ export const boots = pgTable("boots", {
   uniqueYearKak: uniqueIndex("unique_boots_year_kak").on(table.yearId, table.kakId),
 }));
 
+export const tieBreakAdjustments = pgTable("tie_break_adjustments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  yearId: uuid("year_id").notNull().references(() => years.id),
+  teamId: uuid("team_id").notNull().references(() => teams.id),
+  event: text("event").notNull(), // fish | chug | golf | total
+  deltaPoints: numeric("delta_points", { precision: 6, scale: 2 }).notNull(),
+  reason: text("reason"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  uniqueYear: uniqueIndex("unique_tie_break_year").on(table.yearId),
+}));
+
 export const fishWeights = pgTable("fish_weights", {
   id: uuid("id").primaryKey().defaultRandom(),
   yearId: uuid("year_id").notNull(),
@@ -126,6 +139,7 @@ export const yearsRelations = relations(years, ({ many }) => ({
   golfScores: many(golfScores),
   champs: many(champs),
   boots: many(boots),
+  tieBreakAdjustments: many(tieBreakAdjustments),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -140,6 +154,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   fishWeights: many(fishWeights),
   chugTimes: many(chugTimes),
   golfScores: many(golfScores),
+  tieBreakAdjustments: many(tieBreakAdjustments),
 }));
 
 export const champsRelations = relations(champs, ({ one }) => ({
@@ -150,6 +165,12 @@ export const champsRelations = relations(champs, ({ one }) => ({
 export const bootsRelations = relations(boots, ({ one }) => ({
   year: one(years, { fields: [boots.yearId], references: [years.id] }),
   kak: one(kaks, { fields: [boots.kakId], references: [kaks.id] }),
+}));
+
+export const tieBreakAdjustmentsRelations = relations(tieBreakAdjustments, ({ one }) => ({
+  year: one(years, { fields: [tieBreakAdjustments.yearId], references: [years.id] }),
+  team: one(teams, { fields: [tieBreakAdjustments.teamId], references: [teams.id] }),
+  createdBy: one(users, { fields: [tieBreakAdjustments.createdBy], references: [users.id] }),
 }));
 
 export const fishWeightsRelations = relations(fishWeights, ({ one }) => ({
@@ -233,6 +254,15 @@ export const insertBootSchema = createInsertSchema(boots).pick({
   kakId: true,
 });
 
+export const insertTieBreakAdjustmentSchema = createInsertSchema(tieBreakAdjustments).pick({
+  yearId: true,
+  teamId: true,
+  event: true,
+  deltaPoints: true,
+  reason: true,
+  createdBy: true,
+});
+
 export type RegisterUser = z.infer<typeof registerUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertYear = z.infer<typeof insertYearSchema>;
@@ -245,6 +275,8 @@ export type InsertChamp = z.infer<typeof insertChampSchema>;
 export type Champ = typeof champs.$inferSelect;
 export type InsertBoot = z.infer<typeof insertBootSchema>;
 export type Boot = typeof boots.$inferSelect;
+export type InsertTieBreakAdjustment = z.infer<typeof insertTieBreakAdjustmentSchema>;
+export type TieBreakAdjustment = typeof tieBreakAdjustments.$inferSelect;
 
 export const insertFishWeightSchema = createInsertSchema(fishWeights).pick({
   yearId: true,

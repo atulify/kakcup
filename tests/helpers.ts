@@ -129,11 +129,25 @@ export function createTestDatabase() {
     );
   `);
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS "tie_break_adjustments" (
+      "id" TEXT PRIMARY KEY,
+      "year_id" TEXT NOT NULL REFERENCES years(id),
+      "team_id" TEXT NOT NULL REFERENCES teams(id),
+      "event" TEXT NOT NULL,
+      "delta_points" REAL NOT NULL,
+      "reason" TEXT,
+      "created_by" TEXT NOT NULL REFERENCES users(id),
+      "created_at" INTEGER
+    );
+  `);
+
   // Unique constraints required for ON CONFLICT DO UPDATE upsert behaviour
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_chug_year_team ON chug_times(year_id, team_id);`);
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_golf_year_team ON golf_scores(year_id, team_id);`);
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_champs_year_kak ON champs(year_id, kak_id);`);
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_boots_year_kak ON boots(year_id, kak_id);`);
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS unique_tie_break_year ON tie_break_adjustments(year_id);`);
 
   return { sqlite, db: drizzle(sqlite), dbPath };
 }
@@ -181,4 +195,3 @@ export function seedTestDatabase(sqlite: Database.Database) {
 
   return { yearId, teamId, userId, kakId1, kakId2 };
 }
-

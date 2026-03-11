@@ -15,6 +15,7 @@ const TTL_SHORT = 300; // 5-minute TTL for data that can be updated outside the 
 export const cacheTTL = {
   kakStats: TTL_SHORT,
   kakResults: TTL_SHORT,
+  tieBreaks: TTL_SHORT,
 };
 
 export const cacheKeys = {
@@ -26,6 +27,7 @@ export const cacheKeys = {
   fishWeights: (yearId: string) => `fw:${yearId}`,
   chugTimes: (yearId: string) => `ct:${yearId}`,
   golfScores: (yearId: string) => `gs:${yearId}`,
+  tieBreaks: (yearId: string) => `tb:${yearId}`,
 };
 
 export async function cached<T>(key: string, fn: () => Promise<T>, ttl = TTL): Promise<T> {

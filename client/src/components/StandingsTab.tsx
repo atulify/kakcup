@@ -45,6 +45,15 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
     staleTime: 2_000,
   });
 
+  const { data: tieBreaks, isLoading: tieBreaksLoading } = useQuery({
+    queryKey: ["/api/years", yearId, "tie-breaks"],
+    queryFn: async () => {
+      const response = await fetch(`/api/years/${yearId}/tie-breaks`);
+      return response.json();
+    },
+    staleTime: 2_000,
+  });
+
   // All useMemo hooks - must be called unconditionally
   const sortedTeams = useMemo(() => {
     if (!teams || !Array.isArray(teams)) return [];
@@ -112,13 +121,36 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
       });
     }
 
+    // Apply tie-break adjustments
+    const fishAdjustments = new Map<string, number>();
+    const chugAdjustments = new Map<string, number>();
+    const golfAdjustments = new Map<string, number>();
+    const totalAdjustments = new Map<string, number>();
+    if (tieBreaks && Array.isArray(tieBreaks)) {
+      tieBreaks.forEach((tb: any) => {
+        const teamId = tb.teamId;
+        const delta = parseFloat(tb.deltaPoints?.toString() || "0");
+        if (!teamId || !Number.isFinite(delta)) return;
+        const event = tb.event;
+        if (event === "fish") {
+          fishAdjustments.set(teamId, (fishAdjustments.get(teamId) || 0) + delta);
+        } else if (event === "chug") {
+          chugAdjustments.set(teamId, (chugAdjustments.get(teamId) || 0) + delta);
+        } else if (event === "golf") {
+          golfAdjustments.set(teamId, (golfAdjustments.get(teamId) || 0) + delta);
+        } else {
+          totalAdjustments.set(teamId, (totalAdjustments.get(teamId) || 0) + delta);
+        }
+      });
+    }
+
     // Calculate total standings
     const standingsData = sortedTeams.map((team: Team) => {
       const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
-      const fishPoints = fishPointsMap.get(team.id) || 0;
-      const chugPoints = chugPointsMap.get(team.id) || 0;
-      const golfPoints = golfPointsMap.get(team.id) || 0;
-      const totalPoints = fishPoints + chugPoints + golfPoints;
+      const fishPoints = (fishPointsMap.get(team.id) || 0) + (fishAdjustments.get(team.id) || 0);
+      const chugPoints = (chugPointsMap.get(team.id) || 0) + (chugAdjustments.get(team.id) || 0);
+      const golfPoints = (golfPointsMap.get(team.id) || 0) + (golfAdjustments.get(team.id) || 0);
+      const totalPoints = fishPoints + chugPoints + golfPoints + (totalAdjustments.get(team.id) || 0);
 
       return {
         team,
@@ -158,10 +190,24 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
         isLast: standing.totalPoints === minPoints && standing.totalPoints > 0 && teamsWithPoints.length > 1
       };
     });
-  }, [sortedTeams, fishWeights, chugTimes, golfScores]);
+  }, [sortedTeams, fishWeights, chugTimes, golfScores, tieBreaks]);
+
+  const tieBreakSummary = useMemo(() => {
+    if (!tieBreaks || !Array.isArray(tieBreaks) || tieBreaks.length === 0) return null;
+    const teamNameById = new Map<string, string>();
+    sortedTeams.forEach((t: Team) => teamNameById.set(t.id, t.name));
+    const parts = tieBreaks.map((tb: any) => {
+      const teamName = teamNameById.get(tb.teamId) || "Unknown Team";
+      const delta = parseFloat(tb.deltaPoints?.toString() || "0");
+      const event = tb.event ? tb.event.toString().toUpperCase() : "TOTAL";
+      const reason = tb.reason ? ` (${tb.reason})` : "";
+      return `${teamName}: +${delta} ${event}${reason}`;
+    });
+    return parts.join(" · ");
+  }, [tieBreaks, sortedTeams]);
 
   // Now check loading state - AFTER all hooks
-  const isLoading = teamsLoading || fishLoading || chugLoading || golfLoading;
+  const isLoading = teamsLoading || fishLoading || chugLoading || golfLoading || tieBreaksLoading;
 
   if (isLoading) {
     return (
@@ -185,6 +231,11 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>
             Combined points from Fish · Chug · Golf
           </p>
+          {tieBreakSummary && (
+            <div style={{ marginTop: "0.6rem", fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--ice)" }}>
+              Tie-break applied: {tieBreakSummary}
+            </div>
+          )}
         </div>
 
         {sortedTeams.length === 0 ? (

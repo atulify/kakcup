@@ -208,7 +208,9 @@ describe('Parallel data prefetch', () => {
     const yearsRes = await app.request('/api/years');
     const years = await yearsRes.json();
     expect(years.length).toBeGreaterThan(0);
-    const yearId = years[0].id;
+    const unlockedYear = years.find((y: any) => !y.fishing_locked && !y.chug_locked && !y.golf_locked);
+    expect(unlockedYear).toBeDefined();
+    const yearId = unlockedYear.id;
 
     // Fire all four data requests in parallel — same as YearPage prefetch
     const [teamsRes, fishRes, chugRes, golfRes] = await Promise.all([
@@ -264,6 +266,118 @@ describe('Parallel data prefetch', () => {
       headers: { 'If-None-Match': etag! },
     });
     expect(secondRes.status).toBe(304);
+  });
+});
+
+describe('Tie-breaks', () => {
+  it('applies and removes a tie-break and updates champs', async () => {
+    const adminToken = await createToken({ userId: '33333333-3333-3333-3333-333333333333', username: 'testuser', role: 'admin' });
+
+    const newYearRes = await app.request('/api/years', {
+      method: 'POST',
+      headers: { Cookie: `token=${adminToken}` },
+    });
+    expect(newYearRes.status).toBe(201);
+    const newYear = await newYearRes.json();
+    const yearId = newYear.id;
+
+    const kaksRes = await app.request('/api/kaks');
+    const kaks = await kaksRes.json();
+    const kak1 = kaks.find((k: any) => k.name === 'Seed KAK 1');
+    const kak2 = kaks.find((k: any) => k.name === 'Seed KAK 2');
+    expect(kak1).toBeDefined();
+    expect(kak2).toBeDefined();
+    const kakId1 = kak1.id;
+    const kakId2 = kak2.id;
+
+    // Create team1 with kak1Id
+    const team1Res = await app.request(`/api/years/${yearId}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ name: 'Tie Team A', position: 1, kak1Id: kakId1 }),
+    });
+    expect(team1Res.status).toBe(201);
+    const team1 = await team1Res.json();
+
+    // Create team2 with a different kak ID
+    const team2Res = await app.request(`/api/years/${yearId}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ name: 'Tie Team', position: 2, kak1Id: kakId2 }),
+    });
+    expect(team2Res.status).toBe(201);
+    const team2 = await team2Res.json();
+
+    // Add equal scores so team1 and team2 tie
+    await app.request(`/api/years/${yearId}/fish-weights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team1.id, weight: 10 }),
+    });
+    await app.request(`/api/years/${yearId}/fish-weights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team2.id, weight: 10 }),
+    });
+
+    await app.request(`/api/years/${yearId}/chug-times`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team1.id, chug1: 5, chug2: 5, average: 5 }),
+    });
+    await app.request(`/api/years/${yearId}/chug-times`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team2.id, chug1: 5, chug2: 5, average: 5 }),
+    });
+
+    await app.request(`/api/years/${yearId}/golf-scores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team1.id, score: 70 }),
+    });
+    await app.request(`/api/years/${yearId}/golf-scores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team2.id, score: 70 }),
+    });
+
+    // Lock and complete year
+    const completeRes = await app.request(`/api/years/${yearId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ fishing_locked: true, chug_locked: true, golf_locked: true, status: 'completed' }),
+    });
+    expect(completeRes.status).toBe(200);
+
+    // No champs when tied for first
+    const statsRes1 = await app.request('/api/kak-stats');
+    const stats1 = await statsRes1.json();
+    expect(stats1.champs).toHaveLength(0);
+
+    // Apply tie-break to team2
+    const tieBreakRes = await app.request(`/api/years/${yearId}/tie-breaks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team2.id, event: 'golf', deltaPoints: 0.5, reason: 'test' }),
+    });
+    expect(tieBreakRes.status).toBe(201);
+
+    const statsRes2 = await app.request('/api/kak-stats');
+    const stats2 = await statsRes2.json();
+    expect(stats2.champs).toHaveLength(1);
+    expect(stats2.champs[0].kakId).toBe(kakId2);
+
+    // Remove tie-break
+    const deleteRes = await app.request(`/api/years/${yearId}/tie-breaks`, {
+      method: 'DELETE',
+      headers: { Cookie: `token=${adminToken}` },
+    });
+    expect(deleteRes.status).toBe(200);
+
+    const statsRes3 = await app.request('/api/kak-stats');
+    const stats3 = await statsRes3.json();
+    expect(stats3.champs).toHaveLength(0);
   });
 });
 
