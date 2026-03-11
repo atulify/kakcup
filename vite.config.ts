@@ -81,6 +81,7 @@ export default defineConfig({
     target: 'esnext',
     cssCodeSplit: true, // Enable CSS code splitting for lazy-loaded components
     minify: 'esbuild',
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
