@@ -46,6 +46,16 @@ function Router() {
   );
 }
 
+// Eagerly prefetch years so the data is ready before the lazy SelectYear chunk loads.
+// This eliminates the waterfall: chunk download + years fetch happen in parallel.
+queryClient.prefetchQuery({
+  queryKey: ["/api/years"],
+  queryFn: async () => {
+    const response = await fetch("/api/years");
+    return response.json();
+  },
+});
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
