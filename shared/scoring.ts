@@ -69,9 +69,11 @@ export interface TeamPoints {
  * @param rankedTeams - Teams already sorted by their score (best to worst)
  * @returns Array of team IDs with their awarded points
  */
+const POINTS_PREFIX = [0, 7, 13, 18, 22, 25, 27, 28];
+
 export function calculatePointsWithTiebreaking(rankedTeams: TeamScore[]): TeamPoints[] {
-  const result: TeamPoints[] = [];
-  const pointsPrefix = [0, 7, 13, 18, 22, 25, 27, 28];
+  const result = new Array<TeamPoints>(rankedTeams.length);
+  let outIndex = 0;
 
   let currentRank = 1;
   let i = 0;
@@ -91,16 +93,16 @@ export function calculatePointsWithTiebreaking(rankedTeams: TeamScore[]): TeamPo
     if (currentRank > 7) {
       totalPoints = tieCount;
     } else if (endRank <= 7) {
-      totalPoints = pointsPrefix[endRank] - pointsPrefix[currentRank - 1];
+      totalPoints = POINTS_PREFIX[endRank] - POINTS_PREFIX[currentRank - 1];
     } else {
-      totalPoints = pointsPrefix[7] - pointsPrefix[currentRank - 1];
+      totalPoints = POINTS_PREFIX[7] - POINTS_PREFIX[currentRank - 1];
       totalPoints += endRank - 7;
     }
 
     const pointsPerTeam = totalPoints / tieCount;
 
     for (let k = i; k < j; k++) {
-      result.push({ teamId: rankedTeams[k].teamId, points: pointsPerTeam });
+      result[outIndex++] = { teamId: rankedTeams[k].teamId, points: pointsPerTeam };
     }
 
     currentRank = endRank + 1;
