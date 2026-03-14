@@ -42,6 +42,13 @@ describe('GET /api/years', () => {
       expect(year).toHaveProperty('status');
     }
   });
+
+  it('should set CDN cache headers', async () => {
+    const res = await app.request('/api/years');
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, s-maxage=604800, stale-while-revalidate=86400'
+    );
+  });
 });
 
 describe('POST /api/auth/register', () => {
