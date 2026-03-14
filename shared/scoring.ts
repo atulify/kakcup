@@ -71,6 +71,7 @@ export interface TeamPoints {
  */
 export function calculatePointsWithTiebreaking(rankedTeams: TeamScore[]): TeamPoints[] {
   const result: TeamPoints[] = [];
+  const pointsPrefix = [0, 7, 13, 18, 22, 25, 27, 28];
 
   let currentRank = 1;
   let i = 0;
@@ -78,32 +79,31 @@ export function calculatePointsWithTiebreaking(rankedTeams: TeamScore[]): TeamPo
   while (i < rankedTeams.length) {
     const currentScore = rankedTeams[i].score;
 
-    // Find all teams tied at this score
-    const tiedTeams: TeamScore[] = [];
-    let j = i;
+    let j = i + 1;
     while (j < rankedTeams.length && rankedTeams[j].score === currentScore) {
-      tiedTeams.push(rankedTeams[j]);
       j++;
     }
 
-    // Calculate total points available for this tie group
-    // Points formula: max(1, 8 - rank)
-    // Rank 1 gets 7 points, rank 2 gets 6, ..., rank 7 gets 1, rank 8+ gets 1
+    const tieCount = j - i;
+    const endRank = currentRank + tieCount - 1;
+
     let totalPoints = 0;
-    for (let rank = currentRank; rank < currentRank + tiedTeams.length; rank++) {
-      totalPoints += Math.max(1, 8 - rank);
+    if (currentRank > 7) {
+      totalPoints = tieCount;
+    } else if (endRank <= 7) {
+      totalPoints = pointsPrefix[endRank] - pointsPrefix[currentRank - 1];
+    } else {
+      totalPoints = pointsPrefix[7] - pointsPrefix[currentRank - 1];
+      totalPoints += endRank - 7;
     }
 
-    // Split points equally among tied teams
-    const pointsPerTeam = totalPoints / tiedTeams.length;
+    const pointsPerTeam = totalPoints / tieCount;
 
-    // Award points to each tied team
-    tiedTeams.forEach(({ teamId }) => {
-      result.push({ teamId, points: pointsPerTeam });
-    });
+    for (let k = i; k < j; k++) {
+      result.push({ teamId: rankedTeams[k].teamId, points: pointsPerTeam });
+    }
 
-    // Move to next rank group
-    currentRank += tiedTeams.length;
+    currentRank = endRank + 1;
     i = j;
   }
 
