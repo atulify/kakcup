@@ -158,22 +158,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getKakStats(): Promise<{ champs: KakStatRow[]; boots: KakStatRow[] }> {
-    const [champData, bootData] = await Promise.all([
-      db
-        .select({ kakId: champs.kakId, name: kaks.name, total: count() })
-        .from(champs)
-        .innerJoin(kaks, eq(kaks.id, champs.kakId))
-        .groupBy(champs.kakId, kaks.name),
-      db
-        .select({ kakId: boots.kakId, name: kaks.name, total: count() })
-        .from(boots)
-        .innerJoin(kaks, eq(kaks.id, boots.kakId))
-        .groupBy(boots.kakId, kaks.name),
-    ]);
+    const [kakRows, champRows, bootRows] = await Promise.all([
+      db.select({ id: kaks.id, name: kaks.name }).from(kaks),
+      db.select({ kakId: champs.kakId }).from(champs),
+      db.select({ kakId: boots.kakId }).from(boots),
+    ]) as [
+      { id: string; name: string }[],
+      { kakId: string }[],
+      { kakId: string }[],
+    ];
+
+    const nameById = new Map<string, string>();
+    for (const row of kakRows) {
+      nameById.set(row.id, row.name);
+    }
+
+    const buildStats = (rows: { kakId: string }[]): KakStatRow[] => {
+      const map = new Map<string, KakStatRow>();
+      for (const row of rows) {
+        const existing = map.get(row.kakId);
+        if (existing) {
+          existing.total += 1;
+        } else {
+          const name = nameById.get(row.kakId) ?? '';
+          map.set(row.kakId, { kakId: row.kakId, name, total: 1 });
+        }
+      }
+      return Array.from(map.values()).sort((a, b) => b.total - a.total);
+    };
 
     return {
-      champs: champData.sort((a: KakStatRow, b: KakStatRow) => b.total - a.total),
-      boots: bootData.sort((a: KakStatRow, b: KakStatRow) => b.total - a.total),
+      champs: buildStats(champRows),
+      boots: buildStats(bootRows),
     };
   }
 
