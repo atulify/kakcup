@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestDatabase, seedTestDatabase } from './helpers.js';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { users, years, teams, fishWeights, chugTimes, golfScores } from '../shared/schema-sqlite.js';
+import { users, years, teams, fishWeights, chugTimes, golfScores, kaks, champs, boots } from '../shared/schema-sqlite.js';
 import { eq } from 'drizzle-orm';
 import Database from 'better-sqlite3';
 import { existsSync, unlinkSync } from 'fs';
+import { performance } from 'node:perf_hooks';
 import { DatabaseStorage } from '../server/storage.js';
 import { setDb } from '../server/db.js';
 
@@ -427,7 +428,7 @@ describe('Storage Layer - Upsert Behaviour', () => {
   it('createGolfScore should allow different teams to each have their own row', async () => {
     const { yearId, teamId } = seedTestDatabase(sqlite);
     const teamId2 = crypto.randomUUID();
-    sqlite.prepare(`INSERT INTO teams (id, year_id, name, position, locked) VALUES (?, ?, ?, ?, ?)`)
+    sqlite.prepare(`INSERT INTO teams (id, year_id, name, position, locked) VALUES (?, ?, ?, ?, ?)`) 
       .run(teamId2, yearId, 'Team 2', 2, 0);
 
     await store.createGolfScore({ id: crypto.randomUUID(), yearId, teamId, score: 80 });
@@ -435,5 +436,55 @@ describe('Storage Layer - Upsert Behaviour', () => {
 
     const rows = await store.getGolfScoresByYear(yearId);
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe('Storage Layer - getKakStats Benchmark', () => {
+  let sqlite: Database.Database;
+  let store: DatabaseStorage;
+
+  beforeEach(() => {
+    const testDb = createTestDatabase();
+    sqlite = testDb.sqlite;
+    setDb(drizzle(sqlite, { schema: { users, years, teams, fishWeights, chugTimes, golfScores, kaks, champs, boots } }));
+    store = new DatabaseStorage();
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  it('measures getKakStats runtime', async () => {
+    const { yearId } = seedTestDatabase(sqlite);
+    const kakRows: [string, string, string][] = Array.from({ length: 1000 }, (_, i) => [
+      crypto.randomUUID(),
+      `Bench Kak ${i}`,
+      'active',
+    ]);
+    const champRows: [string, string, string][] = kakRows.map((row) => [crypto.randomUUID(), yearId, row[0]]);
+    const bootRows: [string, string, string][] = kakRows.map((row) => [crypto.randomUUID(), yearId, row[0]]);
+
+    const insertKak = sqlite.prepare('INSERT INTO kaks (id, name, status) VALUES (?, ?, ?)');
+    const insertChamp = sqlite.prepare('INSERT INTO champs (id, year_id, kak_id) VALUES (?, ?, ?)');
+    const insertBoot = sqlite.prepare('INSERT INTO boots (id, year_id, kak_id) VALUES (?, ?, ?)');
+
+    const insertMany = sqlite.transaction((rows: [string, string, string][], stmt: ReturnType<typeof sqlite.prepare>) => {
+      for (const row of rows) stmt.run(...row);
+    });
+    insertMany(kakRows, insertKak);
+    insertMany(champRows, insertChamp);
+    insertMany(bootRows, insertBoot);
+
+    await store.getKakStats();
+
+    const iterations = 200;
+    const start = performance.now();
+    for (let i = 0; i < iterations; i += 1) {
+      await store.getKakStats();
+    }
+    const elapsed = performance.now() - start;
+
+    console.log(`METRIC getKakStats_ms=${elapsed.toFixed(3)}`);
+    expect(elapsed).toBeGreaterThan(0);
   });
 });
