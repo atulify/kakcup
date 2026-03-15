@@ -57,6 +57,10 @@ export interface TeamPoints {
   points: number;
 }
 
+class TP implements TeamPoints {
+  constructor(public teamId: string, public points: number) {}
+}
+
 /**
  * Calculate points for ranked teams with tiebreaking
  * Teams are ranked by score (higher is better for fish, lower is better for chug/golf)
@@ -69,45 +73,50 @@ export interface TeamPoints {
  * @param rankedTeams - Teams already sorted by their score (best to worst)
  * @returns Array of team IDs with their awarded points
  */
-const POINTS_PREFIX = [0, 7, 13, 18, 22, 25, 27, 28];
+// Direct points-per-rank lookup: extended to 16 to avoid bounds checks
+// rank 1→7, rank 2→6, ..., rank 7→1, rank 8+→1
+const RANK_POINTS = [0, 7, 6, 5, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+// Prefix sums extended: POINTS_PREFIX[n] = sum of points for ranks 1..n
+// For ranks > 7, each rank contributes 1 point
+const POINTS_PREFIX = [0, 7, 13, 18, 22, 25, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36];
 
 export function calculatePointsWithTiebreaking(rankedTeams: TeamScore[]): TeamPoints[] {
-  const result = new Array<TeamPoints>(rankedTeams.length);
-  let outIndex = 0;
+  const len = rankedTeams.length;
+  if (len === 0) return [];
+  if (len === 1) return [new TP(rankedTeams[0].teamId, 7)];
 
+  const result = new Array<TeamPoints>(len);
   let currentRank = 1;
   let i = 0;
 
-  while (i < rankedTeams.length) {
-    const currentScore = rankedTeams[i].score;
+  do {
+    const team = rankedTeams[i];
+    const currentScore = team.score;
 
+    // Count ties — cache next element to reduce indexed access
     let j = i + 1;
-    while (j < rankedTeams.length && rankedTeams[j].score === currentScore) {
+    if (j < len && rankedTeams[j].score === currentScore) {
+      // Has at least one tie — continue counting
       j++;
-    }
-
-    const tieCount = j - i;
-    const endRank = currentRank + tieCount - 1;
-
-    let totalPoints = 0;
-    if (currentRank > 7) {
-      totalPoints = tieCount;
-    } else if (endRank <= 7) {
-      totalPoints = POINTS_PREFIX[endRank] - POINTS_PREFIX[currentRank - 1];
+      while (j < len && rankedTeams[j].score === currentScore) {
+        j++;
+      }
+      // Tie path: use extended prefix sums
+      const tieCount = j - i;
+      const endRank = currentRank + tieCount - 1;
+      const pointsPerTeam = (POINTS_PREFIX[endRank] - POINTS_PREFIX[currentRank - 1]) / tieCount;
+      for (let k = i; k < j; k++) {
+        result[k] = new TP(rankedTeams[k].teamId, pointsPerTeam);
+      }
+      currentRank = endRank + 1;
     } else {
-      totalPoints = POINTS_PREFIX[7] - POINTS_PREFIX[currentRank - 1];
-      totalPoints += endRank - 7;
+      // No tie — direct lookup, no division
+      result[i] = new TP(team.teamId, RANK_POINTS[currentRank]);
+      currentRank++;
     }
 
-    const pointsPerTeam = totalPoints / tieCount;
-
-    for (let k = i; k < j; k++) {
-      result[outIndex++] = { teamId: rankedTeams[k].teamId, points: pointsPerTeam };
-    }
-
-    currentRank = endRank + 1;
     i = j;
-  }
+  } while (i < len);
 
   return result;
 }
