@@ -229,7 +229,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
             Tournament Standings
           </h2>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>
-            Combined points from Fish · Chug · Golf
+            Combined points from 🎣 · 🍺 · ⛳
           </p>
           {tieBreakSummary && (
             <div style={{ marginTop: "0.6rem", fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--ice)" }}>
@@ -295,7 +295,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--fish)", fontWeight: 600 }}>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--ice)", fontWeight: 600 }}>
                             {standing.fishPoints || 0}
                           </td>
                           <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--chug)", fontWeight: 600 }}>
@@ -360,13 +360,13 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", fontFamily: "var(--font-mono)" }}>
                       {[
-                        { icon: "🎣", label: "Fish",  pts: standing.fishPoints || 0,  color: "var(--fish)" },
+                        { icon: "🎣", label: "Fish",  pts: standing.fishPoints || 0,  color: "var(--ice)" },
                         { icon: "🍺", label: "Chug",  pts: standing.chugPoints || 0,  color: "var(--chug)" },
                         { icon: "⛳", label: "Golf",  pts: standing.golfPoints || 0,  color: "var(--golf)" },
                       ].map((ev) => (
-                        <div key={ev.label} style={{ textAlign: "center", background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", padding: "0.4rem 0.25rem" }}>
-                          <span style={{ fontSize: "0.7rem", color: "var(--text-dim)", display: "block" }}>{ev.icon} {ev.label}</span>
-                          <div style={{ fontSize: "1rem", fontWeight: 700, color: ev.color, marginTop: "0.2rem" }}>{ev.pts}</div>
+                        <div key={ev.label} style={{ textAlign: "center", background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", padding: "0.35rem 0.25rem" }}>
+                          <span style={{ fontSize: "0.9rem", color: ev.color, display: "block", lineHeight: 1, paddingTop: "0.1rem" }}>{ev.icon}</span>
+                          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: ev.color, marginTop: "0.15rem", lineHeight: 1.1, paddingTop: "0.05rem" }}>{ev.pts}</div>
                         </div>
                       ))}
                     </div>
