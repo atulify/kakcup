@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Smartphone } from "@/components/icons";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson } from "@/lib/queryClient";
 import type { Year } from "@shared/schema";
 
 export default function LandingPage() {
@@ -13,10 +13,7 @@ export default function LandingPage() {
   // Fetch available years from database
   const { data: years, isLoading: yearsLoading } = useQuery({
     queryKey: ["/api/years"],
-    queryFn: async () => {
-      const response = await fetch("/api/years");
-      return response.json();
-    },
+    queryFn: () => publicFetchJson("/api/years"),
   });
 
   const createYearMutation = useMutation({

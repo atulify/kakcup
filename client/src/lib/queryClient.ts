@@ -10,6 +10,29 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+type PublicFetchOptions = {
+  debugCache?: boolean;
+};
+
+export async function publicFetchJson(url: string, options: PublicFetchOptions = {}) {
+  const res = await fetch(url, {
+    credentials: "omit",
+  });
+
+  if (options.debugCache && import.meta.env.DEV) {
+    const headers = {
+      cacheControl: res.headers.get("cache-control"),
+      etag: res.headers.get("etag"),
+      age: res.headers.get("age"),
+      vercelCache: res.headers.get("x-vercel-cache"),
+    };
+    console.info(`[cache] ${url}`, headers);
+  }
+
+  await throwIfResNotOk(res);
+  return await res.json();
+}
+
 export async function apiRequest(
   url: string,
   method: string = "GET",

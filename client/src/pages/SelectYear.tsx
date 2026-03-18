@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Trophy, ArrowRight, LogOut, LogIn, Github, Settings } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { handleLogout } from "@/utils/auth";
 import type { Year } from "@shared/schema";
@@ -26,10 +26,7 @@ export default function SelectYear() {
 
   const { data: years, isLoading: yearsLoading } = useQuery({
     queryKey: ["/api/years"],
-    queryFn: async () => {
-      const response = await fetch("/api/years");
-      return response.json();
-    },
+    queryFn: () => publicFetchJson("/api/years"),
   });
 
   const handleYearSelection = async () => {

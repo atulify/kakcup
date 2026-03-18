@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { publicFetchJson, queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
@@ -50,10 +50,7 @@ function Router() {
 // This eliminates the waterfall: chunk download + years fetch happen in parallel.
 queryClient.prefetchQuery({
   queryKey: ["/api/years"],
-  queryFn: async () => {
-    const response = await fetch("/api/years");
-    return response.json();
-  },
+  queryFn: () => publicFetchJson("/api/years", { debugCache: true }),
 });
 
 function App() {
