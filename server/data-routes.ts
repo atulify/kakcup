@@ -50,10 +50,10 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
   app.get("/api/years", async (c) => {
     try {
       const years = await cached(cacheKeys.years, () => storage.getYears());
-      c.header(
-        "Cache-Control",
-        "public, max-age=0, s-maxage=604800, stale-while-revalidate=86400"
-      );
+      const cacheControl =
+        "public, max-age=0, s-maxage=604800, stale-while-revalidate=86400";
+      c.header("Cache-Control", cacheControl);
+      c.header("CDN-Cache-Control", cacheControl);
       return jsonWithEtag(c, years);
     } catch {
       return c.json({ error: "Failed to fetch years" }, 500);
