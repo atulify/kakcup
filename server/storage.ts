@@ -1,4 +1,4 @@
-import { users, years, teams, kaks, champs, boots, tieBreakAdjustments, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertTieBreakAdjustment, type TieBreakAdjustment, type InsertFishWeight, type InsertChugTime, type InsertGolfScore } from "../shared/schema.js";
+import { users, years, teams, kaks, champs, boots, tieBreakAdjustments, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertTieBreakAdjustment, type TieBreakAdjustment, type InsertFishWeight, type FishWeight, type InsertChugTime, type ChugTime, type InsertGolfScore, type GolfScore } from "../shared/schema.js";
 import { db } from "./db.js";
 import { eq, and, count, desc } from "drizzle-orm";
 
@@ -13,6 +13,14 @@ export interface YearResult {
   champs: string[];
   boots: string[];
 }
+
+type FishWeightRow = Pick<FishWeight, "teamId" | "weight">;
+
+type ChugTimeRow = Pick<ChugTime, "teamId" | "chug1" | "chug2" | "average">;
+
+type GolfScoreRow = Pick<GolfScore, "teamId" | "score">;
+
+type InsertChugTimeWithAverage = InsertChugTime & { average: number | string };
 
 export interface IStorage {
   // User operations
@@ -41,14 +49,14 @@ export interface IStorage {
   createTieBreakAdjustment(adjustment: InsertTieBreakAdjustment): Promise<TieBreakAdjustment>;
   deleteTieBreakAdjustmentsByYear(yearId: string): Promise<void>;
   // Competition operations
-  getFishWeightsByYear(yearId: string): Promise<any[]>;
-  createFishWeight(fishWeight: any): Promise<any>;
+  getFishWeightsByYear(yearId: string): Promise<FishWeightRow[]>;
+  createFishWeight(fishWeight: InsertFishWeight): Promise<FishWeight>;
   deleteFishWeightsByTeam(yearId: string, teamId: string): Promise<void>;
-  getChugTimesByYear(yearId: string): Promise<any[]>;
-  createChugTime(chugTime: any): Promise<any>;
+  getChugTimesByYear(yearId: string): Promise<ChugTimeRow[]>;
+  createChugTime(chugTime: InsertChugTimeWithAverage): Promise<ChugTime>;
   deleteChugTime(yearId: string, teamId: string): Promise<void>;
-  getGolfScoresByYear(yearId: string): Promise<any[]>;
-  createGolfScore(golfScore: any): Promise<any>;
+  getGolfScoresByYear(yearId: string): Promise<GolfScoreRow[]>;
+  createGolfScore(golfScore: InsertGolfScore): Promise<GolfScore>;
   deleteGolfScore(yearId: string, teamId: string): Promise<void>;
   deleteAllFishWeightsByYear(yearId: string): Promise<void>;
   deleteAllChugTimesByYear(yearId: string): Promise<void>;
@@ -263,14 +271,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(tieBreakAdjustments).where(eq(tieBreakAdjustments.yearId, yearId));
   }
 
-  async getFishWeightsByYear(yearId: string): Promise<any[]> {
+  async getFishWeightsByYear(yearId: string): Promise<FishWeightRow[]> {
     return await db
       .select({ teamId: fishWeights.teamId, weight: fishWeights.weight })
       .from(fishWeights)
       .where(eq(fishWeights.yearId, yearId));
   }
 
-  async createFishWeight(fishWeightData: any): Promise<any> {
+  async createFishWeight(fishWeightData: InsertFishWeight): Promise<FishWeight> {
     const [fishWeight] = await db
       .insert(fishWeights)
       .values(fishWeightData)
@@ -287,7 +295,7 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async getChugTimesByYear(yearId: string): Promise<any[]> {
+  async getChugTimesByYear(yearId: string): Promise<ChugTimeRow[]> {
     return await db
       .select({
         teamId: chugTimes.teamId,
@@ -299,7 +307,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(chugTimes.yearId, yearId));
   }
 
-  async createChugTime(chugTimeData: any): Promise<any> {
+  async createChugTime(chugTimeData: InsertChugTimeWithAverage): Promise<ChugTime> {
     const [chugTime] = await db
       .insert(chugTimes)
       .values(chugTimeData)
@@ -325,14 +333,14 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async getGolfScoresByYear(yearId: string): Promise<any[]> {
+  async getGolfScoresByYear(yearId: string): Promise<GolfScoreRow[]> {
     return await db
       .select({ teamId: golfScores.teamId, score: golfScores.score })
       .from(golfScores)
       .where(eq(golfScores.yearId, yearId));
   }
 
-  async createGolfScore(golfScoreData: any): Promise<any> {
+  async createGolfScore(golfScoreData: InsertGolfScore): Promise<GolfScore> {
     const [golfScore] = await db
       .insert(golfScores)
       .values(golfScoreData)

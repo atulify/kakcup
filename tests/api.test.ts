@@ -99,7 +99,7 @@ describe('POST /api/auth/login', () => {
     });
     expect(res.status).toBe(401);
     const body = await res.json();
-    expect(body).toHaveProperty('message', 'Invalid credentials');
+    expect(body).toHaveProperty('error', 'Invalid credentials');
   });
 
   it('should reject login with missing username', async () => {
@@ -126,7 +126,7 @@ describe('GET /api/auth/user', () => {
     const res = await app.request('/api/auth/user');
     expect(res.status).toBe(401);
     const body = await res.json();
-    expect(body).toHaveProperty('message', 'Unauthorized');
+    expect(body).toHaveProperty('error', 'Unauthorized');
   });
 });
 

@@ -11,17 +11,17 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
     try {
       const { username, password } = await c.req.json();
       if (!username || !password) {
-        return c.json({ message: "Username and password required" }, 400);
+        return c.json({ error: "Username and password required" }, 400);
       }
 
       const user = await storage.getUserByUsername(username);
       if (!user || !user.passwordHash) {
-        return c.json({ message: "Invalid credentials" }, 401);
+        return c.json({ error: "Invalid credentials" }, 401);
       }
 
       const isValidPassword = await verifyPassword(password, user.passwordHash);
       if (!isValidPassword) {
-        return c.json({ message: "Invalid credentials" }, 401);
+        return c.json({ error: "Invalid credentials" }, 401);
       }
 
       const token = await createToken({
@@ -42,7 +42,7 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
       return c.json(userData);
     } catch (error) {
       console.error("Login error:", error);
-      return c.json({ message: "Server error" }, 500);
+      return c.json({ error: "Server error" }, 500);
     }
   });
 
@@ -50,15 +50,15 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
     try {
       const { username, email, password, firstName, lastName } = await c.req.json();
       if (!username || !password) {
-        return c.json({ message: "Username and password required" }, 400);
+        return c.json({ error: "Username and password required" }, 400);
       }
 
       const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) return c.json({ message: "Username already exists" }, 409);
+      if (existingUser) return c.json({ error: "Username already exists" }, 409);
 
       if (email) {
         const existingEmail = await storage.getUserByEmail(email);
-        if (existingEmail) return c.json({ message: "Email already exists" }, 409);
+        if (existingEmail) return c.json({ error: "Email already exists" }, 409);
       }
 
       const passwordHash = await hashPassword(password);
@@ -89,7 +89,7 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
       return c.json(userData);
     } catch (error) {
       console.error("Registration error:", error);
-      return c.json({ message: "Server error" }, 500);
+      return c.json({ error: "Server error" }, 500);
     }
   });
 
@@ -100,7 +100,7 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
 
   app.get("/api/auth/user", isAuthenticated, async (c) => {
     const user = await storage.getUser(c.var.userId);
-    if (!user) return c.json({ message: "Unauthorized" }, 401);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
     return c.json({
       id: user.id,
       username: user.username,

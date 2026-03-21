@@ -45,15 +45,15 @@ function setVarsFromPayload(c: Context<AppEnv>, payload: JWTClaims) {
 
 export const isAuthenticated: MiddlewareHandler<AppEnv> = async (c, next) => {
   const payload = await getPayload(c);
-  if (!payload) return c.json({ message: "Unauthorized" }, 401);
+  if (!payload) return c.json({ error: "Unauthorized" }, 401);
   setVarsFromPayload(c, payload);
   await next();
 };
 
 export const isAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
   const payload = await getPayload(c);
-  if (!payload) return c.json({ message: "Unauthorized" }, 401);
-  if (payload.role !== "admin") return c.json({ message: "Admin access required" }, 403);
+  if (!payload) return c.json({ error: "Unauthorized" }, 401);
+  if (payload.role !== "admin") return c.json({ error: "Admin access required" }, 403);
   setVarsFromPayload(c, payload);
   await next();
 };

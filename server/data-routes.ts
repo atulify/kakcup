@@ -1,5 +1,6 @@
 // Edge-compatible — no bcryptjs in this import chain.
 import type { Context, Hono, MiddlewareHandler } from "hono";
+import { z, type ZodSchema } from "zod";
 import { storage } from "./storage.js";
 import { isAdmin, type AppEnv } from "./auth.js";
 import { cached, cacheTTL, cacheKeys, invalidate } from "./cache.js";
@@ -9,6 +10,11 @@ import {
   rankChugTeams,
   rankGolfTeams,
 } from "../shared/scoring.js";
+import {
+  insertFishWeightSchema,
+  insertChugTimeSchema,
+  insertGolfScoreSchema,
+} from "../shared/schema.js";
 
 /** FNV-1a 32-bit hash — fast, non-cryptographic, perfect for ETags. */
 export function fnv1a(str: string): string {
@@ -31,6 +37,37 @@ function jsonWithEtag(c: Context, data: unknown) {
   c.header("ETag", etag);
   c.header("Content-Type", "application/json");
   return c.body(body);
+}
+
+type LockField = "fishing_locked" | "chug_locked" | "golf_locked";
+
+const chugTimeSchema = insertChugTimeSchema.extend({
+  average: z.union([z.number(), z.string()]),
+});
+
+type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 500;
+
+function errorResponse(c: Context, message: string, status: ErrorStatus = 500) {
+  return c.json({ error: message }, status);
+}
+
+function parseBody<T>(
+  c: Context,
+  schema: ZodSchema<T>,
+  data: unknown,
+): { data?: T; response?: Response } {
+  try {
+    return { data: schema.parse(data) };
+  } catch {
+    return { response: errorResponse(c, "Invalid request body", 400) };
+  }
+}
+
+function guardLocked(c: Context<AppEnv>, field: LockField, message: string) {
+  if (c.var.year?.[field]) {
+    return errorResponse(c, message, 403);
+  }
+  return null;
 }
 
 // Fetches the year record once and caches it in c.var for the handler.
@@ -56,7 +93,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       c.header("CDN-Cache-Control", cacheControl);
       return jsonWithEtag(c, years);
     } catch {
-      return c.json({ error: "Failed to fetch years" }, 500);
+      return errorResponse(c, "Failed to fetch years");
     }
   });
 
@@ -76,7 +113,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       return jsonWithEtag(c, yearRecord);
     } catch (error) {
       console.error("Error fetching year:", error);
-      return c.json({ error: "Failed to fetch year" }, 500);
+      return errorResponse(c, "Failed to fetch year");
     }
   });
 
@@ -96,7 +133,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       await invalidate(cacheKeys.years);
       return c.json(year, 201);
     } catch {
-      return c.json({ error: "Failed to create year" }, 500);
+      return errorResponse(c, "Failed to create year");
     }
   });
 
@@ -135,7 +172,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       await invalidate(cacheKeys.years);
       return c.json(year);
     } catch {
-      return c.json({ error: "Failed to update year" }, 500);
+      return errorResponse(c, "Failed to update year");
     }
   });
 
@@ -148,7 +185,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return jsonWithEtag(c, teams);
     } catch {
-      return c.json({ error: "Failed to fetch teams" }, 500);
+      return errorResponse(c, "Failed to fetch teams");
     }
   });
 
@@ -161,7 +198,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       await invalidate(cacheKeys.teams(yearId));
       return c.json(team, 201);
     } catch {
-      return c.json({ error: "Failed to create team" }, 500);
+      return errorResponse(c, "Failed to create team");
     }
   });
 
@@ -172,7 +209,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       await invalidate(cacheKeys.teams(team.yearId));
       return c.json(team);
     } catch {
-      return c.json({ error: "Failed to update team" }, 500);
+      return errorResponse(c, "Failed to update team");
     }
   });
 
@@ -185,37 +222,44 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return jsonWithEtag(c, fishWeights);
     } catch {
-      return c.json({ error: "Failed to fetch fish weights" }, 500);
+      return errorResponse(c, "Failed to fetch fish weights");
     }
   });
 
   app.post("/api/years/:yearId/fish-weights", isAdmin, requireYear, async (c) => {
     try {
-      if (c.var.year!.fishing_locked) {
-        return c.json({ error: "Fishing competition is locked. No more weights can be added." }, 403);
-      }
+      const locked = guardLocked(
+        c,
+        "fishing_locked",
+        "Fishing competition is locked. No more weights can be added.",
+      );
+      if (locked) return locked;
       const yearId = c.req.param("yearId");
-      const weightData = await c.req.json();
-      weightData.yearId = yearId;
-      const fishWeight = await storage.createFishWeight(weightData);
+      const weightBody = await c.req.json();
+      const parsed = parseBody(c, insertFishWeightSchema, { ...weightBody, yearId });
+      if (parsed.response) return parsed.response;
+      const fishWeight = await storage.createFishWeight(parsed.data!);
       await invalidate(cacheKeys.fishWeights(yearId));
       return c.json(fishWeight, 201);
     } catch {
-      return c.json({ error: "Failed to create fish weight" }, 500);
+      return errorResponse(c, "Failed to create fish weight");
     }
   });
 
   app.delete("/api/years/:yearId/teams/:teamId/fish-weights", isAdmin, requireYear, async (c) => {
     try {
-      if (c.var.year!.fishing_locked) {
-        return c.json({ error: "Fishing competition is locked. Cannot delete weights." }, 403);
-      }
+      const locked = guardLocked(
+        c,
+        "fishing_locked",
+        "Fishing competition is locked. Cannot delete weights.",
+      );
+      if (locked) return locked;
       const yearId = c.req.param("yearId");
       await storage.deleteFishWeightsByTeam(yearId, c.req.param("teamId"));
       await invalidate(cacheKeys.fishWeights(yearId));
       return c.json({ message: "Fish weights deleted successfully" });
     } catch {
-      return c.json({ error: "Failed to delete fish weights" }, 500);
+      return errorResponse(c, "Failed to delete fish weights");
     }
   });
 
@@ -228,37 +272,44 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return jsonWithEtag(c, chugTimes);
     } catch {
-      return c.json({ error: "Failed to fetch chug times" }, 500);
+      return errorResponse(c, "Failed to fetch chug times");
     }
   });
 
   app.post("/api/years/:yearId/chug-times", isAdmin, requireYear, async (c) => {
     try {
-      if (c.var.year!.chug_locked) {
-        return c.json({ error: "Chug competition is locked. No more times can be added." }, 403);
-      }
+      const locked = guardLocked(
+        c,
+        "chug_locked",
+        "Chug competition is locked. No more times can be added.",
+      );
+      if (locked) return locked;
       const yearId = c.req.param("yearId");
-      const chugData = await c.req.json();
-      chugData.yearId = yearId;
-      const chugTime = await storage.createChugTime(chugData);
+      const chugBody = await c.req.json();
+      const parsed = parseBody(c, chugTimeSchema, { ...chugBody, yearId });
+      if (parsed.response) return parsed.response;
+      const chugTime = await storage.createChugTime(parsed.data!);
       await invalidate(cacheKeys.chugTimes(yearId));
       return c.json(chugTime, 201);
     } catch {
-      return c.json({ error: "Failed to create chug time" }, 500);
+      return errorResponse(c, "Failed to create chug time");
     }
   });
 
   app.delete("/api/years/:yearId/teams/:teamId/chug-times", isAdmin, requireYear, async (c) => {
     try {
-      if (c.var.year!.chug_locked) {
-        return c.json({ error: "Chug competition is locked. Cannot delete times." }, 403);
-      }
+      const locked = guardLocked(
+        c,
+        "chug_locked",
+        "Chug competition is locked. Cannot delete times.",
+      );
+      if (locked) return locked;
       const yearId = c.req.param("yearId");
       await storage.deleteChugTime(yearId, c.req.param("teamId"));
       await invalidate(cacheKeys.chugTimes(yearId));
       return c.json({ message: "Chug time deleted successfully" });
     } catch {
-      return c.json({ error: "Failed to delete chug time" }, 500);
+      return errorResponse(c, "Failed to delete chug time");
     }
   });
 
@@ -271,23 +322,27 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return jsonWithEtag(c, golfScores);
     } catch {
-      return c.json({ error: "Failed to fetch golf scores" }, 500);
+      return errorResponse(c, "Failed to fetch golf scores");
     }
   });
 
   app.post("/api/years/:yearId/golf-scores", isAdmin, requireYear, async (c) => {
     try {
-      if (c.var.year!.golf_locked) {
-        return c.json({ error: "Golf competition is locked. No more scores can be added." }, 403);
-      }
+      const locked = guardLocked(
+        c,
+        "golf_locked",
+        "Golf competition is locked. No more scores can be added.",
+      );
+      if (locked) return locked;
       const yearId = c.req.param("yearId");
-      const golfData = await c.req.json();
-      golfData.yearId = yearId;
-      const golfScore = await storage.createGolfScore(golfData);
+      const golfBody = await c.req.json();
+      const parsed = parseBody(c, insertGolfScoreSchema, { ...golfBody, yearId });
+      if (parsed.response) return parsed.response;
+      const golfScore = await storage.createGolfScore(parsed.data!);
       await invalidate(cacheKeys.golfScores(yearId));
       return c.json(golfScore, 201);
     } catch {
-      return c.json({ error: "Failed to create golf score" }, 500);
+      return errorResponse(c, "Failed to create golf score");
     }
   });
 
@@ -307,21 +362,24 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return c.json({ message: "All scores cleared for year" });
     } catch {
-      return c.json({ error: "Failed to clear scores" }, 500);
+      return errorResponse(c, "Failed to clear scores");
     }
   });
 
   app.delete("/api/years/:yearId/teams/:teamId/golf-scores", isAdmin, requireYear, async (c) => {
     try {
-      if (c.var.year!.golf_locked) {
-        return c.json({ error: "Golf competition is locked. Cannot delete scores." }, 403);
-      }
+      const locked = guardLocked(
+        c,
+        "golf_locked",
+        "Golf competition is locked. Cannot delete scores.",
+      );
+      if (locked) return locked;
       const yearId = c.req.param("yearId");
       await storage.deleteGolfScore(yearId, c.req.param("teamId"));
       await invalidate(cacheKeys.golfScores(yearId));
       return c.json({ message: "Golf score deleted successfully" });
     } catch {
-      return c.json({ error: "Failed to delete golf score" }, 500);
+      return errorResponse(c, "Failed to delete golf score");
     }
   });
 
@@ -336,7 +394,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return jsonWithEtag(c, rows);
     } catch {
-      return c.json({ error: "Failed to fetch tie-breaks" }, 500);
+      return errorResponse(c, "Failed to fetch tie-breaks");
     }
   });
 
@@ -405,7 +463,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       if (err?.message?.toLowerCase().includes("unique")) {
         return c.json({ error: "Tie-break already applied for this year." }, 409);
       }
-      return c.json({ error: "Failed to apply tie-break" }, 500);
+      return errorResponse(c, "Failed to apply tie-break");
     }
   });
 
@@ -421,7 +479,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return c.json({ message: "Tie-break removed" });
     } catch {
-      return c.json({ error: "Failed to remove tie-break" }, 500);
+      return errorResponse(c, "Failed to remove tie-break");
     }
   });
 
@@ -435,7 +493,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       );
       return jsonWithEtag(c, kakList);
     } catch {
-      return c.json({ error: "Failed to fetch KAKs" }, 500);
+      return errorResponse(c, "Failed to fetch KAKs");
     }
   });
 
@@ -450,7 +508,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       if (err?.message?.toLowerCase().includes("unique")) {
         return c.json({ error: "A KAK with that name already exists" }, 409);
       }
-      return c.json({ error: "Failed to create KAK" }, 500);
+      return errorResponse(c, "Failed to create KAK");
     }
   });
 
@@ -465,7 +523,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       if (err?.message?.toLowerCase().includes("unique")) {
         return c.json({ error: "A KAK with that name already exists" }, 409);
       }
-      return c.json({ error: "Failed to update KAK" }, 500);
+      return errorResponse(c, "Failed to update KAK");
     }
   });
 
@@ -474,7 +532,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       const stats = await cached(cacheKeys.kakStats, () => storage.getKakStats(), cacheTTL.kakStats);
       return jsonWithEtag(c, stats);
     } catch {
-      return c.json({ error: "Failed to fetch KAK stats" }, 500);
+      return errorResponse(c, "Failed to fetch KAK stats");
     }
   });
 
@@ -483,7 +541,7 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       const results = await cached(cacheKeys.kakResults, () => storage.getYearResults(), cacheTTL.kakResults);
       return jsonWithEtag(c, results);
     } catch {
-      return c.json({ error: "Failed to fetch KAK results" }, 500);
+      return errorResponse(c, "Failed to fetch KAK results");
     }
   });
 }
@@ -509,13 +567,15 @@ async function computeBaseStandings(yearId: string): Promise<StandingsBase> {
   const fishByTeam = new Map<string, number[]>();
   for (const fw of fishData) {
     if (!fishByTeam.has(fw.teamId)) fishByTeam.set(fw.teamId, []);
-    const weight = parseFloat(fw.weight);
+    if (fw.weight === null || fw.weight === undefined) continue;
+    const weight = Number(fw.weight);
     if (!Number.isNaN(weight)) fishByTeam.get(fw.teamId)!.push(weight);
   }
 
   const chugAverages = new Map<string, number>();
   for (const ct of chugData) {
-    const avg = parseFloat(ct.average);
+    if (ct.average === null || ct.average === undefined) continue;
+    const avg = Number(ct.average);
     if (!Number.isNaN(avg)) chugAverages.set(ct.teamId, avg);
   }
 
