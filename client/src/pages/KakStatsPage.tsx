@@ -48,7 +48,7 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
     <table style={{ width: "auto", fontSize: "0.85rem", fontFamily: "var(--font-mono)" }}>
       <thead>
         <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
-          <th style={{ padding: "0.5rem 1rem", textAlign: "left", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", width: "3rem" }}>RANK</th>
+          <th style={{ padding: "0.5rem 1rem", textAlign: "left", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", width: "4.5rem", whiteSpace: "nowrap" }}>RANK</th>
           <th style={{ padding: "0.5rem 1rem", textAlign: "left", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", whiteSpace: "nowrap" }}>KAK</th>
           <th style={{ padding: "0.5rem 1rem", textAlign: "right", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", width: "5rem" }}>COUNT</th>
         </tr>
@@ -68,7 +68,7 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
               onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isFirst ? "rgba(255,90,0,0.12)" : "transparent"; }}
             >
-              <td style={{ padding: "0.5rem 1rem", fontWeight: 700, color: isFirst ? "var(--orange)" : "var(--text-dim)" }}>
+              <td style={{ padding: "0.5rem 1rem", fontWeight: 700, color: isFirst ? "var(--orange)" : "var(--text-dim)", whiteSpace: "nowrap" }}>
                 {rankLabel}
               </td>
               <td style={{ padding: "0.5rem 1rem", fontWeight: 500, whiteSpace: "nowrap", color: isFirst ? "var(--foreground)" : "var(--foreground)" }}>
