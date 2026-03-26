@@ -19,7 +19,10 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     
     <!-- Self-hosted fonts — no external network request -->
-    <link rel="stylesheet" href="/fonts/fonts.css">
+    <link rel="preload" href="/fonts/orbitron-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/fonts/rajdhani-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" as="style" href="/fonts/fonts.css" onload="this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/fonts/fonts.css"></noscript>
     
     <title>KAK Cup</title>
   </head>

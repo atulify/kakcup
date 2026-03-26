@@ -100,15 +100,16 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
   app.get("/api/years/:year", async (c) => {
     try {
       const yearParam = c.req.param("year");
-      const year = parseInt(yearParam);
+      const cacheKey = cacheKeys.year(yearParam);
 
-      if (isNaN(year)) {
-        const yearRecord = await storage.getYearById(yearParam);
-        if (!yearRecord) return c.json({ error: "Year not found" }, 404);
-        return jsonWithEtag(c, yearRecord);
-      }
+      const yearRecord = await cached(cacheKey, async () => {
+        const year = parseInt(yearParam);
+        if (isNaN(year)) {
+          return storage.getYearById(yearParam);
+        }
+        return storage.getYear(year);
+      });
 
-      const yearRecord = await storage.getYear(year);
       if (!yearRecord) return c.json({ error: "Year not found" }, 404);
       return jsonWithEtag(c, yearRecord);
     } catch (error) {
@@ -130,7 +131,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
         name: `${nextYear} KAK Cup`,
         status: "upcoming",
       });
-      await invalidate(cacheKeys.years);
+      await invalidate(
+        cacheKeys.years,
+        cacheKeys.year(year.id),
+        cacheKeys.year(year.year.toString())
+      );
       return c.json(year, 201);
     } catch {
       return errorResponse(c, "Failed to create year");
@@ -169,7 +174,11 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
         await invalidate(cacheKeys.kakStats);
       }
 
-      await invalidate(cacheKeys.years);
+      await invalidate(
+        cacheKeys.years,
+        cacheKeys.year(year.id),
+        cacheKeys.year(year.year.toString())
+      );
       return c.json(year);
     } catch {
       return errorResponse(c, "Failed to update year");

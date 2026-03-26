@@ -23,6 +23,7 @@ export const cacheKeys = {
   kaks: "kaks",
   kakStats: "kak-stats",
   kakResults: "kak-results",
+  year: (yearIdOrYear: string) => `year:${yearIdOrYear}`,
   teams: (yearId: string) => `teams:${yearId}`,
   fishWeights: (yearId: string) => `fw:${yearId}`,
   chugTimes: (yearId: string) => `ct:${yearId}`,
