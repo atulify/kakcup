@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo, useMemo } from "react";
-import { Plus, Lock, Trash2, ChevronDown } from "@/components/icons";
+import { Lock, Trash2, ChevronDown } from "@/components/icons";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
@@ -14,24 +14,18 @@ interface FishTabProps {
 }
 
 const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: FishTabProps) {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState("");
-  const [weight, setWeight] = useState("");
-  const [notes, setNotes] = useState("");
+  const [weightInputs, setWeightInputs] = useState<Record<string, string>>({});
   const [expandedWeights, setExpandedWeights] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
   const addWeightMutation = useMutation({
-    mutationFn: async (data: { teamId: string; weight: number; notes?: string }) => {
+    mutationFn: async (data: { teamId: string; weight: number }) => {
       return await apiRequest(`/api/years/${yearId}/fish-weights`, "POST", data);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "fish-weights"] });
-      setShowAddModal(false);
-      setSelectedTeamId("");
-      setWeight("");
-      setNotes("");
+      setWeightInputs((prev) => ({ ...prev, [variables.teamId]: "" }));
       toast({
         title: "Success",
         description: "Fish weight added successfully!",
@@ -248,16 +242,16 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     }));
   }, [sortedTeams, fishWeights]);
 
-  const handleAddWeight = () => {
-    if (!selectedTeamId || weight === "") return;
+  const handleAddWeight = (teamId: string) => {
+    const raw = weightInputs[teamId]?.trim();
+    if (!raw) return;
 
-    const weightValue = parseFloat(weight);
+    const weightValue = parseFloat(raw);
     if (isNaN(weightValue) || weightValue < 0) return;
 
     addWeightMutation.mutate({
-      teamId: selectedTeamId,
+      teamId,
       weight: weightValue,
-      notes: notes.trim() || undefined
     });
   };
 
@@ -276,36 +270,19 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     <div className="p-2 sm:p-4 bg-background">
       <div className="mb-3 flex justify-end">
         {isAdmin && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowAddModal(true)}
-              disabled={sortedTeams.length === 0 || yearData?.fishing_locked}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
-                yearData?.fishing_locked
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'btn-primary'
-              } ${sortedTeams.length === 0 ? 'bg-muted cursor-not-allowed' : ''}`}
-              data-testid="button-add-weight"
-              title={yearData?.fishing_locked ? "Competition is locked - no more weights can be added" : ""}
-            >
-              <Plus size={16} />
-              <span className="hidden sm:inline">{yearData?.fishing_locked ? "Locked - No More Weights" : "Add Weight"}</span>
-              <span className="sm:hidden">{yearData?.fishing_locked ? "Locked" : "Add"}</span>
-            </button>
-            <button
-              onClick={() => lockFishingMutation.mutate()}
-              disabled={yearData?.fishing_locked || lockFishingMutation.isPending}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
-                yearData?.fishing_locked
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                  : 'btn-destructive'
-              }`}
-              data-testid="button-lock-fishing"
-            >
-              <Lock size={16} />
-              {yearData?.fishing_locked ? "Competition Locked" : "Lock Competition"}
-            </button>
-          </div>
+          <button
+            onClick={() => lockFishingMutation.mutate()}
+            disabled={yearData?.fishing_locked || lockFishingMutation.isPending}
+            className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
+              yearData?.fishing_locked
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'btn-destructive'
+            }`}
+            data-testid="button-lock-fishing"
+          >
+            <Lock size={16} />
+            {yearData?.fishing_locked ? "Competition Locked" : "Lock Competition"}
+          </button>
         )}
       </div>
 
@@ -423,21 +400,48 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
 
                         {/* Actions */}
                         {isAdmin && !yearData?.fishing_locked && (
-                          <td className="border border-border px-2 py-2 text-center" style={{width: '90px'}}>
-                            {teamStat.weights.length > 0 && (
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
-                                    deleteTeamWeightsMutation.mutate(teamStat.team.id);
+                          <td className="border border-border px-2 py-2 align-top" style={{width: '180px'}}>
+                            <div className="flex flex-col gap-2">
+                              <div className="flex gap-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={weightInputs[teamStat.team.id] ?? ""}
+                                  onChange={(e) =>
+                                    setWeightInputs((prev) => ({
+                                      ...prev,
+                                      [teamStat.team.id]: e.target.value,
+                                    }))
                                   }
-                                }}
-                                disabled={deleteTeamWeightsMutation.isPending}
-                                className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Clear all fish weights for this team"
-                              >
-                                <Trash2 size={16} className="mx-auto" />
-                              </button>
-                            )}
+                                  placeholder="Weight"
+                                  className="w-full px-2 py-1 bg-input border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                  data-testid={`input-fish-weight-${teamStat.team.id}`}
+                                />
+                                <button
+                                  onClick={() => handleAddWeight(teamStat.team.id)}
+                                  disabled={addWeightMutation.isPending || !weightInputs[teamStat.team.id]?.trim()}
+                                  className="px-3 py-1 text-sm btn-primary disabled:bg-muted disabled:cursor-not-allowed whitespace-nowrap"
+                                  data-testid={`button-add-fish-weight-${teamStat.team.id}`}
+                                >
+                                  {addWeightMutation.isPending ? "Adding..." : "Add"}
+                                </button>
+                              </div>
+                              {teamStat.weights.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Clear all ${teamStat.weights.length} fish weight(s) for ${teamStat.team.name}?`)) {
+                                      deleteTeamWeightsMutation.mutate(teamStat.team.id);
+                                    }
+                                  }}
+                                  disabled={deleteTeamWeightsMutation.isPending}
+                                  className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed self-start"
+                                  title="Clear all fish weights for this team"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -479,6 +483,36 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                         {teamStat.total > 0 ? `${teamStat.total} lbs` : "-"}
                       </div>
                     </div>
+
+                    {isAdmin && !yearData?.fishing_locked && (
+                      <div className="pt-2 border-t border-border">
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={weightInputs[teamStat.team.id] ?? ""}
+                            onChange={(e) =>
+                              setWeightInputs((prev) => ({
+                                ...prev,
+                                [teamStat.team.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Weight"
+                            className="w-full px-3 py-2 bg-input border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            data-testid={`input-fish-weight-mobile-${teamStat.team.id}`}
+                          />
+                          <button
+                            onClick={() => handleAddWeight(teamStat.team.id)}
+                            disabled={addWeightMutation.isPending || !weightInputs[teamStat.team.id]?.trim()}
+                            className="px-3 py-2 text-sm btn-primary disabled:bg-muted disabled:cursor-not-allowed whitespace-nowrap"
+                            data-testid={`button-add-fish-weight-mobile-${teamStat.team.id}`}
+                          >
+                            {addWeightMutation.isPending ? "Adding..." : "Add"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <button
@@ -533,92 +567,6 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
           </>
         )}
       </div>
-
-      {/* Add Weight Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Add Fish Weight</h3>
-
-            <div className="space-y-4">
-              {/* Team Selection */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Select Team
-                </label>
-                <select
-                  value={selectedTeamId}
-                  onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  data-testid="select-team"
-                >
-                  <option value="">Choose a team...</option>
-                  {sortedTeams.map((team: Team) => {
-                    const members = [team.kak1, team.kak2, team.kak3, team.kak4].filter(Boolean);
-                    const membersList = members.length > 0 ? ` (${members.join(', ')})` : '';
-                    return (
-                      <option key={team.id} value={team.id}>
-                        {team.name}{membersList}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {/* Weight Input */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Weight (lbs)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder="Enter weight..."
-                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  data-testid="input-weight"
-                />
-              </div>
-
-              {/* Notes Input */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Notes (optional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes about the catch..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  data-testid="input-notes"
-                />
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
-                data-testid="button-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddWeight}
-                disabled={!selectedTeamId || weight === "" || addWeightMutation.isPending}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
-                data-testid="button-save-weight"
-              >
-                {addWeightMutation.isPending ? "Adding..." : "Add Weight"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {sortedTeams.length > 0 && (
         <div className="mt-4 text-sm text-muted-foreground text-center">
