@@ -41,8 +41,19 @@ function jsonWithEtag(c: Context, data: unknown) {
 
 type LockField = "fishing_locked" | "chug_locked" | "golf_locked";
 
-const chugTimeSchema = insertChugTimeSchema.extend({
-  average: z.union([z.number(), z.string()]),
+const numericInputSchema = z.preprocess((value) => {
+  if (value === null || value === undefined) return value;
+  return String(value);
+}, z.string());
+
+const fishWeightRequestSchema = insertFishWeightSchema.extend({
+  weight: numericInputSchema.optional().nullable(),
+});
+
+const chugTimeRequestSchema = insertChugTimeSchema.extend({
+  chug1: numericInputSchema.optional().nullable(),
+  chug2: numericInputSchema.optional().nullable(),
+  average: numericInputSchema.optional().nullable(),
 });
 
 type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 500;
@@ -245,9 +256,9 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       if (locked) return locked;
       const yearId = c.req.param("yearId");
       const weightBody = await c.req.json();
-      const parsed = parseBody(c, insertFishWeightSchema, { ...weightBody, yearId });
+      const parsed = parseBody(c, fishWeightRequestSchema, { ...weightBody, yearId });
       if (parsed.response) return parsed.response;
-      const fishWeight = await storage.createFishWeight(parsed.data!);
+      const fishWeight = await storage.createFishWeight(parsed.data as any);
       await invalidate(cacheKeys.fishWeights(yearId));
       return c.json(fishWeight, 201);
     } catch {
@@ -295,9 +306,9 @@ export function createDataRoutes(app: Hono<AppEnv>): void {
       if (locked) return locked;
       const yearId = c.req.param("yearId");
       const chugBody = await c.req.json();
-      const parsed = parseBody(c, chugTimeSchema, { ...chugBody, yearId });
+      const parsed = parseBody(c, chugTimeRequestSchema, { ...chugBody, yearId });
       if (parsed.response) return parsed.response;
-      const chugTime = await storage.createChugTime(parsed.data!);
+      const chugTime = await storage.createChugTime(parsed.data as any);
       await invalidate(cacheKeys.chugTimes(yearId));
       return c.json(chugTime, 201);
     } catch {

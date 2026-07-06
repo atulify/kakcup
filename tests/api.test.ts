@@ -150,6 +150,44 @@ describe('Protected Routes', () => {
   });
 });
 
+
+describe('Numeric competition payloads', () => {
+  it('accepts numeric fish weight and chug time values', async () => {
+    const adminToken = await createToken({
+      userId: '33333333-3333-3333-3333-333333333333',
+      username: 'testuser',
+      role: 'admin',
+    });
+
+    const yearsRes = await app.request('/api/years');
+    const years = await yearsRes.json();
+    const year = years.find((y: any) => !y.fishing_locked && !y.chug_locked && !y.golf_locked);
+    expect(year).toBeDefined();
+
+    const teamRes = await app.request(`/api/years/${year.id}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ name: 'Numeric Payload Team', position: 99 }),
+    });
+    expect(teamRes.status).toBe(201);
+    const team = await teamRes.json();
+
+    const fishRes = await app.request(`/api/years/${year.id}/fish-weights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team.id, weight: 6.08 }),
+    });
+    expect(fishRes.status).toBe(201);
+
+    const chugRes = await app.request(`/api/years/${year.id}/chug-times`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: `token=${adminToken}` },
+      body: JSON.stringify({ teamId: team.id, chug1: 5, chug2: 5.5, average: 5.25 }),
+    });
+    expect(chugRes.status).toBe(201);
+  });
+});
+
 describe('DELETE /api/years/:yearId/scores', () => {
   it('should return 401 without auth', async () => {
     const res = await app.request('/api/years/11111111-1111-1111-1111-111111111111/scores', {
