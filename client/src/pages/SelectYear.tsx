@@ -178,29 +178,15 @@ export default function SelectYear() {
                 <option disabled>LOADING...</option>
               ) : (
                 (() => {
-                  const currentYear = new Date().getFullYear();
-                  const sortedYears = [...(years || [])].sort((a: Year, b: Year) => {
-                    if (a.year === currentYear && b.year !== currentYear) return -1;
-                    if (b.year === currentYear && a.year !== currentYear) return 1;
-                    const aIsPast = a.year < currentYear;
-                    const bIsPast = b.year < currentYear;
-                    if (aIsPast && !bIsPast) return -1;
-                    if (bIsPast && !aIsPast) return 1;
-                    return b.year - a.year;
-                  });
+                  const visibleYears = [...(years || [])]
+                    .filter((yearData: Year) => yearData.status !== "archived")
+                    .sort((a: Year, b: Year) => b.year - a.year);
 
-                  const visibleYears = sortedYears.filter((yearData: Year) => yearData.status !== "archived");
-
-                  return visibleYears.map((yearData: Year) => {
-                    let statusText = "";
-                    if (yearData.year < currentYear) statusText = " [DONE]";
-                    else if (yearData.year > currentYear) statusText = " [UPCOMING]";
-                    return (
-                      <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
-                        {yearData.year} — {yearData.name}{statusText}
-                      </option>
-                    );
-                  });
+                  return visibleYears.map((yearData: Year) => (
+                    <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
+                      {yearData.year} — {yearData.name}
+                    </option>
+                  ));
                 })()
               )}
             </select>
