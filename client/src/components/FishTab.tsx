@@ -186,8 +186,8 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     [teams]
   );
 
-  // Memoized: full sorted stats with points, rank, and highlight flags pre-computed
-  const sortedStats = useMemo(() => {
+  // Memoized: stats and ranking info, with display order locked to entry order until fish is finalized
+  const displayStats = useMemo(() => {
     // Group weights by team
     const teamWeightsMap = new Map<string, number[]>();
     fishWeights?.forEach((fw: any) => {
@@ -195,7 +195,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       teamWeightsMap.get(fw.teamId)!.push(parseFloat(fw.weight?.toString() || '0') || 0);
     });
 
-    const stats = sortedTeams.map((team: Team) => {
+    const baseStats = sortedTeams.map((team: Team) => {
       const weights = teamWeightsMap.get(team.id) || [];
       // Use spread to avoid mutating the cached array
       const sortedWeights = [...weights].sort((a, b) => b - a);
@@ -213,34 +213,39 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
     });
 
     const teamWeights = new Map<string, number>();
-    stats.forEach((s: any) => { if (s.total > 0) teamWeights.set(s.team.id, s.total); });
+    baseStats.forEach((s: any) => { if (s.total > 0) teamWeights.set(s.team.id, s.total); });
     const rankedPoints = rankFishTeams(teamWeights);
     const teamPoints = new Map<string, number>(rankedPoints.map(({ teamId, points }) => [teamId, points]));
 
-    const sorted = stats
-      .map((s: any) => ({ ...s, points: teamPoints.get(s.team.id) || 0 }))
-      .sort((a: any, b: any) => b.points - a.points);
+    const statsWithPoints = baseStats.map((s: any) => ({
+      ...s,
+      points: teamPoints.get(s.team.id) || 0,
+    }));
+
+    const sortedByPoints = [...statsWithPoints].sort((a: any, b: any) => b.points - a.points);
 
     // Compute rank/highlight values once for the whole array
-    const teamsWithPoints = sorted.filter((t: any) => t.points > 0);
+    const teamsWithPoints = sortedByPoints.filter((t: any) => t.points > 0);
     const maxPoints = teamsWithPoints.length > 0 ? Math.max(...teamsWithPoints.map((t: any) => t.points)) : 0;
     const minPoints = teamsWithPoints.length > 0 ? Math.min(...teamsWithPoints.map((t: any) => t.points)) : 0;
 
     const rankByPoints = new Map<number, string>();
-    sorted.forEach((t: any, i: number) => {
+    sortedByPoints.forEach((t: any, i: number) => {
       if (t.points > 0 && !rankByPoints.has(t.points)) {
         const tiedCount = teamsWithPoints.filter((x: any) => x.points === t.points).length;
         rankByPoints.set(t.points, tiedCount > 1 ? `T-${i + 1}` : `${i + 1}`);
       }
     });
 
-    return sorted.map((t: any) => ({
+    const enrichedStats = statsWithPoints.map((t: any) => ({
       ...t,
       displayRank: t.points > 0 ? (rankByPoints.get(t.points) ?? '-') : '-',
       isHighestScore: t.points === maxPoints && t.points > 0,
       isLowestScore: t.points === minPoints && t.points > 0 && teamsWithPoints.length > 1,
     }));
-  }, [sortedTeams, fishWeights]);
+
+    return yearData?.fishing_locked ? [...enrichedStats].sort((a: any, b: any) => b.points - a.points) : enrichedStats;
+  }, [sortedTeams, fishWeights, yearData?.fishing_locked]);
 
   const handleAddWeight = (teamId: string) => {
     const raw = weightInputs[teamId]?.trim();
@@ -332,7 +337,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedStats.map((teamStat: any) => (
+                    {displayStats.map((teamStat: any) => (
                       <tr key={teamStat.team.id} className="hover:bg-accent/50">
                         {/* Rank */}
                         <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
@@ -453,7 +458,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
-              {sortedStats.map((teamStat: any) => (
+              {displayStats.map((teamStat: any) => (
                 <div key={teamStat.team.id} className="bg-card border border-border p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
