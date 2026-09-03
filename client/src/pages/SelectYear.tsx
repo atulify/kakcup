@@ -24,10 +24,27 @@ export default function SelectYear() {
     return () => clearTimeout(id);
   }, []);
 
-  const { data: years, isLoading: yearsLoading } = useQuery({
+  const { data: years = [], isLoading: yearsLoading } = useQuery<Year[]>({
     queryKey: ["/api/years"],
     queryFn: () => publicFetchJson("/api/years"),
   });
+  const [showYearsLoader, setShowYearsLoader] = useState(yearsLoading);
+
+  useEffect(() => {
+    if (yearsLoading) {
+      setShowYearsLoader(true);
+      return;
+    }
+
+    if (!showYearsLoader) return;
+
+    const timeoutId = window.setTimeout(() => setShowYearsLoader(false), 260);
+    return () => window.clearTimeout(timeoutId);
+  }, [yearsLoading, showYearsLoader]);
+
+  const visibleYears = [...years]
+    .filter((yearData) => yearData.status !== "archived")
+    .sort((a, b) => b.year - a.year);
 
   const handleYearSelection = async () => {
     if (!selectedYear) return;
@@ -155,41 +172,50 @@ export default function SelectYear() {
 
           {/* Year selector */}
           <div className="mb-6">
-            <select
-              id="year-select"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="b3-focus"
-              style={{
-                width: "100%",
-                padding: "0.75rem 1rem",
-                background: "var(--input)",
-                color: "var(--foreground)",
-                border: "1px solid var(--border-hi)",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.9rem",
-                clipPath: "var(--clip-sm)",
-                cursor: "pointer",
-              }}
-              data-testid="select-year"
-            >
-              <option value="">— SELECT YEAR —</option>
-              {yearsLoading ? (
-                <option disabled>LOADING...</option>
-              ) : (
-                (() => {
-                  const visibleYears = [...(years || [])]
-                    .filter((yearData: Year) => yearData.status !== "archived")
-                    .sort((a: Year, b: Year) => b.year - a.year);
+            <div className="relative" aria-busy={showYearsLoader}>
+              <select
+                id="year-select"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                disabled={showYearsLoader}
+                aria-label="Year"
+                className={`b3-focus year-select-control${yearsLoading ? " year-select-control--loading" : ""}`}
+                style={{
+                  width: "100%",
+                  padding: "0.75rem 1rem",
+                  background: "var(--input)",
+                  color: "var(--foreground)",
+                  border: "1px solid var(--border-hi)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.9rem",
+                  clipPath: "var(--clip-sm)",
+                  cursor: showYearsLoader ? "wait" : "pointer",
+                }}
+                data-testid="select-year"
+              >
+                <option value="">— SELECT YEAR —</option>
+                {visibleYears.map((yearData) => (
+                  <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
+                    {yearData.year} — {yearData.name}
+                  </option>
+                ))}
+              </select>
 
-                  return visibleYears.map((yearData: Year) => (
-                    <option key={yearData.year} value={yearData.year} data-testid={`option-year-${yearData.year}`}>
-                      {yearData.year} — {yearData.name}
-                    </option>
-                  ));
-                })()
+              {showYearsLoader && (
+                <div
+                  className={`year-select-loader${yearsLoading ? "" : " year-select-loader--complete"}`}
+                  role="status"
+                  aria-live="polite"
+                  aria-label={yearsLoading ? "Loading years" : "Years loaded"}
+                >
+                  <svg className="year-select-ring" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle className="year-select-ring__track" cx="12" cy="12" r="9" pathLength="100" />
+                    <circle className="year-select-ring__progress" cx="12" cy="12" r="9" pathLength="100" />
+                  </svg>
+                  <span>{yearsLoading ? "LOADING YEARS..." : "YEARS READY"}</span>
+                </div>
               )}
-            </select>
+            </div>
           </div>
 
           {/* Enter button */}
