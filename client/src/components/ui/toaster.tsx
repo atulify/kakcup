@@ -12,7 +12,6 @@ export function Toaster() {
           title === "Error" ||
           title === "Unauthorized" ||
           title === "Login Failed" ||
-          title === "Registration Failed" ||
           title === "Admin Access Required"
 
         return (

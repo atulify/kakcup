@@ -39,7 +39,6 @@ describe('Schema Switching Logic', () => {
     const schema = await import('../shared/schema.js');
 
     // Check insert schemas
-    expect(schema.registerUserSchema).toBeDefined();
     expect(schema.insertYearSchema).toBeDefined();
     expect(schema.insertTeamSchema).toBeDefined();
     expect(schema.insertKakSchema).toBeDefined();
@@ -122,7 +121,6 @@ describe('Schema Compatibility', () => {
     const schema = await import('../shared/schema.js');
 
     // Type exports should be available regardless of database
-    expect(typeof schema.registerUserSchema).toBe('object');
     expect(typeof schema.insertYearSchema).toBe('object');
     expect(typeof schema.insertTeamSchema).toBe('object');
   });

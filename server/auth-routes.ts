@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { storage } from "./storage.js";
 import { isAuthenticated, createToken, type AppEnv } from "./auth.js";
-import { hashPassword, verifyPassword } from "./password.js";
+import { verifyPassword } from "./password.js";
 
 export function createAuthRoutes(app: Hono<AppEnv>): void {
   const isProd = process.env.NODE_ENV === "production";
@@ -46,52 +46,6 @@ export function createAuthRoutes(app: Hono<AppEnv>): void {
     }
   });
 
-  app.post("/api/auth/register", async (c) => {
-    try {
-      const { username, email, password, firstName, lastName } = await c.req.json();
-      if (!username || !password) {
-        return c.json({ error: "Username and password required" }, 400);
-      }
-
-      const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) return c.json({ error: "Username already exists" }, 409);
-
-      if (email) {
-        const existingEmail = await storage.getUserByEmail(email);
-        if (existingEmail) return c.json({ error: "Email already exists" }, 409);
-      }
-
-      const passwordHash = await hashPassword(password);
-      const newUser = await storage.createUser({
-        username,
-        email,
-        passwordHash,
-        firstName,
-        lastName,
-        role: "user",
-      });
-
-      const token = await createToken({
-        userId: newUser.id,
-        username: newUser.username ?? "",
-        role: newUser.role,
-      });
-
-      setCookie(c, "token", token, {
-        httpOnly: true,
-        secure: isProd,
-        sameSite: "Strict",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7,
-      });
-
-      const { passwordHash: _, ...userData } = newUser;
-      return c.json(userData);
-    } catch (error) {
-      console.error("Registration error:", error);
-      return c.json({ error: "Server error" }, 500);
-    }
-  });
 
   app.post("/api/auth/logout", (c) => {
     deleteCookie(c, "token", { path: "/" });

@@ -22,7 +22,6 @@ export {
   fishWeightsRelations,
   chugTimesRelations,
   golfScoresRelations,
-  registerUserSchema,
   insertYearSchema,
   insertTeamSchema,
   insertKakSchema,
@@ -35,7 +34,6 @@ export {
 } from "./schema-postgres.js";
 
 export type {
-  RegisterUser,
   User,
   InsertYear,
   Year,

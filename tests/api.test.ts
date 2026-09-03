@@ -52,41 +52,20 @@ describe('GET /api/years', () => {
 });
 
 describe('POST /api/auth/register', () => {
-  it('should register a new user', async () => {
-    const ts = Date.now();
+  it('should not expose user registration', async () => {
     const res = await app.request('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: `newuser${ts}`,
-        email: `newuser${ts}@example.com`,
+        username: 'newuser',
+        email: 'newuser@example.com',
         password: 'password123',
         firstName: 'New',
         lastName: 'User',
       }),
     });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toHaveProperty('id');
-    expect(body).not.toHaveProperty('passwordHash');
-  });
 
-  it('should reject registration with missing username', async () => {
-    const res = await app.request('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'test@example.com', password: 'password123' }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('should reject registration with missing password', async () => {
-    const res = await app.request('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'testuser', email: 'test@example.com' }),
-    });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 });
 

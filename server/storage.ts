@@ -1,4 +1,4 @@
-import { users, years, teams, kaks, champs, boots, tieBreakAdjustments, fishWeights, chugTimes, golfScores, type User, type RegisterUser, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertTieBreakAdjustment, type TieBreakAdjustment, type InsertFishWeight, type FishWeight, type InsertChugTime, type ChugTime, type InsertGolfScore, type GolfScore } from "../shared/schema.js";
+import { users, years, teams, kaks, champs, boots, tieBreakAdjustments, fishWeights, chugTimes, golfScores, type User, type Year, type InsertYear, type Team, type InsertTeam, type Kak, type InsertKak, type InsertTieBreakAdjustment, type TieBreakAdjustment, type InsertFishWeight, type FishWeight, type InsertChugTime, type ChugTime, type InsertGolfScore, type GolfScore } from "../shared/schema.js";
 import { db } from "./db.js";
 import { eq, and, count, desc } from "drizzle-orm";
 
@@ -26,8 +26,6 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(userData: RegisterUser & { role?: string }): Promise<User>;
   // Year operations
   getYear(year: number): Promise<Year | undefined>;
   getYearById(id: string): Promise<Year | undefined>;
@@ -75,21 +73,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
-  }
-
-  async createUser(userData: RegisterUser & { role?: string }): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...userData,
-        role: userData.role || 'user',
-      })
-      .returning();
-    return user;
-  }
 
   async getYear(year: number): Promise<Year | undefined> {
     const [yearRecord] = await db.select().from(years).where(eq(years.year, year));

@@ -91,7 +91,7 @@ Settings was refactored to a **two-panel layout** with a side nav:
 **`api/auth.ts`** — Node.js Runtime
 - Plain `VercelRequest`/`VercelResponse` handler (no Hono adapter — avoids body stream issues)
 - Reads request body from raw stream (Vercel pre-consumes IncomingMessage before function call)
-- Handles: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`, `GET /api/auth/user`
+- Handles: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/user`
 - Requires `globalThis.crypto` polyfill for `hono/jwt` on Node.js < 18
 
 ### Request Flow
@@ -117,7 +117,7 @@ Settings was refactored to a **two-panel layout** with a side nav:
 - **Framework**: Hono
 - **Database ORM**: Drizzle ORM
 - **Authentication**: JWT in HttpOnly cookie (`token`) — no session store, no DB roundtrip on auth checks
-- **Password Hashing**: bcryptjs (runs only in Node.js auth function)
+- **Password Verification**: bcryptjs (runs only in Node.js auth function)
 - **Cache**: `@upstash/redis` — write-through Redis cache for read routes; `cached()` / `invalidate()` helpers in `server/cache.ts`; 1-hour TTL; no-op in local dev
 
 ### Database
@@ -154,7 +154,7 @@ kakcup/
 │   ├── auth-routes.ts    # Auth Hono routes (used in local dev via server/routes.ts)
 │   ├── cache.ts          # Upstash Redis cache helpers (cached, invalidate, cacheKeys)
 │   ├── auth.ts           # JWT middleware: isAuthenticated, isAdmin, createToken
-│   ├── password.ts       # hashPassword, verifyPassword (bcryptjs — Node.js only)
+│   ├── password.ts       # verifyPassword (bcryptjs — Node.js only)
 │   ├── db.ts             # Database connection + setDb() for local dev SQLite override
 │   └── storage.ts        # Data access layer (Drizzle-based)
 ├── shared/               # Shared code between frontend/backend
@@ -184,6 +184,7 @@ kakcup/
 
 ### JWT Flow
 - **Login**: `POST /api/auth/login` → bcrypt verify → `createToken()` → `Set-Cookie: token=<jwt>; HttpOnly; Secure; SameSite=Strict`
+- **Registration**: Disabled; there is no public registration endpoint or client flow
 - **Auth check** (`GET /api/auth/user`): reads `token` cookie → `verify(token, JWT_SECRET, 'HS256')` → returns payload (no DB call)
 - **Data route auth** (`isAuthenticated` middleware): reads `token` cookie → verifies JWT → sets `c.var.{userId, role, username, ...}` (no DB call)
 - **Admin check** (`isAdmin` middleware): same as above + asserts `role === 'admin'` (no DB call)

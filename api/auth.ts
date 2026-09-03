@@ -12,7 +12,7 @@ if (!globalThis.crypto) {
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { storage } from "../server/storage.js";
-import { hashPassword, verifyPassword } from "../server/password.js";
+import { verifyPassword } from "../server/password.js";
 import { createToken } from "../server/auth.js";
 import { verify } from "hono/jwt";
 
@@ -76,36 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── POST /api/auth/register ──────────────────────────────────────────────
-  if (method === "POST" && path === "/api/auth/register") {
-    try {
-      const { username, email, password, firstName, lastName } = req.body ?? {};
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password required" });
-      }
-      if (await storage.getUserByUsername(username)) {
-        return res.status(409).json({ message: "Username already exists" });
-      }
-      if (email && (await storage.getUserByEmail(email))) {
-        return res.status(409).json({ message: "Email already exists" });
-      }
-      const passwordHash = await hashPassword(password);
-      const newUser = await storage.createUser({
-        username, email, passwordHash, firstName, lastName, role: "user",
-      });
-      const token = await createToken({
-        userId: newUser.id,
-        username: newUser.username ?? "",
-        role: newUser.role,
-      });
-      res.setHeader("Set-Cookie", tokenCookie(token));
-      const { passwordHash: _, ...userData } = newUser;
-      return res.status(200).json(userData);
-    } catch (err) {
-      console.error("Register error:", err);
-      return res.status(500).json({ message: "Server error" });
-    }
-  }
 
   // ── POST /api/auth/logout ────────────────────────────────────────────────
   if (method === "POST" && path === "/api/auth/logout") {

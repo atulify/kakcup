@@ -208,14 +208,6 @@ export const golfScoresRelations = relations(golfScores, ({ one }) => ({
 
 
 
-// User schema for registration
-export const registerUserSchema = createInsertSchema(users).pick({
-  username: true,
-  email: true,
-  passwordHash: true,
-  firstName: true,
-  lastName: true,
-});
 
 export const insertYearSchema = createInsertSchema(years).omit({
   id: true,
@@ -263,7 +255,6 @@ export const insertTieBreakAdjustmentSchema = createInsertSchema(tieBreakAdjustm
   createdBy: true,
 });
 
-export type RegisterUser = z.infer<typeof registerUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertYear = z.infer<typeof insertYearSchema>;
 export type Year = typeof years.$inferSelect;
