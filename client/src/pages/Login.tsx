@@ -36,21 +36,22 @@ export default function Login() {
   const inputStyle: React.CSSProperties = {
     display: "flex",
     width: "100%",
-    padding: "0.625rem 0.875rem",
+    padding: "0.75rem 0.875rem",
     background: "var(--input)",
     color: "var(--foreground)",
     border: "1px solid var(--border-hi)",
     fontFamily: "var(--font-mono)",
-    fontSize: "0.85rem",
-    clipPath: "var(--clip-sm)",
+    fontSize: "1rem",
+    borderRadius: "6px",
   };
 
   const labelStyle: React.CSSProperties = {
     display: "block",
     fontFamily: "var(--font-display)",
-    fontSize: "0.6rem",
-    letterSpacing: "0.12em",
-    color: "var(--ice)",
+    fontSize: "0.75rem",
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    color: "var(--foreground)",
     textTransform: "uppercase",
     marginBottom: "0.375rem",
   };
@@ -58,7 +59,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3 px-4">
+      <header style={{ background: "var(--card)", borderTop: "4px solid var(--orange)", borderBottom: "1px solid var(--border-hi)" }} className="py-3 px-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Trophy style={{ color: "var(--orange)" }} size={18} />
@@ -81,7 +82,7 @@ export default function Login() {
 
 
           {/* Form card */}
-          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%)", padding: "1.75rem 1.5rem" }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "8px", padding: "1.75rem 1.5rem" }}>
 
               <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                 <div>

@@ -48,9 +48,9 @@ function StatsTable({ rows, emptyMessage }: { rows: KakStatRow[]; emptyMessage: 
     <table style={{ width: "auto", fontSize: "0.85rem", fontFamily: "var(--font-mono)" }}>
       <thead>
         <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
-          <th style={{ padding: "0.5rem 1rem", textAlign: "left", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", width: "4.5rem", whiteSpace: "nowrap" }}>RANK</th>
-          <th style={{ padding: "0.5rem 1rem", textAlign: "left", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", whiteSpace: "nowrap" }}>KAK</th>
-          <th style={{ padding: "0.5rem 1rem", textAlign: "right", fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", width: "5rem" }}>COUNT</th>
+          <th style={{ padding: "0.75rem 1rem", textAlign: "left", fontSize: "0.75rem", color: "var(--text-dim)", width: "4.5rem", whiteSpace: "nowrap" }}>RANK</th>
+          <th style={{ padding: "0.75rem 1rem", textAlign: "left", fontSize: "0.75rem", color: "var(--text-dim)", whiteSpace: "nowrap" }}>KAK</th>
+          <th style={{ padding: "0.75rem 1rem", textAlign: "right", fontSize: "0.75rem", color: "var(--text-dim)", width: "5rem" }}>COUNT</th>
         </tr>
       </thead>
       <tbody>
@@ -99,13 +99,13 @@ function ResultCard({ label, icon, names, highlight }: { label: string; icon: st
       padding: "0.75rem 1rem",
       background: highlight ? "rgba(255,90,0,0.08)" : "var(--card)",
       border: `1px solid ${highlight ? "rgba(255,90,0,0.3)" : "var(--border-hi)"}`,
-      clipPath: "var(--clip-sm)",
-      flexShrink: 0,
+      borderRadius: "8px",
+      maxWidth: "100%",
     }}>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: highlight ? "var(--orange)" : "var(--text-dim)", marginBottom: "0.5rem" }}>
+      <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.04em", color: highlight ? "var(--orange)" : "var(--text-dim)", marginBottom: "0.5rem" }}>
         {icon} {label.toUpperCase()}
       </div>
-      <div style={{ display: "flex", gap: "1rem" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
         {columns.map((col, ci) => (
           <ul key={ci} style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {col.map((name) => (
@@ -150,11 +150,11 @@ export default function KakStatsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
+      <header style={{ background: "var(--card)", borderTop: "4px solid var(--orange)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
         <div className="max-w-5xl mx-auto px-4 flex items-center gap-3">
           <button
             onClick={() => setLocation("/")}
-            className="btn-ghost flex items-center gap-1 text-xs"
+            className="btn-ghost flex items-center gap-1 text-xs" aria-label="Home"
           >
             <Home size={14} />
             <span className="hidden sm:inline">Home</span>
@@ -167,9 +167,9 @@ export default function KakStatsPage() {
         </div>
       </header>
 
-      <div className="flex flex-1 max-w-5xl mx-auto w-full">
+      <div className="flex flex-col sm:flex-row flex-1 max-w-5xl mx-auto w-full">
         {/* Left nav */}
-        <nav style={{ width: "9rem", flexShrink: 0, borderRight: "1px solid var(--border-hi)", paddingTop: "1.5rem", paddingLeft: "0.5rem", paddingRight: "0.5rem" }}>
+        <nav className="flex sm:block w-full sm:w-36 shrink-0 p-2 sm:pt-6" aria-label="Statistics">
           {navItems.map((item) => {
             const isActive = section === item.id;
             return (
@@ -180,10 +180,10 @@ export default function KakStatsPage() {
                   display: "block",
                   width: "100%",
                   textAlign: "left",
-                  padding: "0.5rem 0.75rem",
+                  padding: "0.75rem",
                   marginBottom: "0.25rem",
                   fontFamily: "var(--font-display)",
-                  fontSize: "0.65rem",
+                  fontSize: "0.75rem",
                   letterSpacing: "0.1em",
                   textTransform: "uppercase",
                   background: isActive ? "rgba(255,90,0,0.1)" : "transparent",
@@ -191,7 +191,7 @@ export default function KakStatsPage() {
                   borderLeft: isActive ? "2px solid var(--orange)" : "2px solid transparent",
                   transition: "all 0.15s",
                   cursor: "pointer",
-                  outline: "none",
+                  borderRadius: "6px",
                 }}
                 onMouseEnter={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}}
                 onMouseLeave={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.color = "var(--text-dim)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}}
@@ -203,7 +203,7 @@ export default function KakStatsPage() {
         </nav>
 
         {/* Content */}
-        <main className="flex-1 min-w-0" style={{ padding: "1.5rem" }}>
+        <main className="flex-1 min-w-0 px-3 py-6 sm:p-6">
           {isLoading && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "4rem 0" }}>
               <div className="text-center">
@@ -214,18 +214,18 @@ export default function KakStatsPage() {
           )}
 
           {!isLoading && section === "champs" && stats && (
-            <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-md)", overflow: "hidden", width: "fit-content" }}>
+            <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "8px", overflowX: "auto", maxWidth: "100%", width: "fit-content" }}>
               <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(255,90,0,0.2)", background: "rgba(255,90,0,0.06)" }}>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.12em", color: "var(--ice)" }}>🏆 KAK CHAMPS</h2>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 700, color: "var(--foreground)" }}>🏆 KAK CHAMPS</h2>
               </div>
               <StatsTable rows={stats.champs} emptyMessage="No championship data yet." />
             </div>
           )}
 
           {!isLoading && section === "boots" && stats && (
-            <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-md)", overflow: "hidden", width: "fit-content" }}>
+            <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "8px", overflowX: "auto", maxWidth: "100%", width: "fit-content" }}>
               <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(255,90,0,0.2)", background: "rgba(255,90,0,0.06)" }}>
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.12em", color: "var(--ice)" }}>🥾 KAK BOOT</h2>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 700, color: "var(--foreground)" }}>🥾 KAK BOOT</h2>
               </div>
               <StatsTable rows={stats.boots} emptyMessage="No boot data yet." />
             </div>
@@ -233,7 +233,7 @@ export default function KakStatsPage() {
 
           {!isLoading && section === "results" && results && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-              <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.12em", color: "var(--ice)" }}>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 700, color: "var(--foreground)" }}>
                 📋 RESULTS BY YEAR
               </h2>
               {results.length === 0 && (
@@ -241,8 +241,8 @@ export default function KakStatsPage() {
               )}
               {results.map((yr) => (
                 <div key={yr.year}>
-                  <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.18em", color: "var(--text-dim)", textTransform: "uppercase", marginBottom: "0.5rem" }}>
-                    — {yr.year} —
+                  <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 700, color: "var(--text-dim)", marginBottom: "0.5rem" }}>
+                    {yr.year}
                   </h3>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
                     {yr.champs.length > 0 && (

@@ -4,8 +4,8 @@
   "description": "KAK Cup - Annual Tournament Platform",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#040608",
-  "theme_color": "#040608",
+  "background_color": "#101113",
+  "theme_color": "#101113",
   "orientation": "portrait-primary",
   "icons": [
     {

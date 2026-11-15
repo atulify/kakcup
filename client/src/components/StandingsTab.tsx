@@ -1,6 +1,6 @@
 import { useMemo, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Team } from "@shared/schema";
+import type { Team } from "@/lib/api-types";
 import { calculateTop3FishTotal, rankFishTeams, rankChugTeams, rankGolfTeams } from "@shared/scoring";
 
 interface StandingsTabProps {
@@ -225,10 +225,10 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
     <div style={{ padding: "1rem", background: "var(--background)" }}>
       <div style={{ width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--orange)", textShadow: "0 0 12px rgba(255,90,0,0.4)" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.02em", textTransform: "uppercase", color: "var(--foreground)", fontWeight: 700 }}>
             Tournament Standings
           </h2>
-          <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>
+          <p style={{ fontSize: "0.875rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>
             Combined points from 🎣 · 🍺 · ⛳
           </p>
           {tieBreakSummary && (
@@ -239,14 +239,14 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
         </div>
 
         {sortedTeams.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3rem", background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-md)", margin: "0 1rem" }}>
-            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.1em", color: "var(--text-dim)" }}>NO TEAMS YET</p>
+          <div style={{ textAlign: "center", padding: "3rem", background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "0.75rem", margin: "0 1rem" }}>
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", color: "var(--text-dim)" }}>NO TEAMS YET</p>
           </div>
         ) : (
           <>
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", borderRadius: "0.75rem" }}>
                 <table style={{ borderCollapse: "collapse", background: "var(--card)", border: "1px solid var(--border-hi)", fontSize: "0.85rem", width: "auto", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
@@ -258,7 +258,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                         { label: "⛳ PTS",    style: { width: "70px",   textAlign: "center" as const } },
                         { label: "TOTAL",      style: { width: "80px",   textAlign: "center" as const } },
                       ].map((h) => (
-                        <th key={h.label} style={{ padding: "0.5rem 0.75rem", ...h.style, fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.1em", color: "var(--ice)", fontWeight: 600, borderRight: "1px solid var(--border)" }}>
+                        <th key={h.label} style={{ padding: "0.75rem", ...h.style, fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.05em", color: "var(--text-dim)", fontWeight: 600 }}>
                           {h.label}
                         </th>
                       ))}
@@ -276,10 +276,10 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                           onMouseEnter={(e) => { if (!isFirst) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
                           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = rowBg; }}
                         >
-                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", fontWeight: 700, color: isFirst ? "var(--orange)" : "var(--text-dim)", fontSize: "0.85rem" }}>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", fontWeight: 700, color: isFirst ? "var(--orange)" : "var(--text-dim)", fontSize: "0.85rem" }}>
                             {displayRank}
                           </td>
-                          <td style={{ padding: "0.5rem 0.75rem", borderRight: "1px solid var(--border)" }}>
+                          <td style={{ padding: "0.5rem 0.75rem" }}>
                             <div>
                               <div style={{ fontWeight: 700, marginBottom: "0.25rem", fontSize: "0.85rem", color: isFirst ? "var(--foreground)" : "var(--foreground)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 {standing.team.name}
@@ -288,23 +288,23 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                               </div>
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 0.75rem" }}>
                                 {standing.members.map((member: string, i: number) => (
-                                  <div key={i} style={{ fontSize: "0.7rem", color: "var(--orange-hi)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  <div key={i} style={{ fontSize: "0.8rem", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {member}
                                   </div>
                                 ))}
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--ice)", fontWeight: 600 }}>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", color: "var(--foreground)", fontWeight: 600 }}>
                             {standing.fishPoints || 0}
                           </td>
-                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--chug)", fontWeight: 600 }}>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", color: "var(--foreground)", fontWeight: 600 }}>
                             {standing.chugPoints || 0}
                           </td>
-                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", borderRight: "1px solid var(--border)", color: "var(--golf)", fontWeight: 600 }}>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", color: "var(--foreground)", fontWeight: 600 }}>
                             {standing.golfPoints || 0}
                           </td>
-                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", fontWeight: 700, fontSize: "1rem", color: isFirst ? "var(--ice)" : "var(--foreground)" }}>
+                          <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", fontWeight: 700, fontSize: "1rem", color: isFirst ? "var(--orange)" : "var(--foreground)" }}>
                             {standing.totalPoints || 0}
                           </td>
                         </tr>
@@ -321,7 +321,6 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                 const { isFirst, isLast, rankDisplay: displayRank } = standing;
                 const highlightBg = "rgba(255,90,0,0.1)";
                 const highlightBorder = "rgba(255,90,0,0.25)";
-                const highlightGlow = "0 0 22px rgba(255,90,0,0.25)";
 
                 return (
                   <div
@@ -329,45 +328,43 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                     style={{
                       background: isFirst ? highlightBg : "var(--card)",
                       border: `1px solid ${isFirst ? highlightBorder : "var(--border-hi)"}`,
-                      boxShadow: isFirst ? highlightGlow : "none",
-                      clipPath: "var(--clip-sm)",
+                      borderRadius: "0.75rem",
                       padding: "1rem",
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.05em", color: "var(--foreground)", fontWeight: 700 }}>
+                          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--foreground)", fontWeight: 700 }}>
                             {standing.team.name}
                           </h3>
                           {isFirst && standing.totalPoints > 0 && <span>🏆</span>}
                           {isLast && <span>🥾</span>}
                         </div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--orange-hi)" }}>
+                        <div style={{ fontSize: "0.875rem", color: "var(--text-dim)" }}>
                           {standing.members.join(' · ')}
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.65rem", color: "var(--text-dim)" }}>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>
                           RANK: <span style={{ color: isFirst ? "var(--orange)" : "var(--foreground)", fontWeight: 700 }}>{displayRank}</span>
                         </div>
-                        <div style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: isFirst ? "var(--ice)" : "var(--foreground)", letterSpacing: "0.05em" }}>
+                        <div style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 700, color: isFirst ? "var(--orange)" : "var(--foreground)" }}>
                           {standing.totalPoints || 0}
                         </div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.6rem", color: "var(--text-dim)" }}>pts</div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>pts</div>
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", fontFamily: "var(--font-mono)" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 1.25rem", borderTop: "1px solid var(--border)", paddingTop: "0.75rem", fontSize: "0.8rem" }}>
                       {[
-                        { icon: "🎣", label: "Fish",  pts: standing.fishPoints || 0,  color: "var(--ice)" },
-                        { icon: "🍺", label: "Chug",  pts: standing.chugPoints || 0,  color: "var(--chug)" },
-                        { icon: "⛳", label: "Golf",  pts: standing.golfPoints || 0,  color: "var(--golf)" },
-                      ].map((ev) => (
-                        <div key={ev.label} style={{ textAlign: "center", background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)", padding: "0.35rem 0.25rem" }}>
-                          <span style={{ fontSize: "0.9rem", color: ev.color, display: "block", lineHeight: 1, paddingTop: "0.1rem" }}>{ev.icon}</span>
-                          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: ev.color, marginTop: "0.15rem", lineHeight: 1.1, paddingTop: "0.05rem" }}>{ev.pts}</div>
-                        </div>
+                        { label: "Fish", points: standing.fishPoints || 0 },
+                        { label: "Chug", points: standing.chugPoints || 0 },
+                        { label: "Golf", points: standing.golfPoints || 0 },
+                      ].map((event) => (
+                        <span key={event.label} style={{ color: "var(--text-dim)" }}>
+                          {event.label} <strong style={{ color: "var(--foreground)", fontVariantNumeric: "tabular-nums" }}>{event.points}</strong>
+                        </span>
                       ))}
                     </div>
                   </div>

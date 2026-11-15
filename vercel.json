@@ -1,9 +1,9 @@
 {
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "sh scripts/vercel-npm.sh run vercel-build",
+  "installCommand": "sh scripts/vercel-npm.sh ci --strict-allow-scripts",
   "outputDirectory": "dist/public",
   "rewrites": [
-    { "source": "/api/auth/:path*", "destination": "/api/auth" },
-    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/api/:path*", "destination": "/api/rust-api" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ],
   "headers": [

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { apiRequest, publicFetchJson } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { handleLogout } from "@/utils/auth";
-import type { Year } from "@shared/schema";
+import type { Year } from "@/lib/api-types";
 
 export default function SelectYear() {
   const [selectedYear, setSelectedYear] = useState<string>("");
@@ -58,7 +58,7 @@ export default function SelectYear() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3 px-4">
+      <header style={{ background: "var(--card)", borderTop: "4px solid var(--orange)", borderBottom: "1px solid var(--border-hi)" }} className="py-3 px-4">
         <div className="max-w-7xl mx-auto flex items-center">
           <div className="flex items-center gap-2">
             <Trophy style={{ color: "var(--orange)" }} size={20} />
@@ -70,7 +70,7 @@ export default function SelectYear() {
           <div className="flex items-center gap-3 ml-auto">
             <button
               onClick={() => setLocation('/kak-stats')}
-              className="btn-ghost flex items-center gap-1.5 text-xs"
+              className="btn-ghost flex items-center gap-1.5 text-xs" aria-label="KAK History"
             >
               <Trophy size={14} />
               <span className="hidden sm:inline">KAK History</span>
@@ -79,7 +79,7 @@ export default function SelectYear() {
             {isAuthenticated ? (
               <>
                 <span style={{ color: "var(--text-dim)", fontSize: "0.75rem", fontFamily: "var(--font-mono)" }}>
-                  {user?.firstName || user?.username}
+                  {user?.username}
                   {user?.role === 'admin' && (
                     <span style={{ marginLeft: "0.5rem", padding: "0.1rem 0.4rem", background: "rgba(255,90,0,0.15)", color: "var(--orange)", fontSize: "0.65rem", fontFamily: "var(--font-display)", letterSpacing: "0.08em" }}>
                       ADMIN
@@ -89,7 +89,7 @@ export default function SelectYear() {
                 {user?.role === 'admin' && (
                   <button
                     onClick={() => setLocation('/settings')}
-                    className="btn-ghost p-1.5"
+                    className="btn-ghost p-1.5" aria-label="Settings"
                   >
                     <Settings size={14} style={{ color: "var(--ice)" }} />
                   </button>
@@ -110,25 +110,8 @@ export default function SelectYear() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-lg text-center">
-
-          {/* Logo mark */}
-          <div className="mb-10 flex justify-center">
-            <div style={{
-              position: "relative",
-              width: "96px",
-              height: "96px",
-              clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-              background: "linear-gradient(135deg, rgba(255,90,0,0.15) 0%, rgba(255,90,0,0.05) 100%)",
-              border: "1px solid rgba(255,90,0,0.4)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>
-              <Trophy size={40} style={{ color: "var(--orange)" }} />
-            </div>
-          </div>
 
           {/* Title */}
           <div className="mb-2">
@@ -137,12 +120,10 @@ export default function SelectYear() {
                 fontFamily: "var(--font-display)",
                 fontSize: "clamp(2.5rem, 8vw, 4.5rem)",
                 fontWeight: 900,
-                letterSpacing: "0.12em",
+                letterSpacing: "0.02em",
                 textTransform: "uppercase",
                 lineHeight: 1,
-                WebkitTextStroke: "1px var(--orange)",
-                color: "var(--orange)",
-                textShadow: "0 0 20px rgba(255,90,0,0.4), 0 0 40px rgba(255,90,0,0.15)",
+                color: "var(--foreground)",
               }}
               data-testid="title-kak-cup"
             >
@@ -151,24 +132,10 @@ export default function SelectYear() {
           </div>
 
           {/* Subtitle */}
-          <div className="mb-10" style={{ fontFamily: "var(--font-display)", fontSize: "0.65rem", letterSpacing: "0.25em", color: "var(--ice)", textTransform: "uppercase", opacity: 0.7 }}>
+          <div className="mb-6" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.08em", color: "var(--text-dim)", textTransform: "uppercase" }}>
             Est. 1999
           </div>
 
-          {/* Poem */}
-          <div className="mb-10 mx-auto max-w-sm" style={{
-            padding: "1.25rem 1.5rem",
-            border: "1px solid var(--border-hi)",
-            borderLeft: "3px solid var(--orange)",
-            background: "rgba(255,90,0,0.03)",
-          }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", lineHeight: 1.9, color: "var(--text-dim)" }}>
-              <div>We get together but once a year,</div>
-              <div>To fish, to golf, to chug some beer,</div>
-              <div>So raise your glasses for a cheers,</div>
-              <div>We'll be KAKs for years and years</div>
-            </div>
-          </div>
 
           {/* Year selector */}
           <div className="mb-6">
@@ -188,7 +155,8 @@ export default function SelectYear() {
                   border: "1px solid var(--border-hi)",
                   fontFamily: "var(--font-mono)",
                   fontSize: "0.9rem",
-                  clipPath: "var(--clip-sm)",
+                  borderRadius: "6px",
+                  minHeight: "44px",
                   cursor: showYearsLoader ? "wait" : "pointer",
                 }}
                 data-testid="select-year"
@@ -229,27 +197,26 @@ export default function SelectYear() {
             <span>ENTER TOURNAMENT</span>
             <ArrowRight size={16} />
           </button>
+          {/* Poem */}
+          <div className="mt-8 mx-auto max-w-sm">
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", lineHeight: 1.7, color: "var(--text-dim)" }}>
+              <div>We get together but once a year,</div>
+              <div>To fish, to golf, to chug some beer,</div>
+              <div>So raise your glasses for a cheers,</div>
+              <div>We'll be KAKs for years and years</div>
+            </div>
+          </div>
 
-          {/* Event icons */}
-          <div className="mt-16 grid grid-cols-3 gap-4">
+          {/* Event summary */}
+          <div className="mt-7 grid grid-cols-3 gap-3">
             {[
-              { emoji: "🎣", title: "FISHING", desc: "Top-3 fish by weight" },
-              { emoji: "🍺", title: "BEER CHUG", desc: "4-man relay race" },
-              { emoji: "⛳", title: "GOLF", desc: "4-man scramble" },
+              { title: "Fishing", desc: "Top 3 fish by weight" },
+              { title: "Beer chug", desc: "4-person relay" },
+              { title: "Golf", desc: "4-person scramble" },
             ].map((item) => (
-              <div key={item.title} style={{
-                padding: "1rem",
-                background: "var(--card)",
-                border: "1px solid var(--border-hi)",
-                clipPath: "var(--clip-sm)",
-              }}>
-                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{item.emoji}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "0.6rem", letterSpacing: "0.12em", color: "var(--orange)", marginBottom: "0.25rem" }}>
-                  {item.title}
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                  {item.desc}
-                </div>
+              <div key={item.title}>
+                <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "var(--foreground)" }}>{item.title}</div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>{item.desc}</div>
               </div>
             ))}
           </div>

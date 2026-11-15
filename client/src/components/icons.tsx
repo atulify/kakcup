@@ -1,5 +1,5 @@
 /**
- * Inline SVG icon components — zero runtime dependency on lucide-react.
+ * Inline SVG icon components.
  * Each icon is a simple component returning an <svg>.
  */
 import type { FunctionComponent, SVGProps } from "react";

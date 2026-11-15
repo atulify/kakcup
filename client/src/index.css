@@ -3,62 +3,44 @@
 @tailwind utilities;
 
 :root {
-  /* ═══════════════════════════════════════════
-     CONCEPT B3 · ARASAKA CORP
-     Corporate dark · Orange-red neon + cold blue
-     Angular geometry · Military precision
-  ═══════════════════════════════════════════ */
-  --background:              #040608;
-  --foreground:              #c8d8e8;
-  --card:                    #0b0d12;
-  --card-foreground:         #c8d8e8;
-
-
-  /* Primary = orange */
+  /* Modern Tournament: neutral charcoal with a restrained orange accent. */
+  --background:              #101113;
+  --foreground:              #f5f5f5;
+  --card:                    #1c1e21;
+  --card-foreground:         #f5f5f5;
   --primary:                 #ff5a00;
-  --primary-foreground:      #040608;
-
-  /* Secondary = cold blue */
-  --secondary:               #0f1520;
-  --secondary-foreground:    #88ccff;
-
-  --muted:                   #0f1520;
-  --muted-foreground:        #4a6070;
-  --accent:                  #0f1520;
-  --accent-foreground:       #c8d8e8;
-  --destructive:             #cc2200;
-  --destructive-foreground:  #c8d8e8;
-  --border:                  #1a2030;
-  --input:                   #0f1520;
-  --ring:                    #ff5a00;
-
-  /* B3 extended palette */
+  --primary-foreground:      #17100b;
+  --secondary:               #26282c;
+  --secondary-foreground:    #f5f5f5;
+  --muted:                   #26282c;
+  --muted-foreground:        #a8aaad;
+  --accent:                  #2a2c30;
+  --accent-foreground:       #f5f5f5;
+  --destructive:             #a33127;
+  --destructive-foreground:  #ffffff;
+  --border:                  #35373b;
+  --input:                   #202226;
+  --ring:                    #ff8b4a;
   --orange:                  #ff5a00;
-  --orange-hi:               #ff7a30;
-  --orange-dim:              #6a2600;
-  --blue-hi:                 #0066cc;
-  --ice:                     #88ccff;
-  --ice-dim:                 #3a6080;
-  --text-dim:                #4a6070;
-  --text-muted:              #1e2830;
-  --border-hi:               #1a2030;
-
-  /* Event accent colors */
-  --fish:                    #ff6a20;
-  --chug:                    #ffaa00;
-  --golf:                    #00dd88;
-
-  /* Typography */
-  --font-display:            'Orbitron', sans-serif;
-  --font-sans:               'Rajdhani', sans-serif;
-  --font-mono:               'Share Tech Mono', monospace;
+  --orange-hi:               #ff8a4a;
+  --orange-dim:              #b54100;
+  --blue-hi:                 #a8aaad;
+  --ice:                     #e4e4e5;
+  --ice-dim:                 #888b90;
+  --text-dim:                #a8aaad;
+  --text-muted:              #85888d;
+  --border-hi:               #414348;
+  --fish:                    #f5f5f5;
+  --chug:                    #f5f5f5;
+  --golf:                    #f5f5f5;
+  --font-display:            "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-sans:               system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:               system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-serif:              Georgia, serif;
-
-  /* Geometry */
-  --radius:                  0px;
-  --clip-sm:  polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-  --clip-md:  polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-  --clip-lg:  polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
+  --radius:                  0.375rem;
+  --clip-sm:                 none;
+  --clip-md:                 none;
+  --clip-lg:                 none;
 }
 
 
@@ -85,30 +67,6 @@
     letter-spacing: 0.01em;
   }
 
-  /* Ambient glow corners */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(ellipse at 100% 0%, rgba(255, 90, 0, 0.05) 0%, transparent 45%),
-      radial-gradient(ellipse at 0% 100%, rgba(0, 68, 153, 0.06) 0%, transparent 50%);
-  }
-
-  /* Circuit grid traces */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(rgba(255, 90, 0, 0.015) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 68, 153, 0.02) 1px, transparent 1px);
-    background-size: 48px 48px;
-  }
 
   /* All content above background */
   #root {
@@ -116,10 +74,10 @@
     z-index: 1;
   }
 
-  /* Display headings use Orbitron */
+  /* A condensed, strong heading complements the simple scoreboard layout. */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.01em;
   }
 }
 
@@ -135,12 +93,11 @@
     justify-content: center;
     gap: 0.5rem;
     white-space: nowrap;
-    font-weight: 500;
-    transition: all 0.2s;
-    font-family: var(--font-display);
-    letter-spacing: 0.08em;
-    font-size: 0.75rem;
-    text-transform: uppercase;
+    font-weight: 700;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    border-radius: var(--radius);
   }
   .btn-base:focus-visible,
   .btn-primary:focus-visible,
@@ -160,36 +117,22 @@
   }
 
   .btn-primary {
-    padding: 0.625rem 1.5rem;
+    padding: 0.625rem 1.25rem;
     background: var(--orange);
-    color: #040608;
-    clip-path: var(--clip-sm);
-    position: relative;
-  }
-  .btn-primary::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, var(--orange-hi) 0%, var(--orange) 50%, var(--orange-dim) 100%);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .btn-primary:hover::before {
-    opacity: 1;
+    color: var(--primary-foreground);
   }
   .btn-primary:hover {
-    box-shadow: 0 0 16px rgba(255, 90, 0, 0.5), 0 0 32px rgba(255, 90, 0, 0.2);
+    background: var(--orange-hi);
   }
 
   .btn-secondary {
     padding: 0.5rem 1rem;
     background: transparent;
-    color: var(--ice);
+    color: var(--foreground);
     border: 1px solid var(--border-hi);
-    clip-path: var(--clip-sm);
   }
   .btn-secondary:hover {
-    background: rgba(136, 204, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     border-color: var(--ice-dim);
     color: var(--foreground);
   }
@@ -208,11 +151,10 @@
     padding: 0.5rem 1rem;
     background: var(--destructive);
     color: var(--foreground);
-    clip-path: var(--clip-sm);
+    border-radius: var(--radius);
   }
   .btn-destructive:hover {
-    background: #ff2200;
-    box-shadow: 0 0 12px rgba(204, 34, 0, 0.5);
+    background: #c33b2f;
   }
 
   /* ── Input ── */
@@ -226,13 +168,13 @@
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     font-family: var(--font-mono);
-    clip-path: var(--clip-sm);
+    border-radius: var(--radius);
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .input:focus {
     outline: none;
     border-color: var(--orange);
-    box-shadow: 0 0 0 1px var(--orange), 0 0 8px rgba(255, 90, 0, 0.2);
+    box-shadow: 0 0 0 1px var(--orange);
   }
   .input::placeholder {
     color: var(--text-dim);
@@ -245,7 +187,7 @@
   }
   .b3-focus:focus {
     border-color: var(--orange);
-    box-shadow: 0 0 0 1px var(--orange), 0 0 8px rgba(255, 90, 0, 0.2);
+    box-shadow: 0 0 0 1px var(--orange);
   }
 
   /* ── Year selector loading ring ── */

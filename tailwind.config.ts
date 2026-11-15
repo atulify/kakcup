@@ -35,14 +35,14 @@ export default {
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
-        // B3 named colors for use in utilities
+        // Semantic aliases used by existing components
         orange: "var(--orange)",
         ice: "var(--ice)",
       },
       fontFamily: {
-        sans: ["Rajdhani", "var(--font-sans)", "sans-serif"],
-        display: ["Orbitron", "var(--font-display)", "sans-serif"],
-        mono: ["Share Tech Mono", "var(--font-mono)", "monospace"],
+        sans: ["var(--font-sans)"],
+        display: ["var(--font-display)"],
+        mono: ["var(--font-mono)"],
         serif: ["var(--font-serif)"],
       },
     },

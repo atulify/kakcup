@@ -54,14 +54,17 @@ Tests the `calculatePointsWithTiebreaking()` function:
 # Run all scoring tests
 npm test -- tests/scoring.test.ts
 
-# Run all tests
+# Run the TypeScript suite
 npm test
+
+# Run the PostgreSQL API integration tests against a disposable database.
+# TEST_DATABASE_URL must not equal DATABASE_URL.
+TEST_DATABASE_URL=postgres://... cargo test --test api_rust
 ```
 
-## Test Results
-
-```
-✓ 32 tests passing
-✓ 0 tests failing
-✓ 100% coverage of scoring logic
-```
+The Rust tests create and drop separate schemas. They exercise the HTTP API,
+authentication, competition mutations, and SQL seed. The 2025 tournament replay
+enters each team's fish, chug and golf results through the API, verifies the
+event and overall points, clears and re-enters the scores, and checks the
+completed year and persisted champs/boots. The TypeScript scoring suite also
+replays the historical 2025 standings.

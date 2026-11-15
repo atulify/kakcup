@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Edit, X, Lock, Unlock, Plus } from "@/components/icons";
-import type { Team, Kak } from "@shared/schema";
+import type { Team, Kak } from "@/lib/api-types";
 
 // ---------------------------------------------------------------------------
 // KakCombobox — searchable dropdown that selects an active KAK
@@ -80,12 +80,12 @@ function KakCombobox({ value, onChange, kaks, placeholder = "Search KAK…", tes
         )}
       </div>
       {open && filtered.length > 0 && (
-        <ul style={{ position: "absolute", zIndex: 50, width: "100%", marginTop: "2px", background: "var(--card)", border: "1px solid var(--border-hi)", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", maxHeight: "192px", overflowY: "auto", listStyle: "none", padding: 0, margin: "2px 0 0 0" }}>
+        <ul style={{ position: "absolute", zIndex: 50, width: "100%", background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "0.5rem", maxHeight: "192px", overflowY: "auto", listStyle: "none", padding: 0, margin: "2px 0 0 0" }}>
           {filtered.map(kak => (
             <li
               key={kak.id}
               onMouseDown={() => handleSelect(kak)}
-              style={{ padding: "0.5rem 0.75rem", fontSize: "0.85rem", cursor: "pointer", fontFamily: "var(--font-mono)", color: "var(--foreground)", transition: "background 0.1s" }}
+              style={{ padding: "0.75rem", fontSize: "0.9rem", cursor: "pointer", color: "var(--foreground)", transition: "background 0.1s" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,90,0,0.08)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
@@ -166,7 +166,7 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -290,7 +290,7 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -390,7 +390,7 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
           <button
             onClick={openAddModal}
             disabled={(teams?.length || 0) >= 7}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex min-h-11 items-center gap-2 rounded-md"
             data-testid="button-add-team"
           >
             <Plus size={16} />
@@ -401,20 +401,20 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
 
       <div style={{ width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "0.8rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--orange)", textShadow: "0 0 12px rgba(255,90,0,0.4)" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", letterSpacing: "0.02em", textTransform: "uppercase", color: "var(--foreground)", fontWeight: 700 }}>
             Teams
           </h2>
         </div>
         {sortedTeams.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3rem", background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-md)", margin: "0 1rem" }}>
-            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.7rem", letterSpacing: "0.1em", color: "var(--text-dim)" }}>NO TEAMS YET</p>
+          <div style={{ textAlign: "center", padding: "3rem", background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "0.75rem", margin: "0 1rem" }}>
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", color: "var(--text-dim)" }}>NO TEAMS YET</p>
             <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--text-dim)", marginTop: "0.5rem" }}>Click "Add Team" to create the first team</p>
           </div>
         ) : (
           <>
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", borderRadius: "0.75rem" }}>
                 <table style={{ borderCollapse: "collapse", background: "var(--card)", border: "1px solid var(--border-hi)", fontSize: "0.85rem", width: "auto", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
@@ -485,10 +485,10 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
             {/* Mobile Cards */}
             <div className="md:hidden flex flex-col gap-3 px-2">
               {sortedTeams.map((team: Team) => (
-                <div key={team.id} style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-sm)", padding: "1rem" }}>
+                <div key={team.id} style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "0.75rem", padding: "1rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                     <div>
-                      <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.05em", color: "var(--foreground)", fontWeight: 700 }}>
+                      <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "var(--foreground)", fontWeight: 700 }}>
                         {team.name}
                       </h3>
                       {team.locked && (
@@ -497,11 +497,11 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
                     </div>
                     {isAdmin && (
                       <div style={{ display: "flex", gap: "0.25rem" }}>
-                        <button onClick={() => openEditModal(team)} disabled={team.locked} style={{ padding: "0.375rem", background: "none", border: "none", cursor: team.locked ? "not-allowed" : "pointer", color: team.locked ? "var(--text-muted)" : "var(--ice)" }} data-testid={`button-edit-team-${team.position}`}>
+                        <button onClick={() => openEditModal(team)} disabled={team.locked} style={{ minWidth: "44px", minHeight: "44px", background: "none", border: "none", cursor: team.locked ? "not-allowed" : "pointer", color: team.locked ? "var(--text-muted)" : "var(--ice)" }} data-testid={`button-edit-team-${team.position}`}>
                           <Edit size={14} />
                         </button>
                         {isTeamFilled(team) && (
-                          <button onClick={() => handleToggleLock(team)} style={{ padding: "0.375rem", background: "none", border: "none", cursor: "pointer", color: team.locked ? "var(--destructive)" : "var(--golf)" }} data-testid={`button-${team.locked ? 'unlock' : 'lock'}-team-${team.position}`}>
+                          <button onClick={() => handleToggleLock(team)} style={{ minWidth: "44px", minHeight: "44px", background: "none", border: "none", cursor: "pointer", color: team.locked ? "var(--destructive)" : "var(--text-dim)" }} data-testid={`button-${team.locked ? 'unlock' : 'lock'}-team-${team.position}`}>
                             {team.locked ? <Unlock size={14} /> : <Lock size={14} />}
                           </button>
                         )}
@@ -511,8 +511,8 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                     {(["kak1","kak2","kak3","kak4"] as const).map((field, i) => (
                       <div key={field}>
-                        <span style={{ fontFamily: "var(--font-display)", fontSize: "0.55rem", letterSpacing: "0.1em", color: "var(--text-dim)" }}>KAK {i+1}</span>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: team[field] ? "var(--foreground)" : "var(--text-muted)" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>KAK {i+1}</span>
+                        <div style={{ fontSize: "0.9rem", color: team[field] ? "var(--foreground)" : "var(--text-muted)" }}>
                           {team[field] || "—"}
                         </div>
                       </div>
@@ -530,10 +530,10 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
       {/* Edit Team Modal */}
       {showEditModal && selectedTeam && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowEditModal(false)}>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-lg)", padding: "1.5rem", width: "100%", maxWidth: "420px", margin: "0 1rem" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "0.75rem", padding: "1.5rem", width: "100%", maxWidth: "420px", maxHeight: "90vh", overflowY: "auto", margin: "0 1rem" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--orange)" }}>Edit Team</h3>
-              <button onClick={() => setShowEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", padding: "0.25rem" }} data-testid="button-close-edit-modal">
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.125rem", textTransform: "uppercase", color: "var(--foreground)", fontWeight: 700 }}>Edit Team</h3>
+              <button onClick={() => setShowEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", minWidth: "44px", minHeight: "44px" }} data-testid="button-close-edit-modal">
                 <X size={18} />
               </button>
             </div>
@@ -562,10 +562,10 @@ const TeamsTab = memo(function TeamsTab({ yearId }: TeamsTabProps) {
       {/* Add Team Modal */}
       {showAddModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowAddModal(false)}>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", clipPath: "var(--clip-lg)", padding: "1.5rem", width: "100%", maxWidth: "420px", margin: "0 1rem" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border-hi)", borderRadius: "0.75rem", padding: "1.5rem", width: "100%", maxWidth: "420px", maxHeight: "90vh", overflowY: "auto", margin: "0 1rem" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--orange)" }}>Add New Team</h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", padding: "0.25rem" }} data-testid="button-close-add-modal">
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.125rem", textTransform: "uppercase", color: "var(--foreground)", fontWeight: 700 }}>Add New Team</h3>
+              <button onClick={() => setShowAddModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-dim)", minWidth: "44px", minHeight: "44px" }} data-testid="button-close-add-modal">
                 <X size={18} />
               </button>
             </div>

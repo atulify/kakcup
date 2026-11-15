@@ -8,6 +8,7 @@
 An annual tournament platform for tracking scores across three legendary KAK events. 
 
 Built as a mobile-first PWA for use in the field — on the lake, on the course, and at the table.
+The Modern Tournament theme uses charcoal surfaces, orange accents, and compact score displays for desktop and mobile.
 
 ## The Events
 
@@ -38,59 +39,68 @@ Teams earn points across all three events. Standings are calculated using a poin
 | Layer | Tech |
 |---|---|
 | Frontend | Preact + Vite + TanStack Query + Wouter + Tailwind CSS |
-| Backend | Hono (Edge Runtime on Vercel) |
-| Database | PostgreSQL (Neon HTTP driver) / SQLite (local dev) |
-| ORM | Drizzle |
+| Backend | Rust + Axum, Vercel Rust runtime (beta) |
+| Database | PostgreSQL |
 | Auth | JWT in HttpOnly cookies |
-| Caching | Upstash Redis + ETag |
+| Caching | Optional Upstash Redis + ETag |
 
 ## Getting Started
 
+Install Node.js 22.12+ (22.x) or 24+, npm, Rust/Cargo and PostgreSQL with
+`psql`. Create a local PostgreSQL database, then export its URL
+and a local JWT secret. The Rust API does not automatically load `.env` files.
+
 ```bash
-# Install dependencies
 npm install
+export DATABASE_URL='postgresql://user:password@localhost:5432/kakcup'
+export JWT_SECRET='local-development-secret'
 
-# Run locally (API on :3000, Vite on :5173)
+# Only for a new, empty database:
+npm run db:init
+# Optional: insert the roster and backfill matching 2025 teams
+npm run db:seed-kaks
+
+# Rust API on 127.0.0.1:3000; Vite on :5173 proxies /api
 npm run dev
-
-# Run tests
-npm test
-
-# Production build
-npm run build
 ```
 
-The local dev server uses SQLite — no database setup required. Set `DATABASE_URL` to a Neon connection string for PostgreSQL.
+`db:init` applies `migrations/0000_petite_sharon_ventura.sql` in a transaction;
+it creates empty tables and is not an upgrade or import tool. Do not run it
+against an existing database. The roster seed inserts missing names without
+changing existing statuses and fills missing member IDs for matching 2025
+teams only when existing IDs do not conflict. It does not replace conflicting
+IDs or alter legacy name columns.
+
+```bash
+npm run build       # build the frontend and release local Rust API
+npm start           # run the built API (does not serve the frontend)
+npm test            # TypeScript shared/frontend tests
+TEST_DATABASE_URL='postgresql://user:password@localhost:5432/kakcup_test' cargo test
+```
+
+Rust integration tests require a disposable PostgreSQL database and create and
+drop a dedicated schema. See [DEPLOYMENT.md](DEPLOYMENT.md) for environment
+variables, cache isolation and Vercel deployment details.
 
 ## Project Structure
 
 ```
-api/
-  index.ts          # Vercel Edge function (data API)
-  auth.ts           # Vercel Node.js function (auth — bcrypt needs Node)
-server/
-  data-routes.ts    # Hono API routes
-  auth.ts           # JWT middleware (isAuthenticated, isAdmin)
-  storage.ts        # Database operations (Drizzle)
-  cache.ts          # Redis caching layer
-client/src/
-  pages/            # Route components (SelectYear, YearPage, Login, Settings)
-  components/       # Tab components (TeamsTab, FishTab, ChugTab, GolfTab, StandingsTab)
-shared/
-  schema.ts         # Drizzle schema (PostgreSQL + SQLite variants)
-tests/              # Vitest test suite
+api/rust-api.rs     # Vercel Rust function
+rust-backend/src/   # Axum API, authentication and PostgreSQL access
+rust-backend/tests/ # PostgreSQL integration tests
+rust-backend/seed-kaks.sql
+migrations/         # Initial PostgreSQL schema
+client/src/         # Preact pages and components
+shared/             # Frontend scoring logic
+tests/              # Vitest tests
 ```
 
 ## Deployment
 
-Deployed on Vercel with two serverless functions:
-
-- `/api/auth/*` — Node.js runtime (bcrypt requires it)
-- `/api/*` — Edge runtime (~0ms cold start)
-
-```bash
-npm run vercel-build   # Vite build only; Vercel bundles API functions separately
-```
+Vercel serves the Preact build and routes `/api/*` to the Rust function using
+Vercel's Rust runtime (beta). `npm run vercel-build` builds only the frontend;
+Vercel builds the function separately. CLI uploads use `.vercelignore`.
+See [DEPLOYMENT.md](DEPLOYMENT.md) before configuring environments.
 
 ## License
 

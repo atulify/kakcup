@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Year } from "@shared/schema";
+import type { Year } from "@/lib/api-types";
 import { calculateTop3FishTotal, rankFishTeams, rankChugTeams, rankGolfTeams } from "@shared/scoring";
 
 const KakManagement = lazy(() => import("@/components/KakManagement"));
@@ -240,30 +240,30 @@ function YearsSection() {
   const sectionStyle: React.CSSProperties = {
     background: "var(--card)",
     border: "1px solid var(--border-hi)",
-    clipPath: "var(--clip-md)",
+    borderRadius: "8px",
     padding: "1.25rem 1.5rem",
     marginBottom: "1.25rem",
   };
 
   const sectionTitleStyle: React.CSSProperties = {
     fontFamily: "var(--font-display)",
-    fontSize: "0.65rem",
-    letterSpacing: "0.15em",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    letterSpacing: "0.04em",
     textTransform: "uppercase",
-    color: "var(--ice)",
+    color: "var(--foreground)",
     marginBottom: "1rem",
   };
 
   const selectStyle: React.CSSProperties = {
     width: "100%",
-    padding: "0.5rem 0.75rem",
+    padding: "0.75rem",
     background: "var(--input)",
     color: "var(--foreground)",
     border: "1px solid var(--border-hi)",
     fontFamily: "var(--font-mono)",
-    fontSize: "0.85rem",
-    clipPath: "var(--clip-sm)",
-    outline: "none",
+    fontSize: "1rem",
+    borderRadius: "6px",
     marginBottom: "1rem",
     cursor: "pointer",
   };
@@ -347,7 +347,7 @@ function YearsSection() {
             Clear Scores
           </Button>
         ) : (
-          <div style={{ padding: "1rem", background: "rgba(204,34,0,0.08)", border: "1px solid rgba(204,34,0,0.3)", clipPath: "var(--clip-sm)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div style={{ padding: "1rem", background: "rgba(204,34,0,0.08)", border: "1px solid rgba(204,34,0,0.3)", borderRadius: "6px", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", color: "var(--foreground)" }}>
               Are you sure? This will delete all fish weights, chug times, and golf scores for this year.
             </p>
@@ -392,7 +392,7 @@ function YearsSection() {
             </div>
 
             {tieBreaks && Array.isArray(tieBreaks) && tieBreaks.length > 0 ? (
-              <div style={{ padding: "0.75rem", background: "rgba(0,170,120,0.08)", border: "1px solid rgba(0,170,120,0.3)", clipPath: "var(--clip-sm)", fontFamily: "var(--font-mono)", fontSize: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ padding: "0.75rem", background: "var(--input)", border: "1px solid var(--border-hi)", borderRadius: "6px", fontFamily: "var(--font-mono)", fontSize: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <div>Tie-break already applied for this year.</div>
                 <Button
                   size="sm"
@@ -435,7 +435,7 @@ function YearsSection() {
                     </Button>
                   </>
                 ) : (
-                  <div style={{ padding: "0.75rem", background: "rgba(255,90,0,0.08)", border: "1px solid rgba(255,90,0,0.2)", clipPath: "var(--clip-sm)", fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
+                  <div style={{ padding: "0.75rem", background: "rgba(255,90,0,0.08)", border: "1px solid rgba(255,90,0,0.2)", borderRadius: "6px", fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
                     No tie for first place detected.
                   </div>
                 )}
@@ -472,7 +472,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
+      <header style={{ background: "var(--card)", borderTop: "4px solid var(--orange)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
         <div className="max-w-5xl mx-auto px-3 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -481,7 +481,7 @@ export default function Settings() {
                 Settings
               </h1>
             </div>
-            <button onClick={() => setLocation("/")} className="btn-ghost flex items-center gap-1 text-xs">
+            <button onClick={() => setLocation("/")} className="btn-ghost flex items-center gap-1 text-xs" aria-label="Home">
               <Home size={14} />
               <span className="hidden sm:inline">Home</span>
             </button>
@@ -490,10 +490,10 @@ export default function Settings() {
       </header>
 
       <div className="flex-1 max-w-5xl mx-auto w-full px-3 sm:px-6 py-6">
-        <div className="flex gap-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
           {/* Side nav */}
-          <nav style={{ width: "9rem", flexShrink: 0 }} data-testid="settings-sidenav">
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <nav className="w-full sm:w-36 shrink-0" data-testid="settings-sidenav">
+            <ul className="flex flex-row sm:flex-col gap-1" style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {NAV_ITEMS.map((item) => {
                 const isActive = activeSection === item.id;
                 return (
@@ -505,16 +505,16 @@ export default function Settings() {
                         alignItems: "center",
                         gap: "0.5rem",
                         width: "100%",
-                        padding: "0.5rem 0.75rem",
+                        padding: "0.75rem",
                         fontFamily: "var(--font-display)",
-                        fontSize: "0.65rem",
+                        fontSize: "0.75rem",
                         letterSpacing: "0.1em",
                         textTransform: "uppercase",
                         background: isActive ? "rgba(255,90,0,0.1)" : "transparent",
                         color: isActive ? "var(--orange)" : "var(--text-dim)",
                         borderLeft: isActive ? "2px solid var(--orange)" : "2px solid transparent",
                         cursor: "pointer",
-                        outline: "none",
+                        borderRadius: "6px",
                         transition: "all 0.15s",
                       }}
                       data-testid={`nav-${item.id}`}

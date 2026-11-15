@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
   calculateChugAverage,
@@ -8,6 +9,36 @@ import {
   rankGolfTeams,
   type TeamScore,
 } from '../shared/scoring';
+
+describe('2025 championship standings', () => {
+  it('replays the historical results, including the three-way golf tie', () => {
+    const results = [
+      ['Champs', [2.57, 2.49, 2.42], [15.92, 15.94], -8, 7.48, 5, 6, 5, 16],
+      ['Team 1', [2, 1.91, 1.67], [15.08, 15.10], -5, 5.58, 4, 7, 2, 13],
+      ['Team 2', [1.25, 1.10, 1.03], [21, 20.70], -8, 3.38, 1, 2, 5, 8],
+      ['Team 3', [3.37, 1.05, 0.72], [18.55, 18.35], -9, 5.14, 3, 3, 7, 13],
+      ['Team 4', [8.17, 3.36, 1.91], [35.50, 35.50], -8, 13.44, 7, 1, 5, 13],
+      ['Team 5', [1.45, 1.36, 0.61], [16, 15.98], 2, 3.42, 2, 5, 1, 8],
+      ['Team 6', [2.87, 2.56, 2.09], [17.86, 17.82], -6, 7.52, 6, 4, 3, 13],
+    ] as const;
+    const fish = new Map<string, number>();
+    const chug = new Map<string, number>();
+    const golf = new Map<string, number>();
+    for (const [name, weights, times, score, expectedFish] of results) {
+      const total = calculateTop3FishTotal([...weights]);
+      expect(total).toBeCloseTo(expectedFish, 2);
+      fish.set(name, total);
+      chug.set(name, calculateChugAverage(times[0], times[1]));
+      golf.set(name, score);
+    }
+    const points = [rankFishTeams(fish), rankChugTeams(chug), rankGolfTeams(golf)]
+      .map(event => new Map(event.map(({ teamId, points }) => [teamId, points])));
+    for (const [name, , , , , fishPoints, chugPoints, golfPoints, total] of results) {
+      expect(points.map(event => event.get(name))).toEqual([fishPoints, chugPoints, golfPoints]);
+      expect(points.reduce((sum, event) => sum + event.get(name)!, 0)).toBe(total);
+    }
+  });
+});
 
 describe('Scoring Utilities', () => {
   describe('calculateChugAverage', () => {
@@ -412,5 +443,40 @@ describe('Scoring Utilities', () => {
       const totalPoints = result.reduce((sum, team) => sum + team.points, 0);
       expect(totalPoints).toBe(22);
     });
+  });
+});
+
+describe('shared scoring parity fixtures', () => {
+  const fixtures = JSON.parse(readFileSync(new URL('./fixtures/scoring.json', import.meta.url), 'utf8'));
+
+  it('matches fish totals and chug rounding or errors', () => {
+    for (const fixture of fixtures.fishTotals) {
+      expect(calculateTop3FishTotal(fixture.weights)).toBe(fixture.expected);
+    }
+    for (const fixture of fixtures.chugAverages) {
+      if (fixture.error) {
+        expect(() => calculateChugAverage(...fixture.times as [number, number])).toThrow(fixture.error);
+      } else {
+        expect(calculateChugAverage(...fixture.times as [number, number])).toBe(fixture.expected);
+      }
+    }
+  });
+
+  it('matches ordered tie groups and event rankings', () => {
+    for (const fixture of fixtures.ranked) {
+      const teams = fixture.scores.map((score: number, index: number) => ({ teamId: String(index), score }));
+      expect(calculatePointsWithTiebreaking(teams).map(p => p.points)).toEqual(fixture.points);
+    }
+    for (const fixture of fixtures.events) {
+      const scores = new Map<string, number>(fixture.scores.map((score: number, index: number) => [String(index), score]));
+      for (const [rank, expected] of [
+        [rankFishTeams, fixture.fish],
+        [rankChugTeams, fixture.chug],
+        [rankGolfTeams, fixture.golf],
+      ] as const) {
+        const points = new Map(rank(scores).map(p => [p.teamId, p.points]));
+        expect(fixture.scores.map((_: number, index: number) => points.get(String(index)))).toEqual(expected);
+      }
+    }
   });
 });

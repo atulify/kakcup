@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { handleLogout } from "@/utils/auth";
-import type { Year } from "@shared/schema";
+import type { Year } from "@/lib/api-types";
 
 // Lazy load tab components for better code splitting
 const TeamsTab = lazy(() => import("@/components/TeamsTab"));
@@ -89,22 +89,22 @@ export default function YearPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header style={{ background: "var(--card)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
+      <header style={{ background: "var(--card)", borderTop: "4px solid var(--orange)", borderBottom: "1px solid var(--border-hi)" }} className="py-3">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center justify-between">
             <h1
-              style={{ fontFamily: "var(--font-display)", color: "var(--orange)", fontSize: "0.95rem", letterSpacing: "0.1em", textTransform: "uppercase", textShadow: "0 0 12px rgba(255,90,0,0.4)" }}
+              style={{ fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--orange)", fontSize: "0.95rem", letterSpacing: "0.04em", textTransform: "uppercase" }}
               data-testid="title-year"
             >
-              KAK CUP <span style={{ color: "var(--ice)", textShadow: "0 0 12px rgba(136,204,255,0.4)" }}>{yearData.year}</span>
+              KAK CUP <span style={{ color: "var(--foreground)" }}>{yearData.year}</span>
             </h1>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <Link href="/" className="btn-ghost flex items-center gap-1 text-xs" data-testid="link-home">
+              <Link href="/" className="btn-ghost flex items-center gap-1 text-xs" aria-label="Home" data-testid="link-home">
                 <Home size={14} />
                 <span className="hidden sm:inline">Home</span>
               </Link>
-              <Link href="/kak-stats" className="btn-ghost flex items-center gap-1 text-xs" data-testid="link-kak-stats">
+              <Link href="/kak-stats" className="btn-ghost flex items-center gap-1 text-xs" aria-label="KAK Stats" data-testid="link-kak-stats">
                 <Trophy size={14} />
                 <span className="hidden sm:inline">KAK Stats</span>
               </Link>
@@ -112,8 +112,7 @@ export default function YearPage() {
               {isAuthenticated ? (
                 <>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--text-dim)" }}>
-                    <span className="hidden sm:inline">{user?.firstName || user?.username}</span>
-                    <span className="sm:hidden">{user?.username}</span>
+                    {user?.username}
                     {user?.role === 'admin' && (
                       <span style={{ marginLeft: "0.4rem", padding: "0.1rem 0.4rem", background: "rgba(255,90,0,0.15)", color: "var(--orange)", fontSize: "0.6rem", fontFamily: "var(--font-display)", letterSpacing: "0.08em" }}>
                         ADMIN
@@ -121,17 +120,17 @@ export default function YearPage() {
                     )}
                   </span>
                   {user?.role === 'admin' && (
-                    <button onClick={() => setLocation('/settings')} className="btn-ghost p-1.5">
+                    <button onClick={() => setLocation('/settings')} className="btn-ghost p-1.5" aria-label="Settings">
                       <Settings size={14} style={{ color: "var(--ice)" }} />
                     </button>
                   )}
-                  <button onClick={handleLogout} className="btn-ghost flex items-center gap-1 text-xs">
+                  <button onClick={handleLogout} className="btn-ghost flex items-center gap-1 text-xs" aria-label="Logout">
                     <LogOut size={14} />
                     <span className="hidden sm:inline">Logout</span>
                   </button>
                 </>
               ) : (
-                <button onClick={() => setLocation('/login')} className="btn-ghost flex items-center gap-1 text-xs">
+                <button onClick={() => setLocation('/login')} className="btn-ghost flex items-center gap-1 text-xs" aria-label="Login">
                   <LogIn size={14} />
                   <span className="hidden sm:inline">Login</span>
                 </button>
@@ -187,7 +186,7 @@ export default function YearPage() {
                   flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "0.5rem 0.25rem",
+                  padding: "0.625rem 0.25rem",
                   transition: "all 0.15s",
                   borderTop: isActive ? "2px solid var(--orange)" : "2px solid transparent",
                   background: isActive ? "rgba(255,90,0,0.07)" : "transparent",
@@ -198,7 +197,7 @@ export default function YearPage() {
                 data-testid={`tab-${tab.id}`}
               >
                 <span style={{ fontSize: "1.1rem", lineHeight: 1, marginBottom: "0.2rem" }}>{tab.icon}</span>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "0.65rem", letterSpacing: "0.02em", textTransform: "uppercase" }}>
                   {tab.name}
                 </span>
               </button>

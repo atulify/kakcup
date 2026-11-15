@@ -7,8 +7,15 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const swPath = resolve(__dirname, '../client/public/sw.js');
 
-// Get git SHA (short version)
-const gitSha = execSync('git rev-parse --short HEAD').toString().trim();
+// CLI deployments may not include Git metadata; each deployment still needs a unique cache version.
+let gitSha = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+if (!gitSha) {
+  try {
+    gitSha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    gitSha = process.env.VERCEL_DEPLOYMENT_ID || `build-${Date.now()}`;
+  }
+}
 
 // Read sw.js
 let swContent = readFileSync(swPath, 'utf8');

@@ -5,7 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
-import type { Team } from "@shared/schema";
+import type { Team } from "@/lib/api-types";
 import { rankGolfTeams } from "@shared/scoring";
 
 interface GolfTabProps {
@@ -44,7 +44,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -128,7 +128,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -281,7 +281,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <button
               onClick={() => setShowAddModal(true)}
               disabled={sortedTeams.length === 0 || yearData?.golf_locked}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
+              className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
                 yearData?.golf_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-primary'
@@ -296,7 +296,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <button
               onClick={() => lockGolfMutation.mutate()}
               disabled={yearData?.golf_locked || lockGolfMutation.isPending}
-              className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
+              className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
                 yearData?.golf_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
                   : 'btn-destructive'
@@ -311,9 +311,9 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       </div>
 
       <div className="w-full">
-        <h2 className="text-lg font-semibold text-foreground mb-4 text-center">Golf Scores</h2>
+        <h2 className="text-2xl font-bold uppercase text-foreground mb-4 text-center">Golf Scores</h2>
         {sortedTeams.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border mx-4">
+          <div className="text-center py-12 bg-card border border-border rounded-xl mx-4">
             <div className="text-muted-foreground">
               <p className="text-lg font-medium">No teams yet</p>
               <p className="mt-2">Teams must be created before golf scores can be recorded</p>
@@ -323,7 +323,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
           <>
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl">
                 <table className="border-collapse border border-border text-sm bg-card" style={{width: 'auto'}}>
                   <thead>
                     <tr className="table-header">
@@ -370,7 +370,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                               {teamStat.members.map((member, index) => (
-                                <div key={index} className="text-xs truncate" style={{ color: "var(--orange-hi)" }}>
+                                <div key={index} className="text-sm truncate text-muted-foreground">
                                   {member}
                                 </div>
                               ))}
@@ -380,14 +380,14 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
 
                         {/* Golf Score */}
                         <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                          <span className="font-bold text-blue-400">
+                          <span className="font-bold text-foreground">
                             {formatScore(teamStat.score, teamStat.hasScore)}
                           </span>
                         </td>
 
                         {/* Points */}
                         <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                          <span className="font-bold text-green-400">
+                          <span className="font-bold text-primary">
                             {teamStat.points > 0 ? teamStat.points : "0"}
                           </span>
                         </td>
@@ -421,7 +421,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
               {sortedStats.map((teamStat) => (
-                <div key={teamStat.team.id} className="bg-card border border-border p-4">
+                <div key={teamStat.team.id} className="bg-card border border-border rounded-xl p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -429,7 +429,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                         {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
                         {teamStat.isLowestScore && <span className="text-amber-600 text-lg">💩</span>}
                       </div>
-                      <div className="text-xs" style={{ color: "var(--orange-hi)" }}>
+                      <div className="text-sm text-muted-foreground">
                         {teamStat.members.join(' · ')}
                       </div>
                     </div>
@@ -437,7 +437,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                       <div className="text-sm font-bold text-foreground">
                         Rank: {teamStat.displayRank}
                       </div>
-                      <div className="text-lg font-bold text-green-400">
+                      <div className="text-lg font-bold text-primary">
                         {teamStat.points > 0 ? teamStat.points : "0"} pts
                       </div>
                     </div>
@@ -445,7 +445,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
 
                   <div className="text-sm">
                     <span className="text-muted-foreground font-medium">Golf Score:</span>
-                    <div className="text-lg font-bold text-blue-400 mt-1">
+                    <div className="text-lg font-bold text-foreground mt-1">
                       {formatScore(teamStat.score, teamStat.hasScore)}
                     </div>
                   </div>
@@ -459,7 +459,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                           }
                         }}
                         disabled={deleteGolfMutation.isPending}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
+                        className="w-full min-h-11 rounded-md flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
                       >
                         <Trash2 size={16} />
                         <span>Clear Golf Score</span>
@@ -476,7 +476,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
       {/* Add Golf Score Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border p-6 w-full max-w-md mx-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <h3 className="text-lg font-semibold mb-4 text-foreground">Add Golf Score</h3>
 
             <div className="space-y-4">
@@ -488,7 +488,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                 <select
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
-                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full min-h-11 rounded-md px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="select-team"
                 >
                   <option value="">Choose a team...</option>
@@ -514,7 +514,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                 <select
                   value={score}
                   onChange={(e) => setScore(e.target.value)}
-                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full min-h-11 rounded-md px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="select-score"
                 >
                   <option value="">Choose a score...</option>
@@ -536,7 +536,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add notes about the golf round..."
                   rows={3}
-                  className="w-full px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full rounded-md px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="input-notes"
                 />
               </div>
@@ -546,7 +546,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex-1 px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
+                className="flex-1 min-h-11 rounded-md px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
                 data-testid="button-cancel"
               >
                 Cancel
@@ -554,7 +554,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
               <button
                 onClick={handleAddGolf}
                 disabled={!selectedTeamId || score === "" || addGolfMutation.isPending}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
+                className="flex-1 min-h-11 rounded-md px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
                 data-testid="button-save-golf"
               >
                 {addGolfMutation.isPending ? "Adding..." : "Add Score"}

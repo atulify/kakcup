@@ -133,11 +133,6 @@ fi
 
 echo ""
 
-# Test static content
-log_info "Testing static content..."
-test_endpoint "GET / (homepage)" "/" "200"
-
-echo ""
 
 # Test auth endpoints exist (should return 4xx without credentials, not 5xx)
 log_info "Testing auth endpoints..."

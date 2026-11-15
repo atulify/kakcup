@@ -29,8 +29,6 @@ function swPrecachePlugin(outDir: string): Plugin {
         "/",
         "/icon-192.png",
         "/icon-180.png",
-        "/fonts/fonts.css",
-        "/fonts/inter-latin.woff2",
       ]);
       for (const entry of Object.values(manifest) as any[]) {
         if (entry.file) assets.add("/" + entry.file);
@@ -70,9 +68,6 @@ export default defineConfig({
       "react/jsx-runtime": "preact/jsx-runtime",
     },
   },
-  esbuild: {
-    drop: ['console', 'debugger'],
-  },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir,
@@ -80,10 +75,11 @@ export default defineConfig({
     manifest: true,
     target: 'esnext',
     cssCodeSplit: true, // Enable CSS code splitting for lazy-loaded components
-    minify: 'esbuild',
+    minify: 'oxc',
     reportCompressedSize: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
+        minify: { compress: { dropConsole: true, dropDebugger: true } },
         manualChunks(id) {
           if (id.includes('node_modules/preact') || id.includes('node_modules/wouter')) {
             return 'framework';

@@ -5,7 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
-import type { Team } from "@shared/schema";
+import type { Team } from "@/lib/api-types";
 import { rankFishTeams } from "@shared/scoring";
 
 interface FishTabProps {
@@ -41,7 +41,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -90,7 +90,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -138,7 +138,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -278,7 +278,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
           <button
             onClick={() => lockFishingMutation.mutate()}
             disabled={yearData?.fishing_locked || lockFishingMutation.isPending}
-            className={`flex items-center gap-1 px-3 py-1.5 text-sm transition-colors ${
+            className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
               yearData?.fishing_locked
                 ? 'bg-muted text-muted-foreground cursor-not-allowed'
                 : 'btn-destructive'
@@ -292,9 +292,9 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
       </div>
 
       <div className="w-full">
-        <h2 className="text-lg font-semibold text-foreground mb-4 text-center">Fish Weights</h2>
+        <h2 className="text-2xl font-bold uppercase text-foreground mb-4 text-center">Fish Weights</h2>
         {sortedTeams.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-border mx-4">
+          <div className="text-center py-12 bg-card border border-border rounded-xl mx-4">
             <div className="text-muted-foreground">
               <p className="text-lg font-medium">No teams yet</p>
               <p className="mt-2">Teams must be created before fish weights can be recorded</p>
@@ -304,7 +304,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
           <>
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl">
                 <table className="border-collapse border border-border text-sm bg-card" style={{width: 'auto'}}>
                   <thead>
                     <tr className="table-header">
@@ -360,7 +360,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                               {teamStat.members.map((member: string, index: number) => (
-                                <div key={index} className="text-xs truncate" style={{ color: "var(--orange-hi)" }}>
+                                <div key={index} className="text-sm truncate text-muted-foreground">
                                   {member}
                                 </div>
                               ))}
@@ -391,14 +391,14 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
 
                         {/* Total */}
                         <td className="border border-border px-2 py-2 text-center" style={{width: '110px'}}>
-                          <span className="font-bold text-blue-400">
+                          <span className="font-bold text-foreground">
                             {teamStat.total > 0 ? `${teamStat.total}` : "-"}
                           </span>
                         </td>
 
                         {/* Points */}
                         <td className="border border-border px-2 py-2 text-center" style={{width: '70px'}}>
-                          <span className="font-bold text-green-400">
+                          <span className="font-bold text-primary">
                             {teamStat.points > 0 ? teamStat.points : "0"}
                           </span>
                         </td>
@@ -459,7 +459,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
               {displayStats.map((teamStat: any) => (
-                <div key={teamStat.team.id} className="bg-card border border-border p-4">
+                <div key={teamStat.team.id} className="bg-card border border-border rounded-xl p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -467,7 +467,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                         {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
                         {teamStat.isLowestScore && <span className="text-orange-500 text-lg">💩</span>}
                       </div>
-                      <div className="text-xs" style={{ color: "var(--orange-hi)" }}>
+                      <div className="text-sm text-muted-foreground">
                         {teamStat.members.join(' · ')}
                       </div>
                     </div>
@@ -475,7 +475,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                       <div className="text-sm font-bold text-foreground">
                         Rank: {teamStat.displayRank}
                       </div>
-                      <div className="text-lg font-bold text-green-400">
+                      <div className="text-lg font-bold text-primary">
                         {teamStat.points > 0 ? teamStat.points : "0"} pts
                       </div>
                     </div>
@@ -484,7 +484,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                   <div className="text-sm space-y-2">
                     <div>
                       <div className="text-xs text-muted-foreground">Total:</div>
-                      <div className="text-lg font-bold text-blue-400">
+                      <div className="text-lg font-bold text-foreground">
                         {teamStat.total > 0 ? `${teamStat.total} lbs` : "-"}
                       </div>
                     </div>
@@ -504,13 +504,13 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                               }))
                             }
                             placeholder="Weight"
-                            className="w-full px-3 py-2 bg-input border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="w-full min-w-0 min-h-11 rounded-md px-3 py-2 bg-input border border-border text-foreground text-base focus:outline-none focus:ring-2 focus:ring-primary"
                             data-testid={`input-fish-weight-mobile-${teamStat.team.id}`}
                           />
                           <button
                             onClick={() => handleAddWeight(teamStat.team.id)}
                             disabled={addWeightMutation.isPending || !weightInputs[teamStat.team.id]?.trim()}
-                            className="px-3 py-2 text-sm btn-primary disabled:bg-muted disabled:cursor-not-allowed whitespace-nowrap"
+                            className="min-h-11 rounded-md px-3 py-2 text-sm btn-primary disabled:bg-muted disabled:cursor-not-allowed whitespace-nowrap"
                             data-testid={`button-add-fish-weight-mobile-${teamStat.team.id}`}
                           >
                             {addWeightMutation.isPending ? "Adding..." : "Add"}
@@ -530,7 +530,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                           }
                           setExpandedWeights(newExpanded);
                         }}
-                        className="flex items-center gap-1 text-muted-foreground font-medium hover:text-foreground transition-colors"
+                        className="flex min-h-11 items-center gap-1 text-muted-foreground font-medium hover:text-foreground transition-colors"
                       >
                         <ChevronDown
                           className={`w-4 h-4 transition-transform ${
@@ -559,7 +559,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                           }
                         }}
                         disabled={deleteTeamWeightsMutation.isPending}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-950 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full min-h-11 rounded-md flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-950 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Trash2 size={16} />
                         <span>Clear All Fish ({teamStat.weights.length})</span>
