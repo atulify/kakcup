@@ -199,7 +199,7 @@ export default function SelectYear() {
           </button>
           {/* Poem */}
           <div className="mt-8 mx-auto max-w-sm">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", lineHeight: 1.7, color: "var(--text-dim)" }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "0.95rem", fontWeight: 700, lineHeight: 1.7, color: "var(--orange-hi)", border: "1px solid rgba(255,138,74,0.5)", borderRadius: "0.75rem", padding: "1rem", background: "rgba(255,90,0,0.06)" }}>
               <div>We get together but once a year,</div>
               <div>To fish, to golf, to chug some beer,</div>
               <div>So raise your glasses for a cheers,</div>

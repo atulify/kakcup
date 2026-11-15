@@ -233,7 +233,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
               <div style={{ overflowX: "auto", borderRadius: "0.75rem" }}>
-                <table style={{ borderCollapse: "collapse", background: "var(--card)", border: "1px solid var(--border-hi)", fontSize: "0.85rem", width: "auto", fontFamily: "var(--font-mono)" }}>
+                <table className="score-table" style={{ borderCollapse: "collapse", background: "var(--card)", border: "1px solid var(--border-hi)", fontSize: "0.85rem", width: "auto", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "rgba(255,90,0,0.06)", borderBottom: "1px solid rgba(255,90,0,0.2)" }}>
                       {[
@@ -274,7 +274,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                               </div>
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 0.75rem" }}>
                                 {standing.members.map((member: string, i: number) => (
-                                  <div key={i} style={{ fontSize: "0.8rem", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  <div key={i} style={{ fontSize: "0.8rem", color: "var(--orange-hi)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {member}
                                   </div>
                                 ))}
@@ -327,7 +327,7 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
                           {isFirst && standing.totalPoints > 0 && <span>🏆</span>}
                           {isLast && <span>🥾</span>}
                         </div>
-                        <div style={{ fontSize: "0.875rem", color: "var(--text-dim)" }}>
+                        <div style={{ fontSize: "0.875rem", color: "var(--orange-hi)" }}>
                           {standing.members.join(' · ')}
                         </div>
                       </div>

@@ -257,7 +257,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
             {/* Desktop Table */}
             <div className="hidden md:flex md:justify-center">
               <div className="overflow-x-auto rounded-xl">
-                <table className="border-collapse border border-border text-sm bg-card" style={{width: 'auto'}}>
+                <table className="score-table border-collapse border border-border text-sm bg-card" style={{width: 'auto'}}>
                   <thead>
                     <tr className="table-header">
                       <th className="border border-border px-2 py-2 text-center font-medium text-foreground" style={{width: '60px'}}>
@@ -290,7 +290,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                   </thead>
                   <tbody>
                     {displayStats.map((teamStat: any) => (
-                      <tr key={teamStat.team.id} className="hover:bg-accent/50">
+                      <tr key={teamStat.team.id} className={teamStat.isHighestScore ? "bg-emerald-300/15 hover:bg-emerald-300/20" : "hover:bg-accent/50"}>
                         {/* Rank */}
                         <td className="border border-border px-2 py-2 text-center" style={{width: '60px'}}>
                           <span className="text-sm font-bold text-foreground">
@@ -312,7 +312,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                             </div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                               {teamStat.members.map((member: string, index: number) => (
-                                <div key={index} className="text-sm truncate text-muted-foreground">
+                                <div key={index} className="text-sm truncate text-[var(--orange-hi)]">
                                   {member}
                                 </div>
                               ))}
@@ -412,7 +412,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3 mx-4">
               {displayStats.map((teamStat: any) => (
-                <div key={teamStat.team.id} className="bg-card border border-border rounded-xl p-4">
+                <div key={teamStat.team.id} className={`border border-border rounded-xl p-4 ${teamStat.isHighestScore ? "bg-emerald-300/15" : "bg-card"}`}>
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -420,7 +420,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                         {teamStat.isHighestScore && <span className="text-yellow-400 text-lg">🏆</span>}
                         {teamStat.isLowestScore && <span className="text-orange-500 text-lg">💩</span>}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-[var(--orange-hi)]">
                         {teamStat.members.join(' · ')}
                       </div>
                     </div>

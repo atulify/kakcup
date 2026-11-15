@@ -25,6 +25,9 @@ Teams earn points across all three events. Standings are calculated using a poin
 - 1st place: 7 pts, 2nd: 6 pts, ..., 7th+: 1 pt
 - Ties are resolved by splitting points equally (e.g. three teams tied for 2nd share 6+5+4 = 5 pts each)
 
+Event tables and mobile cards highlight all teams tied for first in green; team
+members appear in orange in each event and in the standings.
+
 ## Features
 
 - **Multi-year tournaments** — browse and compare results across years

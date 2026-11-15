@@ -289,6 +289,10 @@
     background: rgba(255, 90, 0, 0.06);
     border-bottom: 1px solid rgba(255, 90, 0, 0.2);
   }
+  .score-table :is(th, td) {
+    border: 2px solid #4b514e;
+  }
+
 
   /* ── Footer link hover ── */
   .footer-link {
