@@ -1,7 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo, useMemo } from "react";
 import { Plus, Lock, Trash2 } from "@/components/icons";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson, queryClient } from "@/lib/queryClient";
+import { useScoreSave } from "@/components/ScoreSaveRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -21,11 +22,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const addGolfMutation = useMutation({
-    mutationFn: async (data: { teamId: string; score: number; notes?: string }) => {
-      return await apiRequest(`/api/years/${yearId}/golf-scores`, "POST", data);
-    },
-    onSuccess: () => {
+  const addGolfMutation = useScoreSave(yearId, "golf-scores", () => {
       queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "golf-scores"] });
       setShowAddModal(false);
       setSelectedTeamId("");
@@ -35,44 +32,6 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
         title: "Success",
         description: "Golf score added successfully!",
       });
-    },
-    onError: (error: any) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 500);
-        return;
-      }
-
-      if (isAdminError(error)) {
-        toast({
-          title: "Admin Access Required",
-          description: "Only admin users can add golf scores.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (error?.status === 403) {
-        toast({
-          title: "Competition Locked",
-          description: "Golf competition is locked. Cannot add scores.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Error",
-        description: "Failed to add golf score. Please try again.",
-        variant: "destructive",
-      });
-    }
   });
 
   const deleteGolfMutation = useMutation({
@@ -152,19 +111,13 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
 
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/teams`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/teams`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: golfScores, isLoading: golfLoading } = useQuery({
     queryKey: ["/api/years", yearId, "golf-scores"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/golf-scores`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/golf-scores`, { signal }),
     staleTime: 2_000,
   });
 
@@ -280,7 +233,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
           <div className="flex gap-2">
             <button
               onClick={() => setShowAddModal(true)}
-              disabled={sortedTeams.length === 0 || yearData?.golf_locked}
+              disabled={sortedTeams.length === 0 || yearData?.golf_locked || addGolfMutation.isPending}
               className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
                 yearData?.golf_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -295,7 +248,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             </button>
             <button
               onClick={() => lockGolfMutation.mutate()}
-              disabled={yearData?.golf_locked || lockGolfMutation.isPending}
+              disabled={yearData?.golf_locked || lockGolfMutation.isPending || addGolfMutation.isPending}
               className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
                 yearData?.golf_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -402,7 +355,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                                     deleteGolfMutation.mutate(teamStat.team.id);
                                   }
                                 }}
-                                disabled={deleteGolfMutation.isPending}
+                                disabled={deleteGolfMutation.isPending || addGolfMutation.isPending}
                                 className="text-red-500 hover:text-red-700"
                                 title="Clear golf score for this team"
                               >
@@ -458,7 +411,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                             deleteGolfMutation.mutate(teamStat.team.id);
                           }
                         }}
-                        disabled={deleteGolfMutation.isPending}
+                        disabled={deleteGolfMutation.isPending || addGolfMutation.isPending}
                         className="w-full min-h-11 rounded-md flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
                       >
                         <Trash2 size={16} />
@@ -486,6 +439,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                   Select Team
                 </label>
                 <select
+                  disabled={addGolfMutation.isPending}
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
                   className="w-full min-h-11 rounded-md px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -512,6 +466,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                   Golf Score
                 </label>
                 <select
+                  disabled={addGolfMutation.isPending}
                   value={score}
                   onChange={(e) => setScore(e.target.value)}
                   className="w-full min-h-11 rounded-md px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -532,6 +487,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
                   Notes (optional)
                 </label>
                 <textarea
+                  disabled={addGolfMutation.isPending}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add notes about the golf round..."
@@ -546,6 +502,7 @@ const GolfTab = memo(function GolfTab({ yearId, yearData }: GolfTabProps) {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowAddModal(false)}
+                disabled={addGolfMutation.isPending}
                 className="flex-1 min-h-11 rounded-md px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
                 data-testid="button-cancel"
               >

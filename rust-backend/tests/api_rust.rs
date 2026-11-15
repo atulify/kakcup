@@ -98,6 +98,10 @@ async fn api_contract_against_isolated_postgres() {
         .execute(&db)
         .await
         .expect("create fixture schema");
+    for _ in 0..2 {
+        sqlx::raw_sql(include_str!("../../migrations/0001_score_idempotency.sql"))
+            .execute(&db).await.expect("apply score idempotency migration");
+    }
 
     // Exercise the actual operational seed in this isolated schema, including
     // partial rosters, conflicts, pre-existing statuses, and other years.
@@ -1045,6 +1049,245 @@ async fn api_contract_against_isolated_postgres() {
     admin_db.close().await;
 }
 
+#[tokio::test]
+async fn score_idempotency_survives_retries_concurrency_and_cache_failure() {
+    use axum::{Json, extract::State, http::HeaderMap, routing::post};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    async fn wait_for_lock(db: &PgPool, event: &str, query: &str) {
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            loop {
+                let found: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND wait_event=$1 AND query LIKE $2)"
+                ).bind(event).bind(query).fetch_one(db).await.unwrap();
+                if found { break; }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        }).await.expect("request reached the expected database lock");
+    }
+
+    let url = std::env::var("TEST_DATABASE_URL").expect("set TEST_DATABASE_URL to a non-production database");
+    if let Ok(production_url) = std::env::var("DATABASE_URL") {
+        assert_ne!(url, production_url);
+    }
+    let schema = format!("kakcup_idempotency_{}_{}", std::process::id(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos());
+    let admin_db = PgPoolOptions::new().max_connections(1).connect(&url).await.unwrap();
+    sqlx::query(&format!("CREATE SCHEMA \"{schema}\"")).execute(&admin_db).await.unwrap();
+    let search_path = schema.clone();
+    let db = PgPoolOptions::new().max_connections(8).after_connect(move |conn, _| {
+        let search_path = search_path.clone();
+        Box::pin(async move {
+            sqlx::query("SELECT set_config('search_path', $1, false)").bind(search_path).execute(conn).await?;
+            Ok(())
+        })
+    }).connect(&url).await.unwrap();
+    sqlx::raw_sql(SCHEMA).execute(&db).await.unwrap();
+    for _ in 0..2 {
+        sqlx::raw_sql(include_str!("../../migrations/0001_score_idempotency.sql")).execute(&db).await.unwrap();
+    }
+    let admin: String = sqlx::query_scalar("INSERT INTO users(username,role) VALUES ('one','admin') RETURNING id::text").fetch_one(&db).await.unwrap();
+    let other_admin: String = sqlx::query_scalar("INSERT INTO users(username,role) VALUES ('two','admin') RETURNING id::text").fetch_one(&db).await.unwrap();
+    let year: String = sqlx::query_scalar("INSERT INTO years(year,name) VALUES (2099,'Fixture') RETURNING id::text").fetch_one(&db).await.unwrap();
+    let team: String = sqlx::query_scalar("INSERT INTO teams(year_id,name,position) VALUES ($1::uuid,'Fixture',1) RETURNING id::text").bind(&year).fetch_one(&db).await.unwrap();
+    let expiry = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 3600;
+    let cookie = |id: &str, role: &str| format!("token={}", jsonwebtoken::encode(
+        &jsonwebtoken::Header::default(),
+        &json!({"userId":id,"username":"fixture","role":role,"exp":expiry}),
+        &jsonwebtoken::EncodingKey::from_secret(b"idempotency-secret"),
+    ).unwrap());
+    let admin_cookie = cookie(&admin, "admin");
+    let other_cookie = cookie(&other_admin, "admin");
+    let user_cookie = cookie(&admin, "user");
+
+    // First DEL fails after the PostgreSQL commit; later DELs return sync tokens.
+    let calls: Arc<Mutex<Vec<(Value, Option<String>)>>> = Arc::new(Mutex::new(Vec::new()));
+    let redis = Router::new().route("/", post(
+        |State(calls): State<Arc<Mutex<Vec<(Value, Option<String>)>>>>, headers: HeaderMap, Json(command): Json<Value>| async move {
+            let token = headers.get("upstash-sync-token").and_then(|v| v.to_str().ok()).map(str::to_owned);
+            let count = {
+                let mut calls = calls.lock().await;
+                calls.push((command, token));
+                calls.len()
+            };
+            if count == 1 {
+                (axum::http::StatusCode::SERVICE_UNAVAILABLE, [("upstash-sync-token", "ignored")], Json(json!({"error":"unavailable"})))
+            } else {
+                (axum::http::StatusCode::OK, [("upstash-sync-token", "synced")], Json(json!({"result":1})))
+            }
+        }
+    )).with_state(calls.clone());
+    let redis_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let redis_url = format!("http://{}/", redis_listener.local_addr().unwrap());
+    let redis_server = tokio::spawn(async move { axum::serve(redis_listener, redis).await.unwrap() });
+    let state = AppState {
+        db: db.clone(), http: Client::new(), redis_url: Some(redis_url),
+        redis_token: Some("fixture".into()), cache_prefix: "test:".into(), jwt_secret: "idempotency-secret".into(),
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move { axum::serve(listener, app(state)).await.unwrap() });
+    let client = Client::new();
+    let fish_path = format!("/api/years/{year}/fish-weights");
+    let payload = json!({"teamId":team,"weight":3.25});
+    let send = |path: String, key: &'static str, data: Value, cookie: String| {
+        let client = client.clone();
+        let url = format!("{base}{path}");
+        let request_user = if cookie == other_cookie { other_admin.clone() } else { admin.clone() };
+        async move { client.post(url).header("cookie", cookie).header("idempotency-key", key).header("x-score-user", request_user).json(&data).send().await.unwrap() }
+    };
+
+    assert_eq!(send(fish_path.clone(), "failed-invalidation", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM fish_weights").fetch_one(&db).await.unwrap();
+    assert_eq!(count, 1);
+    let recovered = send(fish_path.clone(), "failed-invalidation", payload.clone(), admin_cookie.clone()).await;
+    assert_eq!(recovered.status(), StatusCode::CREATED);
+    let original: Value = recovered.json().await.unwrap();
+    let replay = send(fish_path.clone(), "failed-invalidation", payload.clone(), admin_cookie.clone()).await;
+    assert_eq!(replay.status(), StatusCode::CREATED);
+    assert_eq!(replay.json::<Value>().await.unwrap(), original);
+    {
+        let calls = calls.lock().await;
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0].0, json!(["DEL", format!("test:fw:{year}")]));
+        assert_eq!(calls[1].0, calls[0].0);
+        assert_eq!(calls[2].0, calls[0].0);
+        assert_eq!(calls[1].1, None);
+        assert_eq!(calls[2].1.as_deref(), Some("synced"));
+    }
+    assert_eq!(send(fish_path.clone(), "failed-invalidation", json!({"teamId":team,"weight":4}), admin_cookie.clone()).await.status(), StatusCode::CONFLICT);
+    assert_eq!(send(format!("/api/years/{year}/golf-scores"), "failed-invalidation", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::CONFLICT);
+    assert_eq!(send("/api/years/other/fish-weights".into(), "failed-invalidation", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::CONFLICT);
+    assert_eq!(send(fish_path.clone(), "failed-invalidation", payload.clone(), user_cookie).await.status(), StatusCode::FORBIDDEN);
+    let switched = client.post(format!("{base}{fish_path}")).header("cookie", &other_cookie)
+        .header("idempotency-key", "not-yet-sent").header("x-score-user", &admin).json(&payload).send().await.unwrap();
+    assert_eq!(switched.status(), StatusCode::CONFLICT);
+    // Switching accounts must never turn a replay into a second insert.
+    assert_eq!(send(fish_path.clone(), "failed-invalidation", payload.clone(), other_cookie.clone()).await.status(), StatusCode::CONFLICT);
+    assert_eq!(send(fish_path.clone(), "other-admin-save", payload.clone(), other_cookie.clone()).await.status(), StatusCode::CREATED);
+
+    // Hold the first insert inside its transaction until the second request is
+    // waiting on the unique reservation, rather than relying on scheduler timing.
+    sqlx::raw_sql("CREATE FUNCTION hold_fish_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(746933018); RETURN NEW; END $$; CREATE TRIGGER hold_fish BEFORE INSERT ON fish_weights FOR EACH ROW EXECUTE FUNCTION hold_fish_insert();")
+        .execute(&db).await.unwrap();
+    let mut hold = db.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(746933018)").execute(&mut *hold).await.unwrap();
+    let a = tokio::spawn(send(fish_path.clone(), "concurrent", payload.clone(), admin_cookie.clone()));
+    wait_for_lock(&db, "advisory", "INSERT INTO fish_weights%").await;
+    let b = tokio::spawn(send(fish_path.clone(), "concurrent", payload.clone(), admin_cookie.clone()));
+    wait_for_lock(&db, "transactionid", "INSERT INTO score_idempotency%").await;
+    hold.commit().await.unwrap();
+    let (a, b) = (a.await.unwrap(), b.await.unwrap());
+    sqlx::raw_sql("DROP TRIGGER hold_fish ON fish_weights; DROP FUNCTION hold_fish_insert();").execute(&db).await.unwrap();
+    assert_eq!(a.status(), StatusCode::CREATED);
+    assert_eq!(b.status(), StatusCode::CREATED);
+    assert_eq!(a.json::<Value>().await.unwrap(), b.json::<Value>().await.unwrap());
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM fish_weights").fetch_one(&db).await.unwrap();
+    assert_eq!(count, 3);
+
+    // An uncommitted reservation must not poison the key.
+    let mut tx = db.begin().await.unwrap();
+    sqlx::query("INSERT INTO score_idempotency(user_id,idempotency_key,request_path,request_body) VALUES ($1::uuid,'rolled-back',$2,$3)")
+        .bind(&admin).bind(&fish_path).bind(&payload).execute(&mut *tx).await.unwrap();
+    let pending = tokio::spawn(send(fish_path.clone(), "rolled-back", payload.clone(), admin_cookie.clone()));
+    wait_for_lock(&db, "transactionid", "INSERT INTO score_idempotency%").await;
+    tx.rollback().await.unwrap();
+    assert_eq!(pending.await.unwrap().status(), StatusCode::CREATED);
+    assert_eq!(send(fish_path.clone(), "validation", json!({"teamId":"invalid"}), admin_cookie.clone()).await.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(send(fish_path.clone(), "validation", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::CREATED);
+
+    // A failed score INSERT rolls back both the row and its reservation.
+    // Sequences are nontransactional, so the second identical attempt succeeds.
+    sqlx::raw_sql("CREATE SEQUENCE fail_once; CREATE FUNCTION fail_first_fish() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF nextval('fail_once') = 1 THEN RAISE EXCEPTION 'injected failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_first BEFORE INSERT ON fish_weights FOR EACH ROW EXECUTE FUNCTION fail_first_fish();")
+        .execute(&db).await.unwrap();
+    assert_eq!(send(fish_path.clone(), "aborted-mutation", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(send(fish_path.clone(), "aborted-mutation", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::CREATED);
+    sqlx::raw_sql("DROP TRIGGER fail_first ON fish_weights; DROP FUNCTION fail_first_fish(); DROP SEQUENCE fail_once;").execute(&db).await.unwrap();
+
+    // Closing an event must wait for an already-accepted score transaction.
+    // Otherwise completion could calculate results before that score commits.
+    sqlx::raw_sql("CREATE FUNCTION hold_fish_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(746933019); RETURN NEW; END $$; CREATE TRIGGER hold_fish BEFORE INSERT ON fish_weights FOR EACH ROW EXECUTE FUNCTION hold_fish_insert();")
+        .execute(&db).await.unwrap();
+    let mut hold = db.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(746933019)").execute(&mut *hold).await.unwrap();
+    let score = tokio::spawn(send(fish_path.clone(), "score-before-lock", payload.clone(), admin_cookie.clone()));
+    wait_for_lock(&db, "advisory", "INSERT INTO fish_weights%").await;
+    let lock_client = client.clone();
+    let lock_url = format!("{base}/api/years/{year}");
+    let lock_cookie = admin_cookie.clone();
+    let lock = tokio::spawn(async move {
+        lock_client.patch(lock_url).header("cookie", lock_cookie)
+            .json(&json!({"fishing_locked": true})).send().await.unwrap()
+    });
+    wait_for_lock(&db, "transactionid", "UPDATE years SET fishing_locked%").await;
+    hold.commit().await.unwrap();
+    assert_eq!(score.await.unwrap().status(), StatusCode::CREATED);
+    assert_eq!(lock.await.unwrap().status(), StatusCode::OK);
+    assert_eq!(send(fish_path.clone(), "score-after-lock", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::FORBIDDEN);
+    sqlx::raw_sql("DROP TRIGGER hold_fish ON fish_weights; DROP FUNCTION hold_fish_insert();")
+        .execute(&db).await.unwrap();
+    sqlx::query("UPDATE years SET fishing_locked=false WHERE id=$1::uuid").bind(&year).execute(&db).await.unwrap();
+
+    for (event, first, second, field) in [
+        ("chug-times", json!({"teamId":team,"average":5}), json!({"teamId":team,"average":7}), "average"),
+        ("golf-scores", json!({"teamId":team,"score":70}), json!({"teamId":team,"score":80}), "score"),
+    ] {
+        let path = format!("/api/years/{year}/{event}");
+        let first_response = send(path.clone(), "first-upsert", first.clone(), admin_cookie.clone()).await;
+        // Keys cannot be reused for a different route.
+        if event == "golf-scores" {
+            assert_eq!(first_response.status(), StatusCode::CONFLICT);
+        } else {
+            assert_eq!(first_response.status(), StatusCode::CREATED);
+            let first_body: Value = first_response.json().await.unwrap();
+            assert_eq!(send(path.clone(), "second-upsert", second, admin_cookie.clone()).await.status(), StatusCode::CREATED);
+            let replay = send(path, "first-upsert", first, admin_cookie.clone()).await;
+            assert_eq!(replay.status(), StatusCode::CREATED);
+            assert_eq!(replay.json::<Value>().await.unwrap(), first_body);
+            let stored: String = sqlx::query_scalar("SELECT average::text FROM chug_times WHERE year_id=$1::uuid").bind(&year).fetch_one(&db).await.unwrap();
+            assert_eq!(stored, "7.000", "{field} was not reverted by replay");
+        }
+    }
+    let golf_path = format!("/api/years/{year}/golf-scores");
+    let golf_first = json!({"teamId":team,"score":70});
+    let golf_response = send(golf_path.clone(), "golf-first", golf_first.clone(), admin_cookie.clone()).await;
+    assert_eq!(golf_response.status(), StatusCode::CREATED);
+    let golf_body: Value = golf_response.json().await.unwrap();
+    assert_eq!(send(golf_path.clone(), "golf-second", json!({"teamId":team,"score":80}), admin_cookie.clone()).await.status(), StatusCode::CREATED);
+    let golf_replay = send(golf_path.clone(), "golf-first", golf_first.clone(), admin_cookie.clone()).await;
+    assert_eq!(golf_replay.status(), StatusCode::CREATED);
+    assert_eq!(golf_replay.json::<Value>().await.unwrap(), golf_body);
+    let golf: i32 = sqlx::query_scalar("SELECT score FROM golf_scores WHERE year_id=$1::uuid").bind(&year).fetch_one(&db).await.unwrap();
+    assert_eq!(golf, 80);
+
+    sqlx::query("UPDATE years SET fishing_locked=true,chug_locked=true,golf_locked=true WHERE id=$1::uuid").bind(&year).execute(&db).await.unwrap();
+    let locked_replay = send(fish_path.clone(), "failed-invalidation", payload.clone(), admin_cookie.clone()).await;
+    assert_eq!(locked_replay.status(), StatusCode::CREATED);
+    assert_eq!(locked_replay.json::<Value>().await.unwrap(), original);
+    assert_eq!(send(fish_path.clone(), "new-locked", payload.clone(), admin_cookie.clone()).await.status(), StatusCode::FORBIDDEN);
+    for (path, key, data, expected) in [
+        (format!("/api/years/{year}/chug-times"), "first-upsert", json!({"teamId":team,"average":5}), json!("5.000")),
+        (golf_path.clone(), "golf-first", golf_first.clone(), json!(70)),
+    ] {
+        let replay = send(path.clone(), key, data.clone(), admin_cookie.clone()).await;
+        assert_eq!(replay.status(), StatusCode::CREATED);
+        let body: Value = replay.json().await.unwrap();
+        assert_eq!(body[if key == "first-upsert" { "average" } else { "score" }], expected);
+        assert_eq!(send(path, "new-locked", data, admin_cookie.clone()).await.status(), StatusCode::FORBIDDEN);
+    }
+    sqlx::query("UPDATE years SET fishing_locked=false WHERE id=$1::uuid").bind(&year).execute(&db).await.unwrap();
+    for _ in 0..2 {
+        assert_eq!(request(&client, &base, Method::POST, &fish_path, Some(&admin_cookie), Some(payload.clone())).await.status(), StatusCode::CREATED);
+    }
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM fish_weights").fetch_one(&db).await.unwrap();
+    assert_eq!(count, 9);
+    server.abort();
+    redis_server.abort();
+    db.close().await;
+    sqlx::query(&format!("DROP SCHEMA \"{schema}\" CASCADE")).execute(&admin_db).await.unwrap();
+    admin_db.close().await;
+}
+
 // The same 2025 results and hand-verified standings as the TypeScript replay.
 struct ReplayTeam {
     name: &'static str,
@@ -1152,6 +1395,8 @@ async fn historical_2025_tournament_replay_through_api() {
         })
     }).connect(&url).await.unwrap();
     sqlx::raw_sql(SCHEMA).execute(&db).await.unwrap();
+    sqlx::raw_sql(include_str!("../../migrations/0001_score_idempotency.sql"))
+        .execute(&db).await.unwrap();
     let password_hash = bcrypt::hash("replay-password", 4).unwrap();
     sqlx::query("INSERT INTO users(username,password_hash,role) VALUES ('replay-admin',$1,'admin')")
         .bind(password_hash).execute(&db).await.unwrap();

@@ -26,7 +26,7 @@ export default function SelectYear() {
 
   const { data: years = [], isLoading: yearsLoading } = useQuery<Year[]>({
     queryKey: ["/api/years"],
-    queryFn: () => publicFetchJson("/api/years"),
+    queryFn: ({ signal }) => publicFetchJson("/api/years", { signal }),
   });
   const [showYearsLoader, setShowYearsLoader] = useState(yearsLoading);
 

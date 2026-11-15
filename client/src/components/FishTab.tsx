@@ -1,7 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo, useMemo } from "react";
 import { Lock, Trash2, ChevronDown } from "@/components/icons";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson, queryClient } from "@/lib/queryClient";
+import { useScoreSave } from "@/components/ScoreSaveRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -19,56 +20,13 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
   const { toast } = useToast();
   const { isAdmin } = useAuth();
 
-  const addWeightMutation = useMutation({
-    mutationFn: async (data: { teamId: string; weight: number }) => {
-      return await apiRequest(`/api/years/${yearId}/fish-weights`, "POST", data);
-    },
-    onSuccess: (_data, variables) => {
+  const addWeightMutation = useScoreSave(yearId, "fish-weights", (variables: { teamId: string; weight: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "fish-weights"] });
       setWeightInputs((prev) => ({ ...prev, [variables.teamId]: "" }));
       toast({
         title: "Success",
         description: "Fish weight added successfully!",
       });
-    },
-    onError: (error: any) => {
-      console.error("Add weight error:", error);
-
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 500);
-        return;
-      }
-
-      if (isAdminError(error)) {
-        toast({
-          title: "Admin Access Required",
-          description: "Only admin users can add fish weights.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (error?.status === 403) {
-        toast({
-          title: "Competition Locked",
-          description: "Fishing competition is locked. No more weights can be added.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to add fish weight. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
   });
 
   const deleteTeamWeightsMutation = useMutation({
@@ -162,19 +120,13 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
 
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/teams`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/teams`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: fishWeights, isLoading: fishLoading } = useQuery({
     queryKey: ["/api/years", yearId, "fish-weights"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/fish-weights`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/fish-weights`, { signal }),
     staleTime: 2_000,
   });
 
@@ -277,7 +229,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
         {isAdmin && (
           <button
             onClick={() => lockFishingMutation.mutate()}
-            disabled={yearData?.fishing_locked || lockFishingMutation.isPending}
+            disabled={yearData?.fishing_locked || lockFishingMutation.isPending || addWeightMutation.isPending}
             className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
               yearData?.fishing_locked
                 ? 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -412,6 +364,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                                   type="number"
                                   step="0.01"
                                   min="0"
+                                  disabled={addWeightMutation.isPending}
                                   value={weightInputs[teamStat.team.id] ?? ""}
                                   onChange={(e) =>
                                     setWeightInputs((prev) => ({
@@ -439,7 +392,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                                       deleteTeamWeightsMutation.mutate(teamStat.team.id);
                                     }
                                   }}
-                                  disabled={deleteTeamWeightsMutation.isPending}
+                                  disabled={deleteTeamWeightsMutation.isPending || addWeightMutation.isPending}
                                   className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed self-start"
                                   title="Clear all fish weights for this team"
                                 >
@@ -496,6 +449,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                             type="number"
                             step="0.01"
                             min="0"
+                            disabled={addWeightMutation.isPending}
                             value={weightInputs[teamStat.team.id] ?? ""}
                             onChange={(e) =>
                               setWeightInputs((prev) => ({
@@ -558,7 +512,7 @@ const FishTab = memo(function FishTab({ yearId, yearData: parentYearData }: Fish
                             deleteTeamWeightsMutation.mutate(teamStat.team.id);
                           }
                         }}
-                        disabled={deleteTeamWeightsMutation.isPending}
+                        disabled={deleteTeamWeightsMutation.isPending || addWeightMutation.isPending}
                         className="w-full min-h-11 rounded-md flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-950 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Trash2 size={16} />

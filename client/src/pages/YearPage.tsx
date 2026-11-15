@@ -4,7 +4,7 @@ import { useRoute, Link, useLocation } from "wouter";
 import { Home, LogOut, LogIn, Settings, Github, Trophy } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson } from "@/lib/queryClient";
 import { handleLogout } from "@/utils/auth";
 import type { Year } from "@/lib/api-types";
 
@@ -50,7 +50,7 @@ export default function YearPage() {
   const yearId = yearData?.id;
   useEffect(() => {
     if (!yearId) return;
-    const fetchJson = (url: string) => () => fetch(url).then(r => r.json());
+    const fetchJson = (url: string) => ({ signal }: { signal: AbortSignal }) => publicFetchJson(url, { signal });
     const staleTime = 2_000;
     queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "teams"], queryFn: fetchJson(`/api/years/${yearId}/teams`), staleTime });
     queryClient.prefetchQuery({ queryKey: ["/api/years", yearId, "fish-weights"], queryFn: fetchJson(`/api/years/${yearId}/fish-weights`), staleTime });

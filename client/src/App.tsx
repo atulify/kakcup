@@ -3,6 +3,8 @@ import { Switch, Route } from "wouter";
 import { publicFetchJson, queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { ScoreSaveRecovery } from "@/components/ScoreSaveRecovery";
 
 // Retry dynamic imports once then reload — handles stale chunk hashes after deploys
 function lazyWithRetry(factory: () => Promise<{ default: any }>) {
@@ -50,12 +52,14 @@ function Router() {
 // This eliminates the waterfall: chunk download + years fetch happen in parallel.
 queryClient.prefetchQuery({
   queryKey: ["/api/years"],
-  queryFn: () => publicFetchJson("/api/years", { debugCache: true }),
+  queryFn: ({ signal }) => publicFetchJson("/api/years", { debugCache: true, signal }),
 });
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ConnectionStatus />
+      <ScoreSaveRecovery />
       <Router />
       <Suspense fallback={null}><Toaster /></Suspense>
       <SpeedInsights />

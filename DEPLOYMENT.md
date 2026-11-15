@@ -51,11 +51,22 @@ npm run db:init
 npm run db:seed-kaks # optional roster seed
 ```
 
-`db:init` executes `migrations/0000_petite_sharon_ventura.sql` as a single
-transaction and creates empty tables; it does not import historical data. It is
-not an incremental migration and must not be run on an existing production or
-other populated database. Preserve existing databases rather than initializing
-them again. The SQL roster seed is transactional and safe to repeat: it inserts
+`db:init` executes both the initial schema and the score-idempotency migration in
+one transaction and creates empty tables; it does not import historical data.
+It must not be run against an existing production or other populated database.
+For an existing installation, apply the additive, repeatable migration before
+deploying the API and frontend:
+
+```bash
+npm run db:migrate
+```
+
+This creates `score_idempotency` without modifying existing scores. Back up the
+database and verify `DATABASE_URL` before applying it. Do not remove saved
+idempotency records while clients may still retry them: doing so could turn a
+delayed retry into a duplicate score.
+
+The SQL roster seed is transactional and safe to repeat: it inserts
 missing names without changing existing statuses, then fills missing member IDs
 on mapped 2025 teams only where existing IDs agree with the roster. It never
 replaces conflicting IDs or changes legacy name columns. It does not create
@@ -83,6 +94,21 @@ TEST_DATABASE_URL='postgresql://user:password@localhost:5432/kakcup_test' cargo 
 ```
 
 The integration tests create and drop a dedicated schema in that database.
+
+Score reads retry transient failures and retain already-loaded data in memory
+while the page remains open; score data is not persisted for offline reading.
+Score entry keeps unconfirmed operations in browser local storage without
+storing credentials. Once the original admin signs in and connectivity returns,
+the client retries the same operation key. Successful replays reattempt cache
+invalidation before confirming the save.
+Keyed score requests must include both `Idempotency-Key` and `X-Score-User`
+(the authenticated admin's user ID). Keys are globally unique and bound to the
+original account, route, and payload; reusing one with a different account or
+request returns a conflict. Existing unkeyed API requests retain their previous
+behavior. While a save is pending, this device blocks conflicting event locks,
+score deletion, and year status changes. Other devices cannot see an operation
+that has not reached the server, so coordinate before locking or clearing.
+Clearing browser storage or losing the device also removes its pending saves.
 
 ## Vercel configuration
 

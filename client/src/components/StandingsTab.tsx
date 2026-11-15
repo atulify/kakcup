@@ -1,6 +1,7 @@
 import { useMemo, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Team } from "@/lib/api-types";
+import { publicFetchJson } from "@/lib/queryClient";
 import { calculateTop3FishTotal, rankFishTeams, rankChugTeams, rankGolfTeams } from "@shared/scoring";
 
 interface StandingsTabProps {
@@ -11,46 +12,31 @@ const StandingsTab = memo(function StandingsTab({ yearId }: StandingsTabProps) {
   // All useQuery hooks first
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/teams`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/teams`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: fishWeights, isLoading: fishLoading } = useQuery({
     queryKey: ["/api/years", yearId, "fish-weights"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/fish-weights`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/fish-weights`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: chugTimes, isLoading: chugLoading } = useQuery({
     queryKey: ["/api/years", yearId, "chug-times"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/chug-times`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/chug-times`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: golfScores, isLoading: golfLoading } = useQuery({
     queryKey: ["/api/years", yearId, "golf-scores"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/golf-scores`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/golf-scores`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: tieBreaks, isLoading: tieBreaksLoading } = useQuery({
     queryKey: ["/api/years", yearId, "tie-breaks"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/tie-breaks`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/tie-breaks`, { signal }),
     staleTime: 2_000,
   });
 

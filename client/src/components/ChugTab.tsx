@@ -1,7 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, memo, useMemo } from "react";
 import { Plus, Lock, Trash2 } from "@/components/icons";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson, queryClient } from "@/lib/queryClient";
+import { useScoreSave } from "@/components/ScoreSaveRecovery";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError, isAdminError } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -42,11 +43,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
 
-  const addChugMutation = useMutation({
-    mutationFn: async (data: { teamId: string; chug1: number; chug2: number; average: number; notes?: string }) => {
-      return await apiRequest(`/api/years/${yearId}/chug-times`, "POST", data);
-    },
-    onSuccess: () => {
+  const addChugMutation = useScoreSave(yearId, "chug-times", () => {
       queryClient.invalidateQueries({ queryKey: ["/api/years", yearId, "chug-times"] });
       setShowAddModal(false);
       setSelectedTeamId("");
@@ -57,44 +54,6 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
         title: "Success",
         description: "Chug time added successfully!",
       });
-    },
-    onError: (error: any) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 500);
-        return;
-      }
-
-      if (isAdminError(error)) {
-        toast({
-          title: "Admin Access Required",
-          description: "Only admin users can add chug times.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (error?.status === 403) {
-        toast({
-          title: "Competition Locked",
-          description: "Chug competition is locked. Cannot add times.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Error",
-        description: "Failed to add chug time. Please try again.",
-        variant: "destructive",
-      });
-    }
   });
 
   const deleteChugMutation = useMutation({
@@ -174,19 +133,13 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
 
   const { data: teams, isLoading: teamsLoading } = useQuery({
     queryKey: ["/api/years", yearId, "teams"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/teams`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/teams`, { signal }),
     staleTime: 2_000,
   });
 
   const { data: chugTimes, isLoading: chugLoading } = useQuery({
     queryKey: ["/api/years", yearId, "chug-times"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${yearId}/chug-times`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${yearId}/chug-times`, { signal }),
     staleTime: 2_000,
   });
 
@@ -283,7 +236,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
           <div className="flex gap-2">
             <button
               onClick={() => setShowAddModal(true)}
-              disabled={sortedTeams.length === 0 || yearData?.chug_locked}
+              disabled={sortedTeams.length === 0 || yearData?.chug_locked || addChugMutation.isPending}
               className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
                 yearData?.chug_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -298,7 +251,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
             </button>
             <button
               onClick={() => lockChugMutation.mutate()}
-              disabled={yearData?.chug_locked || lockChugMutation.isPending}
+              disabled={yearData?.chug_locked || lockChugMutation.isPending || addChugMutation.isPending}
               className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-sm transition-colors ${
                 yearData?.chug_locked
                   ? 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -426,7 +379,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                                     deleteChugMutation.mutate(teamStat.team.id);
                                   }
                                 }}
-                                disabled={deleteChugMutation.isPending}
+                                disabled={deleteChugMutation.isPending || addChugMutation.isPending}
                                 className="text-red-500 hover:text-red-700"
                                 title="Clear chug time for this team"
                               >
@@ -491,7 +444,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                             deleteChugMutation.mutate(teamStat.team.id);
                           }
                         }}
-                        disabled={deleteChugMutation.isPending}
+                        disabled={deleteChugMutation.isPending || addChugMutation.isPending}
                         className="w-full min-h-11 rounded-md flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-500"
                       >
                         <Trash2 size={16} />
@@ -519,6 +472,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   Select Team
                 </label>
                 <select
+                  disabled={addChugMutation.isPending}
                   value={selectedTeamId}
                   onChange={(e) => setSelectedTeamId(e.target.value)}
                   className="w-full min-h-11 rounded-md px-3 py-2 bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -545,6 +499,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   Time 1 (seconds)
                 </label>
                 <input
+                  disabled={addChugMutation.isPending}
                   type="number"
                   step="0.01"
                   min="0"
@@ -562,6 +517,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   Time 2 (seconds)
                 </label>
                 <input
+                  disabled={addChugMutation.isPending}
                   type="number"
                   step="0.01"
                   min="0"
@@ -579,6 +535,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
                   Notes (optional)
                 </label>
                 <textarea
+                  disabled={addChugMutation.isPending}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add notes about the chug..."
@@ -593,6 +550,7 @@ const ChugTab = memo(function ChugTab({ yearId, yearData }: ChugTabProps) {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowAddModal(false)}
+                disabled={addChugMutation.isPending}
                 className="flex-1 min-h-11 rounded-md px-4 py-2 text-muted-foreground border border-border hover:bg-accent transition-colors"
                 data-testid="button-cancel"
               >

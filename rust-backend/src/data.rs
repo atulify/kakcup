@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, patch, put},
 };
 use serde_json::{Value, json};
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -636,7 +636,122 @@ async fn handle(
             Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, "Invalid request body"),
         }
     };
+    if method == Method::POST {
+        if let ["api", "years", id, event @ ("fish-weights" | "chug-times" | "golf-scores")] = path.as_slice() {
+            let all_values = headers.get_all("idempotency-key");
+            let mut values = all_values.iter();
+            if let Some(value) = values.next() {
+                let key = match value.to_str() {
+                    Ok(key) if !key.is_empty() && key.len() <= 200 && values.next().is_none() => key,
+                    _ => return err(StatusCode::BAD_REQUEST, "Invalid Idempotency-Key"),
+                };
+                if headers.get("x-score-user").and_then(|value| value.to_str().ok()) != Some(claims.user_id.as_str()) {
+                    return err(StatusCode::CONFLICT, "Score save belongs to a different account");
+                }
+                return idempotent_score(&state, id, event, &data, &claims.user_id, key).await;
+            }
+        }
+    }
     mutate(&state, &method, &path, &data, &claims.user_id).await
+}
+
+fn valid_score(data: &Value, event: &str) -> bool {
+    let valid_uuid = s(data, "teamId").is_some_and(|v| {
+        v.len() == 36 && v.bytes().enumerate().all(|(i, b)| {
+            if [8, 13, 18, 23].contains(&i) { b == b'-' } else { b.is_ascii_hexdigit() }
+        })
+    });
+    valid_uuid
+        && !data.get("notes").is_some_and(|v| !v.is_null() && !v.is_string())
+        && !(event == "golf-scores" && data.get("score").is_some_and(|v| {
+            !v.is_null() && v.as_i64().and_then(|n| i32::try_from(n).ok()).is_none()
+        }))
+}
+
+async fn insert_score(
+    conn: &mut PgConnection,
+    id: &str,
+    event: &str,
+    data: &Value,
+) -> Result<Option<Value>, sqlx::Error> {
+    let team = s(data, "teamId").unwrap();
+    let notes = s(data, "notes");
+    match event {
+        "fish-weights" => sqlx::query_scalar::<_,Value>("INSERT INTO fish_weights(year_id,team_id,weight,notes) VALUES ($1::uuid,$2::uuid,$3::numeric,$4) RETURNING jsonb_build_object('id',id,'yearId',year_id,'teamId',team_id,'weight',weight::text,'notes',notes)").bind(id).bind(team).bind(num_string(data,"weight")).bind(notes).fetch_optional(conn).await,
+        "chug-times" => sqlx::query_scalar::<_,Value>("INSERT INTO chug_times(year_id,team_id,chug_1,chug_2,average,notes) VALUES ($1::uuid,$2::uuid,$3::numeric,$4::numeric,$5::numeric,$6) ON CONFLICT(year_id,team_id) DO UPDATE SET chug_1=CASE WHEN $7 THEN EXCLUDED.chug_1 ELSE chug_times.chug_1 END,chug_2=CASE WHEN $8 THEN EXCLUDED.chug_2 ELSE chug_times.chug_2 END,average=CASE WHEN $9 THEN EXCLUDED.average ELSE chug_times.average END,notes=CASE WHEN $10 THEN EXCLUDED.notes ELSE chug_times.notes END RETURNING jsonb_build_object('id',id,'yearId',year_id,'teamId',team_id,'chug1',chug_1::text,'chug2',chug_2::text,'average',average::text,'notes',notes)").bind(id).bind(team).bind(num_string(data,"chug1")).bind(num_string(data,"chug2")).bind(num_string(data,"average")).bind(notes).bind(data.get("chug1").is_some()).bind(data.get("chug2").is_some()).bind(data.get("average").is_some()).bind(data.get("notes").is_some()).fetch_optional(conn).await,
+        _ => sqlx::query_scalar::<_,Value>("INSERT INTO golf_scores(year_id,team_id,score,notes) VALUES ($1::uuid,$2::uuid,$3,$4) ON CONFLICT(year_id,team_id) DO UPDATE SET score=CASE WHEN $5 THEN EXCLUDED.score ELSE golf_scores.score END,notes=CASE WHEN $6 THEN EXCLUDED.notes ELSE golf_scores.notes END RETURNING jsonb_build_object('id',id,'yearId',year_id,'teamId',team_id,'score',score,'notes',notes)").bind(id).bind(team).bind(data.get("score").and_then(Value::as_i64).map(|v| v as i32)).bind(notes).bind(data.get("score").is_some()).bind(data.get("notes").is_some()).fetch_optional(conn).await,
+    }
+}
+
+async fn idempotent_score(
+    state: &AppState,
+    id: &str,
+    event: &str,
+    data: &Value,
+    user_id: &str,
+    key: &str,
+) -> Response {
+    let (cache, message, locked_field, locked_message) = match event {
+        "fish-weights" => ("fw", "Failed to create fish weight", "fishing_locked", "Fishing competition is locked. No more weights can be added."),
+        "chug-times" => ("ct", "Failed to create chug time", "chug_locked", "Chug competition is locked. No more times can be added."),
+        _ => ("gs", "Failed to create golf score", "golf_locked", "Golf competition is locked. No more scores can be added."),
+    };
+    let path = format!("/api/years/{id}/{event}");
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
+    };
+    // The unique index waits for an in-flight transaction. If it rolls back,
+    // this insert succeeds; if it commits, the next statement sees its result.
+    let inserted = match sqlx::query("INSERT INTO score_idempotency(user_id,idempotency_key,request_path,request_body) VALUES ($1::uuid,$2,$3,$4) ON CONFLICT DO NOTHING")
+        .bind(user_id).bind(key).bind(&path).bind(data).execute(&mut *tx).await {
+        Ok(result) => result.rows_affected() == 1,
+        Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
+    };
+    let value = if inserted {
+        let year = match sqlx::query_scalar::<_, Value>(&format!("SELECT {YEAR} FROM years WHERE id::text=$1 FOR UPDATE"))
+            .bind(id).fetch_optional(&mut *tx).await {
+            Ok(Some(year)) => year,
+            Ok(None) => return err(StatusCode::NOT_FOUND, "Year not found"),
+            Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
+        };
+        if year.get(locked_field).and_then(Value::as_bool) == Some(true) {
+            return err(StatusCode::FORBIDDEN, locked_message);
+        }
+        if !valid_score(data, event) {
+            return err(StatusCode::BAD_REQUEST, "Invalid request body");
+        }
+        let value = match insert_score(&mut tx, id, event, data).await {
+            Ok(Some(value)) => value,
+            _ => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
+        };
+        if sqlx::query("UPDATE score_idempotency SET response_body=$3 WHERE user_id=$1::uuid AND idempotency_key=$2")
+            .bind(user_id).bind(key).bind(&value).execute(&mut *tx).await.is_err() {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, message);
+        }
+        value
+    } else {
+        let stored = sqlx::query_as::<_, (bool, bool, bool, Option<Value>)>("SELECT user_id=$1::uuid,request_path=$3,request_body=$4,response_body FROM score_idempotency WHERE idempotency_key=$2")
+            .bind(user_id).bind(key).bind(&path).bind(data).fetch_optional(&mut *tx).await;
+        match stored {
+            Ok(Some((same_user, same_path, same_body, Some(value)))) => {
+                if !same_user || !same_path || !same_body {
+                    return err(StatusCode::CONFLICT, "Idempotency-Key already used for another request");
+                }
+                value
+            }
+            _ => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
+        }
+    };
+    if tx.commit().await.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, message);
+    }
+    // Every replay performs the DEL again. In particular, a committed write
+    // whose first DEL failed cannot be acknowledged before a successful DEL.
+    if invalidate(state, &[format!("{cache}:{id}")]).await.is_err() {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, message);
+    }
+    ok(value, StatusCode::CREATED)
 }
 
 fn update_sql(
@@ -838,44 +953,14 @@ async fn mutate(
                 }
             }
         }
-        // Validate team UUIDs and integer golf scores before inserting.
-        (
-            "POST",
-            [
-                "api",
-                "years",
-                id,
-                event @ ("fish-weights" | "chug-times" | "golf-scores"),
-            ],
-        ) => {
-            let valid_uuid = s(data, "teamId").is_some_and(|v| {
-                v.len() == 36
-                    && v.bytes().enumerate().all(|(i, b)| {
-                        if [8, 13, 18, 23].contains(&i) {
-                            b == b'-'
-                        } else {
-                            b.is_ascii_hexdigit()
-                        }
-                    })
-            });
-            if !valid_uuid
-                || data
-                    .get("notes")
-                    .is_some_and(|v| !v.is_null() && !v.is_string())
-                || (*event == "golf-scores"
-                    && data.get("score").is_some_and(|v| {
-                        !v.is_null() && v.as_i64().and_then(|n| i32::try_from(n).ok()).is_none()
-                    }))
-            {
+        ("POST", ["api", "years", id, event @ ("fish-weights" | "chug-times" | "golf-scores")]) => {
+            if !valid_score(data, event) {
                 return err(StatusCode::BAD_REQUEST, "Invalid request body");
             }
             status = StatusCode::CREATED;
-            let team = s(data, "teamId").unwrap();
-            let notes = s(data, "notes");
-            match *event {
-                "fish-weights" => sqlx::query_scalar::<_,Value>("INSERT INTO fish_weights(year_id,team_id,weight,notes) VALUES ($1::uuid,$2::uuid,$3::numeric,$4) RETURNING jsonb_build_object('id',id,'yearId',year_id,'teamId',team_id,'weight',weight::text,'notes',notes)").bind(*id).bind(team).bind(num_string(data,"weight")).bind(notes).fetch_optional(db).await,
-                "chug-times" => sqlx::query_scalar::<_,Value>("INSERT INTO chug_times(year_id,team_id,chug_1,chug_2,average,notes) VALUES ($1::uuid,$2::uuid,$3::numeric,$4::numeric,$5::numeric,$6) ON CONFLICT(year_id,team_id) DO UPDATE SET chug_1=CASE WHEN $7 THEN EXCLUDED.chug_1 ELSE chug_times.chug_1 END,chug_2=CASE WHEN $8 THEN EXCLUDED.chug_2 ELSE chug_times.chug_2 END,average=CASE WHEN $9 THEN EXCLUDED.average ELSE chug_times.average END,notes=CASE WHEN $10 THEN EXCLUDED.notes ELSE chug_times.notes END RETURNING jsonb_build_object('id',id,'yearId',year_id,'teamId',team_id,'chug1',chug_1::text,'chug2',chug_2::text,'average',average::text,'notes',notes)").bind(*id).bind(team).bind(num_string(data,"chug1")).bind(num_string(data,"chug2")).bind(num_string(data,"average")).bind(notes).bind(data.get("chug1").is_some()).bind(data.get("chug2").is_some()).bind(data.get("average").is_some()).bind(data.get("notes").is_some()).fetch_optional(db).await,
-                _ => sqlx::query_scalar::<_,Value>("INSERT INTO golf_scores(year_id,team_id,score,notes) VALUES ($1::uuid,$2::uuid,$3,$4) ON CONFLICT(year_id,team_id) DO UPDATE SET score=CASE WHEN $5 THEN EXCLUDED.score ELSE golf_scores.score END,notes=CASE WHEN $6 THEN EXCLUDED.notes ELSE golf_scores.notes END RETURNING jsonb_build_object('id',id,'yearId',year_id,'teamId',team_id,'score',score,'notes',notes)").bind(*id).bind(team).bind(data.get("score").and_then(Value::as_i64).map(|v| v as i32)).bind(notes).bind(data.get("score").is_some()).bind(data.get("notes").is_some()).fetch_optional(db).await,
+            match db.acquire().await {
+                Ok(mut conn) => insert_score(&mut conn, id, event, data).await,
+                Err(error) => Err(error),
             }
         }
         (

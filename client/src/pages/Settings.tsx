@@ -4,7 +4,8 @@ import { useLocation } from "wouter";
 import { Settings as SettingsIcon, Home, Trash2, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, publicFetchJson, queryClient } from "@/lib/queryClient";
+import { usePendingScoreSaves } from "@/components/ScoreSaveRecovery";
 import { useToast } from "@/hooks/use-toast";
 import type { Year } from "@/lib/api-types";
 import { calculateTop3FishTotal, rankFishTeams, rankChugTeams, rankGolfTeams } from "@shared/scoring";
@@ -30,55 +31,42 @@ function YearsSection() {
   const [tieBreakYearId, setTieBreakYearId] = useState("");
   const [tieBreakTeamId, setTieBreakTeamId] = useState("");
   const [tieBreakReason, setTieBreakReason] = useState("");
+  const statusHasPendingSave = usePendingScoreSaves(statusYearId);
+  const clearHasPendingSave = usePendingScoreSaves(clearYearId);
 
   const { data: years } = useQuery<Year[]>({ queryKey: ["/api/years"] });
 
   const { data: tieBreakTeams } = useQuery({
     queryKey: ["/api/years", tieBreakYearId, "teams"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${tieBreakYearId}/teams`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${tieBreakYearId}/teams`, { signal }),
     enabled: !!tieBreakYearId,
     staleTime: 2_000,
   });
 
   const { data: tieBreakFish } = useQuery({
     queryKey: ["/api/years", tieBreakYearId, "fish-weights"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${tieBreakYearId}/fish-weights`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${tieBreakYearId}/fish-weights`, { signal }),
     enabled: !!tieBreakYearId,
     staleTime: 2_000,
   });
 
   const { data: tieBreakChug } = useQuery({
     queryKey: ["/api/years", tieBreakYearId, "chug-times"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${tieBreakYearId}/chug-times`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${tieBreakYearId}/chug-times`, { signal }),
     enabled: !!tieBreakYearId,
     staleTime: 2_000,
   });
 
   const { data: tieBreakGolf } = useQuery({
     queryKey: ["/api/years", tieBreakYearId, "golf-scores"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${tieBreakYearId}/golf-scores`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${tieBreakYearId}/golf-scores`, { signal }),
     enabled: !!tieBreakYearId,
     staleTime: 2_000,
   });
 
   const { data: tieBreaks } = useQuery({
     queryKey: ["/api/years", tieBreakYearId, "tie-breaks"],
-    queryFn: async () => {
-      const response = await fetch(`/api/years/${tieBreakYearId}/tie-breaks`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => publicFetchJson(`/api/years/${tieBreakYearId}/tie-breaks`, { signal }),
     enabled: !!tieBreakYearId,
     staleTime: 2_000,
   });
@@ -294,13 +282,14 @@ function YearsSection() {
                   key={s}
                   size="sm"
                   variant={selectedStatusYear.status === s ? "default" : "outline"}
-                  disabled={selectedStatusYear.status === s || statusMutation.isPending}
+                  disabled={selectedStatusYear.status === s || statusMutation.isPending || statusHasPendingSave}
                   onClick={() => statusMutation.mutate({ yearId: statusYearId, status: s })}
                 >
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </Button>
               ))}
             </div>
+            {statusHasPendingSave && <p className="text-sm text-muted-foreground">Resolve pending score saves before changing year status.</p>}
           </div>
         )}
       </section>
@@ -339,7 +328,7 @@ function YearsSection() {
           <Button
             variant="destructive"
             size="sm"
-            disabled={!clearYearId}
+            disabled={!clearYearId || clearHasPendingSave}
             onClick={() => setConfirmingClear(true)}
             className="flex items-center gap-2"
           >
@@ -355,7 +344,7 @@ function YearsSection() {
               <Button
                 variant="destructive"
                 size="sm"
-                disabled={clearMutation.isPending}
+                disabled={clearMutation.isPending || clearHasPendingSave}
                 onClick={() => clearMutation.mutate(clearYearId)}
               >
                 {clearMutation.isPending ? "Clearing..." : "Confirm"}
@@ -366,6 +355,7 @@ function YearsSection() {
             </div>
           </div>
         )}
+        {clearHasPendingSave && <p className="text-sm text-muted-foreground">Resolve pending score saves before clearing scores.</p>}
       </section>
 
       {/* Tie-break */}

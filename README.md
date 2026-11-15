@@ -29,6 +29,7 @@ Teams earn points across all three events. Standings are calculated using a poin
 
 - **Multi-year tournaments** — browse and compare results across years
 - **Live score entry** — admins can enter scores in real-time during events
+- **Weak-connection recovery** — retries interrupted reads and safely reconciles pending score saves without duplicating entries
 - **Per-event locking** — lock competitions once final to prevent edits
 - **Installable PWA** — add to home screen on iOS/Android for standalone use
 - **Admin panel** — manage teams, scores, and tournament years
@@ -64,9 +65,11 @@ npm run db:seed-kaks
 npm run dev
 ```
 
-`db:init` applies `migrations/0000_petite_sharon_ventura.sql` in a transaction;
-it creates empty tables and is not an upgrade or import tool. Do not run it
-against an existing database. The roster seed inserts missing names without
+`db:init` applies the PostgreSQL schema and score-idempotency migration in a
+transaction; it creates empty tables and is not an upgrade or import tool. Do
+not run it against an existing database. For an existing installation, apply
+the additive score-idempotency migration with `npm run db:migrate` before
+deploying the updated API and client. The roster seed inserts missing names without
 changing existing statuses and fills missing member IDs for matching 2025
 teams only when existing IDs do not conflict. It does not replace conflicting
 IDs or alter legacy name columns.

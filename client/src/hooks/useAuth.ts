@@ -4,7 +4,6 @@ import type { User } from "@/lib/api-types";
 export function useAuth() {
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/user"],
-    retry: false,
   });
 
   return {
