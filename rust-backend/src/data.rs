@@ -8,7 +8,7 @@ use axum::{
     routing::{delete, get, patch, put},
 };
 use serde_json::{Value, json};
-use sqlx::{PgConnection, PgPool};
+use sqlx::{PgConnection, PgPool, types::Uuid};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -95,8 +95,15 @@ async fn redis(state: &AppState, mut args: Value) -> Result<Value, ()> {
         return Ok(Value::Null);
     };
     if !state.cache_prefix.is_empty() {
-        let key = args.get_mut(1).ok_or(())?;
-        *key = Value::String(format!("{}{}", state.cache_prefix, key.as_str().ok_or(())?));
+        let command = args.as_array_mut().ok_or(())?;
+        let end = if command.first().and_then(Value::as_str) == Some("DEL") {
+            command.len()
+        } else {
+            2
+        };
+        for key in command.get_mut(1..end).ok_or(())? {
+            *key = Value::String(format!("{}{}", state.cache_prefix, key.as_str().ok_or(())?));
+        }
     }
     let sync = {
         let mut tokens = TOKENS.lock().map_err(|_| ())?;
@@ -130,8 +137,11 @@ async fn redis(state: &AppState, mut args: Value) -> Result<Value, ()> {
     Ok(result.get("result").cloned().unwrap_or(Value::Null))
 }
 async fn invalidate(state: &AppState, keys: &[String]) -> Result<(), ()> {
-    for key in keys {
-        redis(state, json!(["DEL", key])).await?;
+    if !keys.is_empty() {
+        let mut command = Vec::with_capacity(keys.len() + 1);
+        command.push(Value::String("DEL".into()));
+        command.extend(keys.iter().cloned().map(Value::String));
+        redis(state, Value::Array(command)).await?;
     }
     Ok(())
 }
@@ -292,6 +302,24 @@ async fn cache_set(state: &AppState, key: &str, body: &str, ttl: i32) -> Result<
     .await?;
     Ok(())
 }
+// UUID text comparisons previously matched only PostgreSQL's lowercase,
+// hyphenated spelling. Bind NULL for every other spelling (including malformed
+// IDs), preserving no-match behavior without casting indexed UUID columns.
+fn predicate_id(id: &str) -> Option<Uuid> {
+    if id.len() != 36 || id.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return None;
+    }
+    Uuid::parse_str(id).ok()
+}
+
+async fn many_by_id(db: &PgPool, sql: &str, id: &str) -> Result<Value, sqlx::Error> {
+    let rows = sqlx::query_scalar::<_, Value>(sql)
+        .bind(predicate_id(id))
+        .fetch_all(db)
+        .await?;
+    Ok(Value::Array(rows))
+}
+
 async fn many(db: &PgPool, sql: &str, arg: Option<&str>) -> Result<Value, sqlx::Error> {
     let mut q = sqlx::query_scalar::<_, Value>(sql);
     if let Some(a) = arg {
@@ -301,7 +329,7 @@ async fn many(db: &PgPool, sql: &str, arg: Option<&str>) -> Result<Value, sqlx::
 }
 async fn one(db: &PgPool, sql: &str, arg: &str) -> Result<Option<Value>, sqlx::Error> {
     sqlx::query_scalar::<_, Value>(sql)
-        .bind(arg)
+        .bind(predicate_id(arg))
         .fetch_optional(db)
         .await
 }
@@ -321,7 +349,7 @@ fn unique(e: &sqlx::Error) -> bool {
 async fn year(db: &PgPool, id: &str) -> Result<Option<Value>, sqlx::Error> {
     one(
         db,
-        &format!("SELECT {YEAR} FROM years WHERE id::text=$1"),
+        &format!("SELECT {YEAR} FROM years WHERE id=$1"),
         id,
     )
     .await
@@ -331,19 +359,19 @@ async fn standings(
     db: &PgPool,
     id: &str,
 ) -> Result<(Vec<Value>, Vec<f64>), sqlx::Error> {
-    let teams = many(
+    let teams = many_by_id(
         db,
-        &format!("SELECT {TEAM} FROM teams WHERE year_id::text=$1"),
-        Some(id),
+        &format!("SELECT {TEAM} FROM teams WHERE year_id=$1"),
+        id,
     )
     .await?;
     let teams = match teams {
         Value::Array(teams) => teams,
         _ => Vec::new(),
     };
-    let fish = many(db, "SELECT jsonb_build_object('teamId',team_id,'value',weight::text) FROM fish_weights WHERE year_id::text=$1", Some(id)).await?;
-    let chug = many(db, "SELECT jsonb_build_object('teamId',team_id,'value',average::text) FROM chug_times WHERE year_id::text=$1", Some(id)).await?;
-    let golf = many(db, "SELECT jsonb_build_object('teamId',team_id,'value',score) FROM golf_scores WHERE year_id::text=$1", Some(id)).await?;
+    let fish = many_by_id(db, "SELECT jsonb_build_object('teamId',team_id,'value',weight::text) FROM fish_weights WHERE year_id=$1", id).await?;
+    let chug = many_by_id(db, "SELECT jsonb_build_object('teamId',team_id,'value',average::text) FROM chug_times WHERE year_id=$1", id).await?;
+    let golf = many_by_id(db, "SELECT jsonb_build_object('teamId',team_id,'value',score) FROM golf_scores WHERE year_id=$1", id).await?;
     let mut fs: HashMap<&str, Vec<f64>> = HashMap::new();
     for row in fish.as_array().unwrap() {
         if let (Some(id), Some(v)) = (
@@ -412,10 +440,10 @@ async fn store_results(db: &PgPool, id: &str) -> Result<(), sqlx::Error> {
         .zip(points)
         .map(|(team, points)| (s(team, "id").unwrap(), points))
         .collect();
-    let ties = many(
+    let ties = many_by_id(
         db,
-        &format!("SELECT {TIE} FROM tie_break_adjustments WHERE year_id::text=$1"),
-        Some(id),
+        &format!("SELECT {TIE} FROM tie_break_adjustments WHERE year_id=$1"),
+        id,
     )
     .await?;
     for row in ties.as_array().unwrap() {
@@ -434,12 +462,12 @@ async fn store_results(db: &PgPool, id: &str) -> Result<(), sqlx::Error> {
     let min = totals.values().copied().fold(f64::INFINITY, f64::min);
     let tops = totals.values().filter(|v| **v == max).count();
     let mut tx = db.begin().await?;
-    sqlx::query("DELETE FROM champs WHERE year_id::text=$1")
-        .bind(id)
+    sqlx::query("DELETE FROM champs WHERE year_id=$1")
+        .bind(predicate_id(id))
         .execute(&mut *tx)
         .await?;
-    sqlx::query("DELETE FROM boots WHERE year_id::text=$1")
-        .bind(id)
+    sqlx::query("DELETE FROM boots WHERE year_id=$1")
+        .bind(predicate_id(id))
         .execute(&mut *tx)
         .await?;
     for team in &teams {
@@ -573,11 +601,11 @@ async fn read_data(state: &AppState, path: &[&str], uri: &Uri, headers: &HeaderM
             };
             value.map(|v| v.unwrap_or(Value::Null))
         }
-        ["api","years",id,"teams"] => many(db,&format!("SELECT {TEAM} FROM teams WHERE year_id::text=$1"),Some(id)).await,
-        ["api","years",id,"fish-weights"] => many(db,"SELECT jsonb_build_object('teamId',team_id,'weight',weight::text) FROM fish_weights WHERE year_id::text=$1",Some(id)).await,
-        ["api","years",id,"chug-times"] => many(db,"SELECT jsonb_build_object('teamId',team_id,'chug1',chug_1::text,'chug2',chug_2::text,'average',average::text) FROM chug_times WHERE year_id::text=$1",Some(id)).await,
-        ["api","years",id,"golf-scores"] => many(db,"SELECT jsonb_build_object('teamId',team_id,'score',score) FROM golf_scores WHERE year_id::text=$1",Some(id)).await,
-        ["api","years",id,"tie-breaks"] => many(db,&format!("SELECT {TIE} FROM tie_break_adjustments WHERE year_id::text=$1"),Some(id)).await,
+        ["api","years",id,"teams"] => many_by_id(db,&format!("SELECT {TEAM} FROM teams WHERE year_id=$1"),id).await,
+        ["api","years",id,"fish-weights"] => many_by_id(db,"SELECT jsonb_build_object('teamId',team_id,'weight',weight::text) FROM fish_weights WHERE year_id=$1",id).await,
+        ["api","years",id,"chug-times"] => many_by_id(db,"SELECT jsonb_build_object('teamId',team_id,'chug1',chug_1::text,'chug2',chug_2::text,'average',average::text) FROM chug_times WHERE year_id=$1",id).await,
+        ["api","years",id,"golf-scores"] => many_by_id(db,"SELECT jsonb_build_object('teamId',team_id,'score',score) FROM golf_scores WHERE year_id=$1",id).await,
+        ["api","years",id,"tie-breaks"] => many_by_id(db,&format!("SELECT {TIE} FROM tie_break_adjustments WHERE year_id=$1"),id).await,
         ["api","kaks"] => {
             if status.is_empty() { many(db,&format!("SELECT {KAK} FROM kaks"),None).await } else { many(db,&format!("SELECT {KAK} FROM kaks WHERE status=$1"),Some(&status)).await }
         }
@@ -709,8 +737,8 @@ async fn idempotent_score(
         Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
     };
     let value = if inserted {
-        let year = match sqlx::query_scalar::<_, Value>(&format!("SELECT {YEAR} FROM years WHERE id::text=$1 FOR UPDATE"))
-            .bind(id).fetch_optional(&mut *tx).await {
+        let year = match sqlx::query_scalar::<_, Value>(&format!("SELECT {YEAR} FROM years WHERE id=$1 FOR UPDATE"))
+            .bind(predicate_id(id)).fetch_optional(&mut *tx).await {
             Ok(Some(year)) => year,
             Ok(None) => return err(StatusCode::NOT_FOUND, "Year not found"),
             Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR, message),
@@ -769,7 +797,7 @@ fn update_sql(
         return None;
     }
     Some(format!(
-        "UPDATE {table} SET {} WHERE id::text=$1 RETURNING {projection}",
+        "UPDATE {table} SET {} WHERE id=$1 RETURNING {projection}",
         sets.join(",")
     ))
 }
@@ -908,7 +936,7 @@ async fn mutate(
             match update_sql("years", &fields, data, YEAR) {
                 Some(sql) => {
                     sqlx::query_scalar(&sql)
-                        .bind(*id)
+                        .bind(predicate_id(id))
                         .bind(data)
                         .fetch_optional(db)
                         .await
@@ -938,7 +966,7 @@ async fn mutate(
             match update_sql("teams", &fields, data, TEAM) {
                 Some(sql) => {
                     sqlx::query_scalar(&sql)
-                        .bind(*id)
+                        .bind(predicate_id(id))
                         .bind(data)
                         .fetch_optional(db)
                         .await
@@ -946,7 +974,7 @@ async fn mutate(
                 None => {
                     one(
                         db,
-                        &format!("SELECT {TEAM} FROM teams WHERE id::text=$1"),
+                        &format!("SELECT {TEAM} FROM teams WHERE id=$1"),
                         id,
                     )
                     .await
@@ -981,10 +1009,10 @@ async fn mutate(
             };
             keys.push(format!("{key}:{id}"));
             sqlx::query(&format!(
-                "DELETE FROM {table} WHERE year_id::text=$1 AND team_id::text=$2"
+                "DELETE FROM {table} WHERE year_id=$1 AND team_id=$2"
             ))
-            .bind(*id)
-            .bind(*team)
+            .bind(predicate_id(id))
+            .bind(predicate_id(team))
             .execute(db)
             .await
             .map(|_| Some(json!({"message":msg})))
@@ -998,8 +1026,8 @@ async fn mutate(
             ]);
             async {
                 for table in ["fish_weights", "chug_times", "golf_scores"] {
-                    sqlx::query(&format!("DELETE FROM {table} WHERE year_id::text=$1"))
-                        .bind(*id)
+                    sqlx::query(&format!("DELETE FROM {table} WHERE year_id=$1"))
+                        .bind(predicate_id(id))
                         .execute(db)
                         .await?;
                 }
@@ -1031,12 +1059,12 @@ async fn mutate(
             ) {
                 Some(sql) => {
                     sqlx::query_scalar(&sql)
-                        .bind(*id)
+                        .bind(predicate_id(id))
                         .bind(data)
                         .fetch_optional(db)
                         .await
                 }
-                None => one(db, &format!("SELECT {KAK} FROM kaks WHERE id::text=$1"), id).await,
+                None => one(db, &format!("SELECT {KAK} FROM kaks WHERE id=$1"), id).await,
             }
         }
         ("POST", ["api", "years", id, "tie-breaks"]) => {
@@ -1074,7 +1102,7 @@ async fn mutate(
             if delta != Some(0.5) {
                 return err(StatusCode::BAD_REQUEST, "deltaPoints must be 0.5");
             }
-            let existing = match many(db,"SELECT jsonb_build_object('id',id) FROM tie_break_adjustments WHERE year_id::text=$1",Some(id)).await { Ok(v) => v, Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR,message) };
+            let existing = match many_by_id(db,"SELECT jsonb_build_object('id',id) FROM tie_break_adjustments WHERE year_id=$1",id).await { Ok(v) => v, Err(_) => return err(StatusCode::INTERNAL_SERVER_ERROR,message) };
             if !existing.as_array().unwrap().is_empty() {
                 return err(
                     StatusCode::CONFLICT,
@@ -1112,8 +1140,8 @@ async fn mutate(
             inserted
         }
         ("DELETE", ["api", "years", id, "tie-breaks"]) => {
-            let deleted = sqlx::query("DELETE FROM tie_break_adjustments WHERE year_id::text=$1")
-                .bind(*id)
+            let deleted = sqlx::query("DELETE FROM tie_break_adjustments WHERE year_id=$1")
+                .bind(predicate_id(id))
                 .execute(db)
                 .await;
             match deleted {
@@ -1183,6 +1211,49 @@ mod tests {
     use super::*;
     use axum::body::to_bytes;
     use sqlx::postgres::PgPoolOptions;
+
+    #[tokio::test]
+    async fn batch_invalidation_removes_all_namespaced_entries() {
+        let entries = Arc::new(tokio::sync::Mutex::new(HashMap::from([
+            ("test:a".to_owned(), json!("1")),
+            ("test:b".to_owned(), json!("2")),
+            ("other:b".to_owned(), json!("3")),
+        ])));
+        let stored = entries.clone();
+        let router = Router::new().route("/", axum::routing::post(
+            move |headers: HeaderMap, Json(command): Json<Value>| {
+                let stored = stored.clone();
+                async move {
+                    let mut entries = stored.lock().await;
+                    let result = match command[0].as_str().unwrap() {
+                        "DEL" => {
+                            assert_eq!(command.as_array().unwrap().len(), 3);
+                            for key in command.as_array().unwrap().iter().skip(1) {
+                                entries.remove(key.as_str().unwrap());
+                            }
+                            json!(2)
+                        }
+                        "GET" => {
+                            assert_eq!(headers["upstash-sync-token"], "after-delete");
+                            entries.get(command[1].as_str().unwrap()).cloned().unwrap_or(Value::Null)
+                        }
+                        _ => panic!("unexpected command"),
+                    };
+                    ([("upstash-sync-token", "after-delete")], Json(json!({"result": result})))
+                }
+            },
+        ));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut state = state(Some(format!("http://{}", listener.local_addr().unwrap())));
+        state.cache_prefix = "test:".into();
+        let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        invalidate(&state, &["a".into(), "b".into()]).await.unwrap();
+        assert_eq!(cache_get(&state, "a").await, Ok(None));
+        assert_eq!(cache_get(&state, "b").await, Ok(None));
+        assert_eq!(entries.lock().await.get("other:b"), Some(&json!("3")));
+        invalidate(&state, &[]).await.unwrap();
+        server.abort();
+    }
 
     fn state(redis_url: Option<String>) -> AppState {
         AppState {

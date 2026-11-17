@@ -95,6 +95,13 @@ TEST_DATABASE_URL='postgresql://user:password@localhost:5432/kakcup_test' cargo 
 
 The integration tests create and drop a dedicated schema in that database.
 
+The Rust API batches multi-key cache invalidations into one Redis `DEL`, preserving
+namespace prefixes and sync-token ordering. Bcrypt verification runs on Tokio's
+blocking pool rather than an async worker. UUID lookups bind native UUID values
+so PostgreSQL can use existing indexes; malformed or noncanonical ID spellings
+retain their prior no-match behavior. These optimizations require no migration
+or environment changes.
+
 Score reads retry transient failures and retain already-loaded data in memory
 while the page remains open; score data is not persisted for offline reading.
 Score entry keeps unconfirmed operations in browser local storage without

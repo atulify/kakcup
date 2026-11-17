@@ -164,11 +164,22 @@ async fn login(State(state): State<Arc<AppState>>, body: Bytes) -> Response {
         }
     };
     let hash: Option<String> = row.get("password_hash");
-    if !hash
-        .as_deref()
-        .is_some_and(|hash| bcrypt::verify(password, hash).unwrap_or(false))
-    {
+    let Some(hash) = hash else {
         return error(StatusCode::UNAUTHORIZED, "message", "Invalid credentials");
+    };
+    // Keep CPU-intensive bcrypt verification off the async executor.
+    let password = password.to_owned();
+    match tokio::task::spawn_blocking(move || bcrypt::verify(password, &hash).unwrap_or(false))
+        .await
+    {
+        Ok(true) => {}
+        Ok(false) => {
+            return error(StatusCode::UNAUTHORIZED, "message", "Invalid credentials");
+        }
+        Err(err) => {
+            eprintln!("Login error: {err}");
+            return error(StatusCode::INTERNAL_SERVER_ERROR, "message", "Server error");
+        }
     }
     let exp = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(now) => now.as_secs() as usize + SESSION_SECONDS,

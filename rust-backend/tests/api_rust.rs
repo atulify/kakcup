@@ -51,6 +51,139 @@ async fn ids(db: &PgPool, table: &str) -> Vec<String> {
     .expect("fetch results")
 }
 
+async fn uuid_predicate_contract(
+    client: &Client,
+    base: &str,
+    cookie: &str,
+    user_id: &str,
+    year: &str,
+    team: &str,
+    kak: &str,
+) {
+    let nonmatching_ids = |id: &str| [
+        "not-a-uuid".to_owned(),
+        format!("{}g", &id[..35]),
+        "ffffffff-ffff-ffff-ffff-ffffffffffff".to_owned(),
+        id.to_ascii_uppercase(),
+        id.replace('-', ""),
+        format!("{{{id}}}"),
+        format!("urn:uuid:{id}"),
+        format!("{id}%20"),
+    ];
+    let year_path = format!("/api/years/{year}");
+    let response = request(client, base, Method::GET, &year_path, None, None).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.json::<Value>().await.unwrap()["id"], year);
+
+    // Both UPDATE and the no-fields SELECT fallback must preserve exact textual
+    // identity, rather than accepting alternate spellings understood by UUID parsers.
+    for (method, prefix, id, name, missing_status, message) in [
+        (Method::PATCH, "/api/years", year, "Fixture", StatusCode::INTERNAL_SERVER_ERROR, "Failed to update year"),
+        (Method::PUT, "/api/teams", team, "Alpha", StatusCode::INTERNAL_SERVER_ERROR, "Failed to update team"),
+        (Method::PATCH, "/api/kaks", kak, "Fixture A", StatusCode::NOT_FOUND, "KAK not found"),
+    ] {
+        for invalid in nonmatching_ids(id) {
+            for body in [json!({}), json!({"name":"Must not change"})] {
+                let response = request(
+                    client, base, method.clone(), &format!("{prefix}/{invalid}"),
+                    Some(cookie), Some(body),
+                ).await;
+                assert_eq!(response.status(), missing_status, "{prefix}/{invalid}");
+                assert_eq!(response.json::<Value>().await.unwrap()["error"], message);
+            }
+        }
+        for body in [json!({}), json!({"name":name})] {
+            let response = request(
+                client, base, method.clone(), &format!("{prefix}/{id}"),
+                Some(cookie), Some(body),
+            ).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let value: Value = response.json().await.unwrap();
+            assert_eq!(value["id"], id);
+            assert_eq!(value["name"], name);
+        }
+    }
+
+    for invalid in nonmatching_ids(year) {
+        let path = format!("/api/years/{invalid}");
+        for suffix in ["", "/tie-breaks"] {
+            let response = request(client, base, Method::GET, &format!("{path}{suffix}"), None, None).await;
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}{suffix}");
+            assert_eq!(response.json::<Value>().await.unwrap()["error"], "Year not found");
+        }
+        for event in ["teams", "fish-weights", "chug-times", "golf-scores"] {
+            let response = request(client, base, Method::GET, &format!("{path}/{event}"), None, None).await;
+            assert_eq!(response.status(), StatusCode::OK, "{path}/{event}");
+            assert_eq!(response.json::<Value>().await.unwrap(), json!([]));
+        }
+        for suffix in ["scores", "tie-breaks", "teams/not-a-uuid/fish-weights"] {
+            let response = request(
+                client, base, Method::DELETE, &format!("{path}/{suffix}"), Some(cookie), None,
+            ).await;
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            assert_eq!(response.json::<Value>().await.unwrap()["error"], "Year not found");
+        }
+        let response = request(
+            client, base, Method::PATCH, &path, Some(cookie), Some(json!({"status":"completed"})),
+        ).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response.json::<Value>().await.unwrap()["error"], "Year not found");
+
+        // The idempotent path has its own SELECT ... FOR UPDATE predicate.
+        for (index, event) in ["fish-weights", "chug-times", "golf-scores"].iter().enumerate() {
+            let url = format!("{base}{path}/{event}");
+            for idempotent in [false, true] {
+                let mut pending = client.post(&url).header("cookie", cookie)
+                    .json(&json!({"teamId":team,"weight":1,"average":5,"score":72}));
+                if idempotent {
+                    pending = pending
+                        .header("Idempotency-Key", format!("uuid-contract-{index}-{invalid}"))
+                        .header("x-score-user", user_id);
+                }
+                let response = pending.send().await.unwrap();
+                assert_eq!(response.status(), StatusCode::NOT_FOUND, "{url}");
+                assert_eq!(response.json::<Value>().await.unwrap()["error"], "Year not found");
+            }
+        }
+    }
+
+    // Keep real scores present while exercising both DELETE predicates: malformed
+    // and noncanonical team IDs remain successful no-ops, never deleting the row.
+    for (event, body, message) in [
+        ("fish-weights", json!({"teamId":team,"weight":1}), "Fish weights deleted successfully"),
+        ("chug-times", json!({"teamId":team,"average":5}), "Chug time deleted successfully"),
+        ("golf-scores", json!({"teamId":team,"score":72}), "Golf score deleted successfully"),
+    ] {
+        let path = format!("{year_path}/{event}");
+        let response = request(client, base, Method::POST, &path, Some(cookie), Some(body)).await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let score: Value = response.json().await.unwrap();
+        assert_eq!(score["yearId"], year);
+        assert_eq!(score["teamId"], team);
+        for invalid in nonmatching_ids(team) {
+            let response = request(
+                client, base, Method::DELETE,
+                &format!("{year_path}/teams/{invalid}/{event}"), Some(cookie), None,
+            ).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.json::<Value>().await.unwrap(), json!({"message":message}));
+        }
+        let response = request(client, base, Method::GET, &path, None, None).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let rows: Value = response.json().await.unwrap();
+        assert_eq!(rows.as_array().unwrap().len(), 1);
+        assert_eq!(rows[0]["teamId"], team);
+        let response = request(
+            client, base, Method::DELETE,
+            &format!("{year_path}/teams/{team}/{event}"), Some(cookie), None,
+        ).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = request(client, base, Method::GET, &path, None, None).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.json::<Value>().await.unwrap(), json!([]));
+    }
+}
+
 #[tokio::test]
 async fn api_contract_against_isolated_postgres() {
     let url = std::env::var("TEST_DATABASE_URL")
@@ -176,13 +309,13 @@ async fn api_contract_against_isolated_postgres() {
     sqlx::query("INSERT INTO users(username,password_hash,role) VALUES ('fixture-admin',$1,'admin'),('fixture-user',$1,'user')")
         .bind(password_hash).execute(&db).await.unwrap();
     let year: String = sqlx::query_scalar(
-        "INSERT INTO years(year,name,status) VALUES (2099,'Fixture','active') RETURNING id::text",
+        "INSERT INTO years(id,year,name,status) VALUES ('a0000000-0000-4000-8000-000000000001',2099,'Fixture','active') RETURNING id::text",
     )
     .fetch_one(&db)
     .await
     .unwrap();
     let kak_a: String =
-        sqlx::query_scalar("INSERT INTO kaks(name) VALUES ('Fixture A') RETURNING id::text")
+        sqlx::query_scalar("INSERT INTO kaks(id,name) VALUES ('c0000000-0000-4000-8000-000000000001','Fixture A') RETURNING id::text")
             .fetch_one(&db)
             .await
             .unwrap();
@@ -191,7 +324,7 @@ async fn api_contract_against_isolated_postgres() {
             .fetch_one(&db)
             .await
             .unwrap();
-    let team_a: String = sqlx::query_scalar("INSERT INTO teams(year_id,name,position,kak_1) VALUES ($1::uuid,'Alpha',1,$2::uuid) RETURNING id::text").bind(&year).bind(&kak_a).fetch_one(&db).await.unwrap();
+    let team_a: String = sqlx::query_scalar("INSERT INTO teams(id,year_id,name,position,kak_1) VALUES ('b0000000-0000-4000-8000-000000000001',$1::uuid,'Alpha',1,$2::uuid) RETURNING id::text").bind(&year).bind(&kak_a).fetch_one(&db).await.unwrap();
     let team_b: String = sqlx::query_scalar("INSERT INTO teams(year_id,name,position,kak_1) VALUES ($1::uuid,'Beta',2,$2::uuid) RETURNING id::text").bind(&year).bind(&kak_b).fetch_one(&db).await.unwrap();
     // Incomplete teams must not participate even when they have fish.
     let team_c: String = sqlx::query_scalar("INSERT INTO teams(year_id,name,position) VALUES ($1::uuid,'Incomplete',3) RETURNING id::text").bind(&year).fetch_one(&db).await.unwrap();
@@ -345,6 +478,7 @@ async fn api_contract_against_isolated_postgres() {
             .fetch_one(&db)
             .await
             .unwrap();
+    uuid_predicate_contract(&client, &base, &cookie, &admin_id, &year, &team_a, &kak_a).await;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
