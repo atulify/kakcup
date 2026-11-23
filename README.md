@@ -9,6 +9,11 @@ An annual tournament platform for tracking scores across three legendary KAK eve
 
 Built as a mobile-first PWA for use in the field — on the lake, on the course, and at the table.
 The Modern Tournament theme uses charcoal surfaces, orange accents, and compact score displays for desktop and mobile.
+The home page displays a charcoal Founders Crest above the year selector, with
+KAK CUP and Est. 1999 together in the shield's top section. A soft left-to-right
+studio-light sweep takes four seconds to cross, then pauses for five seconds.
+The reflection stays within the crest and is disabled when the device requests
+reduced motion.
 
 ## The Events
 

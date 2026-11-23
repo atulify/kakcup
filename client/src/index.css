@@ -190,6 +190,53 @@
     box-shadow: 0 0 0 1px var(--orange);
   }
 
+  /* The mask keeps the studio-light reflection on the crest, not its box. */
+  .home-crest {
+    position: relative;
+    width: min(100%, clamp(280px, 80vw, 360px));
+    margin: 0 auto 1.5rem;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.35));
+  }
+  .home-crest img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .home-crest__light {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask: url("/kak-cup-crest.svg") center / contain no-repeat;
+    mask: url("/kak-cup-crest.svg") center / contain no-repeat;
+  }
+  .home-crest__light::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 25%,
+      rgba(255, 243, 208, 0.08) 36%,
+      rgba(255, 250, 231, 0.4) 48%,
+      rgba(255, 255, 245, 0.55) 50%,
+      rgba(255, 243, 208, 0.12) 61%,
+      transparent 75%
+    );
+    transform: translateX(-110%);
+    animation: crest-studio-sweep 9s ease-in-out infinite;
+  }
+  @keyframes crest-studio-sweep {
+    0% { transform: translateX(-110%); }
+    44.444444%, 100% { transform: translateX(110%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .home-crest__light::after {
+      animation: none;
+      display: none;
+    }
+  }
+
   /* ── Year selector loading ring ── */
   .year-select-control {
     transition: opacity 0.16s ease 0.1s, border-color 0.2s, box-shadow 0.2s;

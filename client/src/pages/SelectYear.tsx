@@ -113,28 +113,15 @@ export default function SelectYear() {
       <main className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-lg text-center">
 
-          {/* Title */}
-          <div className="mb-2">
-            <h1
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(2.5rem, 8vw, 4.5rem)",
-                fontWeight: 900,
-                letterSpacing: "0.02em",
-                textTransform: "uppercase",
-                lineHeight: 1,
-                color: "var(--foreground)",
-              }}
-              data-testid="title-kak-cup"
-            >
-              KAK CUP
-            </h1>
-          </div>
-
-          {/* Subtitle */}
-          <div className="mb-6" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", letterSpacing: "0.08em", color: "var(--text-dim)", textTransform: "uppercase" }}>
-            Est. 1999
-          </div>
+          <h1 className="home-crest">
+            <img
+              src="/kak-cup-crest.svg"
+              alt="KAK Cup — Est. 1999"
+              width={320}
+              height={320}
+            />
+            <span className="home-crest__light" aria-hidden="true" />
+          </h1>
 
 
           {/* Year selector */}
